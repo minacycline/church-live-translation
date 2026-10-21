@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v21">
+<meta name="build" content="v22">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -216,7 +216,7 @@ textarea{min-height:120px;resize:vertical}
   var dlg=$('settings');
   $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;dlg.showModal()};
   $('close').onclick=function(){dlg.close()};
-  $('save').onclick=function(){FIELDS.forEach(function(k){S.set(k,String($(k).value).trim())});applyView();dlg.close();LIB=null;loadReadings();if(running){stop();start()}};
+  $('save').onclick=function(){FIELDS.forEach(function(k){S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;applyView();dlg.close();LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running){stop();start()}};
   $('clear').onclick=function(){lines=[];enEl.innerHTML='';render()};
 
   function pairs(key){
@@ -298,7 +298,7 @@ textarea{min-height:120px;resize:vertical}
       .then(function(res){
         var en=verseMap(res[0]),ar=verseMap(res[1]),pairsOut=[];
         Object.keys(ar).forEach(function(k){if(en[k]&&ar[k])pairsOut.push([ar[k],en[k]])});
-        S.set('autoReading',JSON.stringify({date:today(),title:res[0].title||'',pairs:pairsOut}));LIB=null;
+        S.set('autoReading',JSON.stringify({date:today(),title:res[0].title||'',pairs:pairsOut}));LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);
         readStatus=pairsOut.length?'Loaded for today ('+pairsOut.length+' verses). '+(res[0].title||''):'Nothing came back for today.';
         if($('readStatus'))$('readStatus').textContent=readStatus;
       }).catch(function(e){readStatus='Could not load today\'s readings ('+e.message+'). Paste them under Today\'s reading if you need them.';if($('readStatus'))$('readStatus').textContent=readStatus});
@@ -336,7 +336,7 @@ textarea{min-height:120px;resize:vertical}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
   function render(){
     var shown=lines.slice(-MAXL);
-    if(!lines.length){enEl.innerHTML='<div class="empty">Tap the title to change it. Press Start when the priest begins.</div>';shownIds=[];return}
+    if(!lines.length){enEl.innerHTML=running?'':'<div class="empty">Tap the title to change it. Press Start when the priest begins.</div>';shownIds=[];return}
     shown.forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
     var keep={};shown.forEach(function(l){keep[l.id]=1});
     Array.prototype.slice.call(enEl.children).forEach(function(el){
@@ -375,7 +375,7 @@ textarea{min-height:120px;resize:vertical}
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
   function setStatus(t){
     dbg('STATUS '+t);
-    if(typeof running!=='undefined'&&running&&PROBLEM_RE.test(t)&&!/^Listening/.test(t)){problemText=t;var d=$('dot');d&&d.classList.add('warn');return}
+    if(typeof running!=='undefined'&&running&&PROBLEM_RE.test(t)&&!/^Listening/.test(t)){problemText=t;problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');return}
     if(/^Listening/.test(t)&&typeof running!=='undefined'&&running){var dd=$('dot');if(dd&&Date.now()-problemAt>8000){dd.classList.remove('warn');problemText=''}}
     $('status').textContent=t;
   }
@@ -480,7 +480,7 @@ textarea{min-height:120px;resize:vertical}
     try{
       var cur=(document.querySelector('meta[name=build]')||{}).content;if(!cur)return;
       var r=await fetch(location.pathname+'?c='+Date.now(),{cache:'no-store'}),h=await r.text(),m=/name="build" content="([^"]+)"/.exec(h);
-      if(m&&m[1]!==cur&&!running){var seen='';try{seen=sessionStorage.getItem('upd')||''}catch(e){}if(seen!==m[1]){try{sessionStorage.setItem('upd',m[1])}catch(e){}location.replace(location.pathname+'?v='+Date.now());return}showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
+      if(m&&m[1]!==cur&&!running){var seen='';try{seen=sessionStorage.getItem('upd')||''}catch(e){}if(seen!==m[1]){try{sessionStorage.setItem('upd',m[1])}catch(e){}location.replace(location.pathname+'?v='+Date.now());return}showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){$('alert').onclick=function(){showAlert('')};location.replace(location.pathname+'?v='+Date.now())}}
     }catch(e){}
   }
   async function fetchR(url,opts,ms){
@@ -549,7 +549,7 @@ textarea{min-height:120px;resize:vertical}
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -596,7 +596,7 @@ textarea{min-height:120px;resize:vertical}
   function txWrite(list){
     list.sort(function(a,b){return a.start-b.start});
     while(list.length>10)list.shift();
-    for(;;){var str=JSON.stringify(list);if(str.length<3000000||list.length<=1){try{S.set('transcripts',str);break}catch(e){}}list.shift();if(!list.length)break}
+    for(;;){var str=JSON.stringify(list);if(str.length<1200000||list.length<=1){try{localStorage.setItem('transcripts',str);break}catch(e){dbg('transcript save failed, trimming')}}if(list.length<=1)break;list.shift()}
   }
   function txBegin(){
     var list=txAll(),last=list[list.length-1];
@@ -687,9 +687,9 @@ textarea{min-height:120px;resize:vertical}
   }
   function whisperPrompt(){
     var terms=[],len=0;
-    nameTerms().forEach(function(a){if(len>420)return;terms.push(a);len+=a.length+2});
-    var notes=S.get('notes','').trim().slice(0,200);
-    var tail=lastText.slice(-160);
+    nameTerms().forEach(function(a){if(len>150)return;terms.push(a);len+=a.length+2});
+    var notes=S.get('notes','').trim().slice(0,100);
+    var tail=lastText.slice(-120);
     return [terms.join('، '),notes,tail].filter(Boolean).join('. ');
   }
   // Whisper sometimes invents text on near-silence: echoes the hint list, loops one word, or writes English/subtitle filler
@@ -737,10 +737,10 @@ textarea{min-height:120px;resize:vertical}
       var lead=/^(و|ل|ب|ف|ال|وال|بال|لل)/.exec(n),core=n,pre='';
       for(var k=0;k<names.length;k++){if(names[k][0]===n)return w}
       var best=null,bd=9;
-      names.forEach(function(p){var d=editDist(n,p[0]);if(d<bd){bd=d;best=p}
+      names.forEach(function(p){var d=editDist(n,p[0]);if(d<bd){bd=d;best=p;pre=''}
         if(lead){var d2=editDist(n.slice(lead[0].length),p[0]);if(d2<bd&&n.length-lead[0].length>=5){bd=d2;best=p;pre=lead[0]}}});
       var allow=(n.length>=7&&best&&best[0].length>=7&&Math.abs((pre?n.length-pre.length:n.length)-best[0].length)<=1)?2:1;
-      if(best&&bd===1&&n.length<=6&&(pre?n.slice(pre.length):n)[0]!==best[0][0])best=null; // short words must at least start with the same letter
+      if(best&&bd>0&&(pre?n.slice(pre.length):n)[0]!==best[0][0])best=null; // must start with the same letter // short words must at least start with the same letter
       if(best&&bd<=allow&&bd>0){var keepPre=pre&&bd===editDist(n.slice(pre.length),best[0])?w.slice(0,pre.length):'';return keepPre+best[1]}
       return w;
     }).join('');
@@ -820,12 +820,13 @@ textarea{min-height:120px;resize:vertical}
     }).catch(function(){}).then(function(){interimBusy=false});
   }
   var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false,lastHearMs=0;
-  var hearInFlight=0,hearWaiters=[];
+  var hearInFlight=0,hearWaiters=[],heldChunks=[],heldTimer=null;
+  function flushHeld(){heldTimer=null;if(!running){heldChunks=[];return}if(Date.now()<whisperBlockedUntil){heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300));return}var h=heldChunks;heldChunks=[];dbg('resending '+h.length+' held pieces');h.forEach(function(c){sendChunk(c[0],c[1])})}
   function hearSlot(){if(hearInFlight<3){hearInFlight++;return Promise.resolve()}return new Promise(function(r){hearWaiters.push(r)})}
   function hearFree(){var w=hearWaiters.shift();if(!w)hearInFlight=Math.max(0,hearInFlight-1);else w()}
   function sendChunk(samples,speechSec){
     if(speechSec<0.6||samples.length<16000*0.8){dbg('CHUNK dropped (too little speech) '+(samples.length/16000).toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');return}
-    if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
+    if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');if(heldChunks.length<6){heldChunks.push([samples,speechSec]);if(!heldTimer)heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300))}return}
     var secs=samples.length/16000;dbg('CHUNK sent '+secs.toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
@@ -873,7 +874,7 @@ textarea{min-height:120px;resize:vertical}
     var sp=speechSamples/SR16;
     if(energy.length>8){var me=0;energy.forEach(function(x){me+=x});me/=energy.length;if(sp<0.6&&me>Math.max(0.0015,noiseFloor*2.5)&&send.length>SR16*1.5)sp=Math.max(sp,0.8)} // loud overall: it is speech
     buf=[rest.slice()];bufLen=rest.length;energy=energy.slice(-Math.round(OVERLAP/SR16*1000/FRAME_MS)-1);
-    speechSamples=0;chunkMs=rest.length/SR16*1000;
+    speechSamples=atQuietest?Math.round(rest.length*0.5):0;chunkMs=rest.length/SR16*1000;
     sendChunk(send,sp);
     if(sp<0.7){liveEn='';liveGen++;render()}
   }
@@ -887,17 +888,20 @@ textarea{min-height:120px;resize:vertical}
       stream=null;ctx=null;proc=null;src=null;vadOk=false;vadQ=[];
       await new Promise(function(r){setTimeout(r,400)});
       if(!running)return;
-      var ok=await startWhisper();
+      var ok=await startWhisper(true);
       if(ok&&running)setStatus('Listening again. Heard '+heardCount+' pieces');
       else if(running){setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
     }finally{if(restarting&&running!==false)restarting=false}
   }
-  async function startWhisper(){
+  async function startWhisper(retrying){
+    var direct=S.get('micMode','room')==='direct';
+    var pre=new (window.AudioContext||window.webkitAudioContext)(); // created inside the tap so iOS allows sound; recreated after the mic is open so the rate matches
+    try{if(pre.state==='suspended')pre.resume()}catch(e){}
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:!direct,autoGainControl:!direct}})}
+    catch(e){try{pre.close()}catch(e2){}if(retrying){dbg('mic open failed on retry: '+(e&&e.name));return false}running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return false}
+    try{pre.close()}catch(e){}
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
-    var direct=S.get('micMode','room')==='direct';
-    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:!direct,autoGainControl:!direct}})}
-    catch(e){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');try{ctx.close()}catch(e2){}return false}
     if(ctx.state==='suspended'){try{await ctx.resume()}catch(e){}}
     src=ctx.createMediaStreamSource(stream);proc=ctx.createScriptProcessor(2048,1,1);
     var hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=85;hp.Q.value=0.7;
@@ -913,9 +917,9 @@ textarea{min-height:120px;resize:vertical}
     }
     FRAME_MS=2048/ctx.sampleRate*1000;audioFrames=0;clearTimeout(audioCheck);
     audioCheck=setTimeout(function(){if(running&&audioFrames===0){setStatus('No sound is reaching the app. Tap the screen once, or close the app fully and open it again.');try{ctx.resume()}catch(e){}}},4000);
-    var kick=function(){try{if(ctx&&ctx.state!=='running')ctx.resume()}catch(e){}};document.addEventListener('touchend',kick);document.addEventListener('click',kick);
-    document.addEventListener('visibilitychange',kick);try{ctx.onstatechange=kick}catch(e){}
-    try{stream.getTracks().forEach(function(tr){tr.onended=function(){if(running)restartAudio('The microphone was interrupted')}})}catch(e){}
+    var kick=function(){try{if(ctx&&ctx.state!=='running')ctx.resume()}catch(e){}};if(!window.__kickOn){window.__kickOn=1;document.addEventListener('touchend',kick);document.addEventListener('click',kick);}
+    if(window.__kickOn===1){window.__kickOn=2;document.addEventListener('visibilitychange',kick)}try{ctx.onstatechange=kick}catch(e){}
+    try{stream.getTracks().forEach(function(tr){tr.onended=function(){if(running)restartAudio('The microphone was interrupted')};tr.onmute=function(){setTimeout(function(){if(running&&tr.muted)restartAudio('The microphone was muted')},2500)}})}catch(e){}
     clearInterval(audioWatch);var lastF=-1,stuck=0;
     audioWatch=setInterval(function(){
       if(!running)return;
@@ -924,7 +928,6 @@ textarea{min-height:120px;resize:vertical}
       if(audioFrames===lastF&&sr2On){sr2Dead=true;stopPreviewSR();setStatus('Instant preview is off on this device (it blocked the microphone).')}
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
-      if(hearStart&&Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[]} // a stuck request must not block the rest
     },1500);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
@@ -1001,7 +1004,7 @@ textarea{min-height:120px;resize:vertical}
   function stop(){
     running=false;ui();if($('meter')){$('meter').firstChild.style.width='0';$('meter').classList.remove('voice')}clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
     try{rec&&rec.stop()}catch(e){}
-    if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
+    if(proc&&speechSamples/SR16>0.7&&usedToday()<num('dailyCap',240)*60){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
     vadOk=false;vadQ=[];liveEn='';liveGen++;stopPreviewSR();
     clearInterval(audioWatch);hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[];restarting=false;
@@ -1009,7 +1012,7 @@ textarea{min-height:120px;resize:vertical}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
     try{wake&&wake.release()}catch(e){}
-    setTimeout(function(){txSave(true);txId=null},4000); // wait for the last sentences to finish translating
+    var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');
   }
   $('go').onclick=function(){running?stop():start()};
