@@ -369,12 +369,17 @@ textarea{min-height:120px;resize:vertical}
     if(cx.length)out+='\n\nIn church context these words usually mean the following; use it when it fits the sentence:\n'+cx.join('\n');
     return out;
   }
+  function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
+    var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||20000);
+    opts=opts||{};if(c)opts.signal=c.signal;
+    return fetch(url,opts).then(function(r){clearTimeout(tm);return r},function(e){clearTimeout(tm);throw e});
+  }
   async function groq(ar,alts,prevItem){
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
     var g=groqGlossary(ar,prev);
-    var r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+    var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
       body:JSON.stringify({model:'llama-3.3-70b-versatile',temperature:0.2,max_tokens:300,messages:[
         {role:'system',content:SYS+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
@@ -396,7 +401,7 @@ textarea{min-height:120px;resize:vertical}
     return out;
   }
   async function quick(ar){
-    var r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+    var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
       body:JSON.stringify({model:'llama-3.1-8b-instant',temperature:0,max_tokens:200,messages:[
         {role:'system',content:'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). Output only the English, nothing else.'+groqGlossary(ar,'')},
@@ -574,8 +579,8 @@ textarea{min-height:120px;resize:vertical}
     fd.append('file',blob,'a.wav');
     fd.append('model','whisper-large-v3');if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
-    var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
-    if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);whisperBlockedUntil=Date.now()+Math.min(Math.max(ra,5),3600)*1000;throw new Error('hearing limit reached, waiting '+Math.min(Math.max(ra,5),3600)+' s')}
+    var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
     if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;throw new Error('key not accepted')}
     var j=await r.json();
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
@@ -586,7 +591,7 @@ textarea{min-height:120px;resize:vertical}
     var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model','whisper-large-v3');
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
-    var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){interimBlockedUntil=Date.now()+30000;throw new Error('limit')}
     if(!r.ok)throw new Error('http '+r.status);
     return ((await r.json()).text||'').trim();
@@ -604,7 +609,7 @@ textarea{min-height:120px;resize:vertical}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
     }).catch(function(){}).then(function(){interimBusy=false});
   }
-  var hearQueue=Promise.resolve(),heardCount=0;
+  var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false;
   function sendChunk(samples,speechSec){
     if(speechSec<0.7||samples.length<16000*0.9)return;
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
@@ -612,10 +617,11 @@ textarea{min-height:120px;resize:vertical}
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
-    hearQueue=hearQueue.then(function(){return whisper(blob)}).then(function(t){
+    hearPending++;hearStart=Date.now();
+    hearQueue=hearQueue.then(function(){hearStart=Date.now();return whisper(blob)}).then(function(t){hearPending=Math.max(0,hearPending-1);
       t=cleanHeard(t);if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
-    }).catch(function(e){setStatus('Hearing problem: '+e.message)});
+    }).catch(function(e){hearPending=Math.max(0,hearPending-1);setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
@@ -649,6 +655,20 @@ textarea{min-height:120px;resize:vertical}
     if(sp<0.7){liveEn='';liveGen++;render()}
   }
 
+  async function restartAudio(why){
+    if(restarting||!running)return;restarting=true;
+    try{
+      setStatus(why+', reconnecting the microphone…');
+      try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
+      try{stream&&stream.getTracks().forEach(function(tr){tr.onended=null;tr.stop()})}catch(e){}
+      stream=null;ctx=null;proc=null;src=null;vadOk=false;vadQ=[];
+      await new Promise(function(r){setTimeout(r,400)});
+      if(!running)return;
+      var ok=await startWhisper();
+      if(ok&&running)setStatus('Listening again. Heard '+heardCount+' pieces');
+      else if(running){setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
+    }finally{if(restarting&&running!==false)restarting=false}
+  }
   async function startWhisper(){
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
@@ -671,6 +691,15 @@ textarea{min-height:120px;resize:vertical}
     FRAME_MS=2048/ctx.sampleRate*1000;audioFrames=0;clearTimeout(audioCheck);
     audioCheck=setTimeout(function(){if(running&&audioFrames===0){setStatus('No sound is reaching the app. Tap the screen once, or close the app fully and open it again.');try{ctx.resume()}catch(e){}}},4000);
     var kick=function(){try{if(ctx&&ctx.state!=='running')ctx.resume()}catch(e){}};document.addEventListener('touchend',kick);document.addEventListener('click',kick);
+    document.addEventListener('visibilitychange',kick);try{ctx.onstatechange=kick}catch(e){}
+    try{stream.getTracks().forEach(function(tr){tr.onended=function(){if(running)restartAudio('The microphone was interrupted')}})}catch(e){}
+    clearInterval(audioWatch);var lastF=-1,stuck=0;
+    audioWatch=setInterval(function(){
+      if(!running)return;
+      if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
+      lastF=audioFrames;
+      if(Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0} // a stuck request must not block the rest
+    },1500);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
@@ -742,6 +771,7 @@ textarea{min-height:120px;resize:vertical}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
     vadOk=false;vadQ=[];liveEn='';liveGen++;
+    clearInterval(audioWatch);hearPending=0;restarting=false;
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
