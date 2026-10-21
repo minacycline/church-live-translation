@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v19">
+<meta name="build" content="v20">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -467,8 +467,14 @@ textarea{min-height:120px;resize:vertical}
     try{
       var cur=(document.querySelector('meta[name=build]')||{}).content;if(!cur)return;
       var r=await fetch(location.pathname+'?c='+Date.now(),{cache:'no-store'}),h=await r.text(),m=/name="build" content="([^"]+)"/.exec(h);
-      if(m&&m[1]!==cur&&!running){showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
+      if(m&&m[1]!==cur&&!running){var seen='';try{seen=sessionStorage.getItem('upd')||''}catch(e){}if(seen!==m[1]){try{sessionStorage.setItem('upd',m[1])}catch(e){}location.replace(location.pathname+'?v='+Date.now());return}showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
     }catch(e){}
+  }
+  async function fetchR(url,opts,ms){
+    try{var r=await fetchT(url,opts,ms);if(r.status<500)return r;dbg('RETRY after server '+r.status)}
+    catch(e){dbg('RETRY after '+(e.name||'error'))}
+    await new Promise(function(x){setTimeout(x,1200)});
+    return fetchT(url,opts,ms);
   }
   function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
     var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||12000);
@@ -480,7 +486,7 @@ textarea{min-height:120px;resize:vertical}
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
     var g=groqGlossary(ar,prev);
-    var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+    var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
       body:chatBody(MODELS.chat,[
         {role:'system',content:SYS+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
@@ -504,7 +510,7 @@ textarea{min-height:120px;resize:vertical}
   }
   function cleanLLM(s){return (s||'').replace(/<think>[\s\S]*?<\/think>/g,'').replace(/^```(?:json)?\s*|\s*```$/g,'').trim()}
   async function quick(ar){
-    var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+    var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
       body:chatBody(MODELS.fast,[
         {role:'system',content:'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). Output only the English, nothing else.'+groqGlossary(ar,'')},
@@ -528,7 +534,7 @@ textarea{min-height:120px;resize:vertical}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
     if(useAI)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){}); // fast first draft, replaced by the careful version
     queue=queue.then(function(){
-      if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
+      if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
@@ -731,7 +737,7 @@ textarea{min-height:120px;resize:vertical}
     fd.append('file',blob,'a.wav');
     fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
-    var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
     if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;throw new Error('key not accepted')}
     var j=await r.json();
@@ -743,7 +749,7 @@ textarea{min-height:120px;resize:vertical}
     var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model',MODELS.asrFast); // faster model with its own free allowance, only for the running preview
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
-    var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){interimBlockedUntil=Date.now()+20000;throw new Error('limit')}
     if(!r.ok)throw new Error('http '+r.status);
     return ((await r.json()).text||'').trim();
@@ -803,7 +809,7 @@ textarea{min-height:120px;resize:vertical}
     var blob=wavBlob(samples);liveGen++;
     hearPending++;var sent=Date.now();if(!hearStart)hearStart=sent;
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
-    var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
+    var p=hearSlot().then(function(){return whisper(blob).catch(function(e){if(/limit reached/.test(e.message)){var w=Math.max(0,whisperBlockedUntil-Date.now());if(w>0&&w<25000)return new Promise(function(x){setTimeout(x,w+200)}).then(function(){return whisper(blob)})}throw e})}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
       lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
@@ -889,6 +895,8 @@ textarea{min-height:120px;resize:vertical}
     clearInterval(audioWatch);var lastF=-1,stuck=0;
     audioWatch=setInterval(function(){
       if(!running)return;
+      var tn=Date.now();if(tn-(window.__modelsAt||tn)>20*60000){window.__modelsAt=tn;loadModels()}
+      if(!wake||wake.released){try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(function(w){wake=w}).catch(function(){})}catch(e){}}
       if(audioFrames===lastF&&sr2On){sr2Dead=true;stopPreviewSR();setStatus('Instant preview is off on this device (it blocked the microphone).')}
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
