@@ -49,8 +49,9 @@ footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
 #go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
 #go.stop{background:var(--red);color:var(--fg)}
 #status{color:var(--dim);font-size:15px;min-width:0;font-style:italic}
-#meter{width:70px;height:8px;border:1px solid var(--gold);border-radius:4px;overflow:hidden;flex:none;opacity:.8}
-#meter i{display:block;height:100%;width:0;background:var(--dim);transition:width .08s}
+#meter{width:120px;height:12px;border:1px solid var(--gold);border-radius:6px;overflow:hidden;flex:none;opacity:.9;background:rgba(0,0,0,.25)}
+#meter i{display:block;height:100%;width:0;background:var(--gold);opacity:.55;transition:width .06s}
+#meter.voice i{opacity:1}
 #meter.voice i{background:var(--green)}
 dialog{background:var(--panel);color:var(--fg);border:1px solid var(--gold2);border-radius:14px;width:min(680px,94vw);max-height:90vh;padding:22px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
 dialog::backdrop{background:rgba(0,0,0,.65)}
@@ -177,7 +178,6 @@ textarea{min-height:120px;resize:vertical}
 <script src="terms.js"></script>
 <script src="liturgy.js"></script>
 <script src="vad/ort.wasm.min.js"></script>
-<script src="vad/bundle.min.js"></script>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
@@ -504,18 +504,34 @@ textarea{min-height:120px;resize:vertical}
   // ---- speech: Whisper through Groq, or the iPad's own recognizer ----
   var running=false,rec=null,wake=null,maxTimer=null,restartTimer=null,lastResult=0,watchdog=null;
   var ctx=null,stream=null,proc=null,src=null,lastText='',whisperBlockedUntil=0,lastSpeechAt=0,idleTimer=null;
-  var micVad=null,vadProb=0,vadAt=0,vadOk=false,vadHeard=0;
-  async function startVad(dest){
-    vadOk=false;vadProb=0;vadHeard=0;
-    if(!window.vad||!window.vad.MicVAD||!window.ort)return;
+  // Silero voice detector, fed straight from our own audio samples (no second microphone source: Safari dislikes that)
+  var vadSess=null,vadState=null,vadSr=null,vadCtx=null,vadQ=[],vadBusy=false,vadProb=0,vadAt=0,vadOk=false,vadHeard=0,vadTail=new Float32Array(0);
+  async function startVad(){
+    vadOk=false;vadProb=0;vadHeard=0;vadQ=[];vadTail=new Float32Array(0);
+    if(!window.ort)return;
     try{
-      window.ort.env.wasm.numThreads=1;
-      micVad=await window.vad.MicVAD.new({audioContext:ctx,getStream:async function(){return stream},model:'v5',baseAssetPath:new URL('vad/',location.href).href,onnxWASMBasePath:new URL('vad/',location.href).href,startOnLoad:false,
-        positiveSpeechThreshold:S.get('noise','normal')==='noisy'?0.75:0.6,negativeSpeechThreshold:0.4,redemptionMs:400,minSpeechMs:200,preSpeechPadMs:200,
-        onFrameProcessed:function(p){vadProb=p.isSpeech;vadAt=Date.now();if(p.isSpeech>0.5)vadHeard=vadAt},onSpeechStart:function(){},onSpeechEnd:function(){},onVADMisfire:function(){}});
-      await micVad.start();vadOk=true;
+      window.ort.env.wasm.numThreads=1;window.ort.env.wasm.wasmPaths=new URL('vad/',location.href).href;
+      vadSess=vadSess||await window.ort.InferenceSession.create(new URL('vad/silero_vad_v5.onnx',location.href).href);
+      vadState=new window.ort.Tensor('float32',new Float32Array(256),[2,1,128]);vadSr=new window.ort.Tensor('int64',[BigInt(16000)]);vadCtx=new Float32Array(64);
+      vadOk=true;
       if(running&&/^Listening \(Whisper\)/.test($('status').textContent))setStatus($('status').textContent.replace('(Whisper)','(Whisper, voice detector on)'));
-    }catch(e){vadOk=false;micVad=null}
+    }catch(e){vadOk=false}
+  }
+  function vadFeed(s16){
+    if(!vadOk)return;
+    var all=new Float32Array(vadTail.length+s16.length);all.set(vadTail,0);all.set(s16,vadTail.length);
+    var i=0;for(;i+512<=all.length;i+=512)vadQ.push(all.slice(i,i+512));
+    vadTail=all.slice(i);
+    while(vadQ.length>8)vadQ.shift(); // stay real-time: drop old frames if the model falls behind
+    vadPump();
+  }
+  function vadPump(){
+    if(vadBusy||!vadQ.length||!vadOk)return;
+    vadBusy=true;var frame=vadQ.shift(),withCtx=new Float32Array(576);withCtx.set(vadCtx,0);withCtx.set(frame,64);vadCtx=frame.slice(-64);
+    vadSess.run({input:new window.ort.Tensor('float32',withCtx,[1,576]),state:vadState,sr:vadSr}).then(function(out){
+      vadState=out.stateN;var p=out.output.data[0];vadProb=p;vadAt=Date.now();if(p>0.5)vadHeard=vadAt;
+      vadBusy=false;vadPump();
+    }).catch(function(){vadBusy=false;vadOk=false});
   }
   function ui(){$('go').textContent=running?'Stop':'Start';$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running)}
   function useWhisper(){return S.get('engine','whisper')==='whisper'&&!!S.get('groqKey','')}
@@ -573,10 +589,11 @@ textarea{min-height:120px;resize:vertical}
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
     return out;
   }
-  var meterAt=0,meterEl=null;
+  var meterAt=0,meterEl=null,audioFrames=0,audioCheck=null;
   function meterTick(rms,voice,now){
     if(now-meterAt<90)return;meterAt=now;meterEl=meterEl||$('meter');if(!meterEl)return;
-    meterEl.firstChild.style.width=Math.min(100,Math.round(Math.sqrt(Math.min(rms,0.25)/0.25)*100))+'%';meterEl.classList.toggle('voice',!!voice);
+    var db=20*Math.log10(Math.max(rms,1e-5)),pct=Math.max(0,Math.min(100,Math.round((db+52)/44*100))); // -52 dB (silence) to -8 dB (very loud)
+    meterEl.firstChild.style.width=pct+'%';meterEl.classList.toggle('voice',!!voice);
   }
   function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
   function cutChunk(atQuietest){
@@ -606,14 +623,16 @@ textarea{min-height:120px;resize:vertical}
     var lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=4800;lp.Q.value=0.7;
     var an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0.2;var spec=new Float32Array(an.frequencyBinCount),binHz=ctx.sampleRate/an.fftSize;
     src.connect(hp);hp.connect(lp);lp.connect(an);lp.connect(proc);proc.connect(ctx.destination);
-    var dest=ctx.createMediaStreamDestination();lp.connect(dest);startVad(dest);
+    startVad();
     var noisy=S.get('noise','normal')==='noisy';
     function voiceBand(){
       an.getFloatFrequencyData(spec);var low=0,high=0;
       for(var i=1;i<spec.length;i++){var hz=i*binHz,pw=Math.pow(10,spec[i]/10);if(hz>=85&&hz<1000)low+=pw;else if(hz>=1000&&hz<5000)high+=pw}
       return low/(low+high+1e-12);
     }
-    FRAME_MS=2048/ctx.sampleRate*1000;
+    FRAME_MS=2048/ctx.sampleRate*1000;audioFrames=0;clearTimeout(audioCheck);
+    audioCheck=setTimeout(function(){if(running&&audioFrames===0){setStatus('No sound is reaching the app. Tap the screen once, or close the app fully and open it again.');try{ctx.resume()}catch(e){}}},4000);
+    var kick=function(){try{if(ctx&&ctx.state!=='running')ctx.resume()}catch(e){}};document.addEventListener('touchend',kick);document.addEventListener('click',kick);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
@@ -626,7 +645,7 @@ textarea{min-height:120px;resize:vertical}
       if(rms<noiseFloor*1.5||rms<0.003)noiseFloor=noiseFloor*0.95+rms*0.05;
       else if(!voice&&(!vadTrusted||vadProb<0.3))noiseFloor=Math.min(noiseFloor*1.01,0.012); // steady non-voice sound (fan, hum): adapt up slowly
       meterTick(rms,voice,now);
-      var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;
+      var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;vadFeed(s16);
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;
       if(spoken>900&&sinceVoiceMs>420&&chunkMs>1800)cutChunk(false);           // natural pause
@@ -684,7 +703,7 @@ textarea{min-height:120px;resize:vertical}
     try{rec&&rec.stop()}catch(e){}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
-    try{if(micVad){micVad.destroy?micVad.destroy():micVad.pause()}}catch(e){}micVad=null;vadOk=false;
+    vadOk=false;vadQ=[];
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
