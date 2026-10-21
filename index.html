@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="build" content="v15">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -161,6 +162,8 @@ textarea{min-height:120px;resize:vertical}
   </div>
   <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
   <label for="testfile">Test with a recording</label>
+  <div class="actions"><button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div class="help">If something goes wrong, press this right after, then paste into a message to Claude. It lists what the app heard and how long each step took (no audio, no key).</div>
   <input id="testfile" type="file" accept="audio/*,video/*">
   <div class="help">Pick a recording of the priest. It runs through the same hearing and translation, so you can check the result and correct it under ✎. Needs the Groq key. Counts toward the daily limit.</div>
   <div class="actions">
@@ -347,7 +350,13 @@ textarea{min-height:120px;resize:vertical}
     while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
   }
   window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
-  function setStatus(t){$('status').textContent=t}
+  var DBG=[],DBG0=Date.now();
+  function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
+  function dbgReport(){
+    return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
+      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+  }
+  function setStatus(t){$('status').textContent=t;dbg('STATUS '+t)}
 
   // ---- free translation (MyMemory) ----
   function chunk(t){var w=t.split(/\s+/),out=[],cur='';w.forEach(function(x){if((cur+' '+x).length>450){out.push(cur);cur=x}else cur=cur?cur+' '+x:x});if(cur)out.push(cur);return out}
@@ -429,7 +438,7 @@ textarea{min-height:120px;resize:vertical}
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -457,6 +466,11 @@ textarea{min-height:120px;resize:vertical}
     renderTx();rdlg.showModal();
   }
   $('reviewBtn').onclick=openReview;
+  $('dbgBtn').onclick=function(){
+    var txt=dbgReport(),b=$('dbgBtn');
+    var done=function(ok){b.textContent=ok?'Copied. Paste it into your message.':'Select and copy from the box below';if(!ok){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='width:100%;height:160px;margin-top:8px';b.parentNode.appendChild(ta);ta.focus();ta.select()}setTimeout(function(){b.textContent='Copy debug report'},4000)};
+    try{navigator.clipboard.writeText(txt).then(function(){done(true)},function(){done(false)})}catch(e){done(false)}
+  };
   // ---- transcripts: saved automatically on this iPad, last 10 services kept ----
   var txId=null,txTimer=null,PAGE=Date.now().toString(36);
   function txAll(){try{return JSON.parse(S.get('transcripts','[]'))||[]}catch(e){return []}}
@@ -643,7 +657,7 @@ textarea{min-height:120px;resize:vertical}
       sr2.onresult=function(e){
         var txt='';for(var i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript+' ';
         txt=txt.trim();if(!txt)return;
-        sr2Text=txt;arEl.textContent=txt;
+        sr2Text=txt;arEl.textContent=txt;dbg('PHONE-SR '+txt.slice(-50));
         clearTimeout(sr2Timer);sr2Timer=setTimeout(previewTranslate,250);
       };
       sr2.onerror=function(e){if(e.error==='not-allowed'||e.error==='service-not-allowed'){sr2Dead=true;sr2On=false}};
@@ -680,9 +694,9 @@ textarea{min-height:120px;resize:vertical}
   function hearSlot(){if(hearInFlight<3){hearInFlight++;return Promise.resolve()}return new Promise(function(r){hearWaiters.push(r)})}
   function hearFree(){var w=hearWaiters.shift();if(!w)hearInFlight=Math.max(0,hearInFlight-1);else w()}
   function sendChunk(samples,speechSec){
-    if(speechSec<0.6||samples.length<16000*0.8)return;
+    if(speechSec<0.6||samples.length<16000*0.8){dbg('CHUNK dropped (too little speech) '+(samples.length/16000).toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');return}
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
-    var secs=samples.length/16000;
+    var secs=samples.length/16000;dbg('CHUNK sent '+secs.toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
@@ -690,7 +704,7 @@ textarea{min-height:120px;resize:vertical}
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
     var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
-      lastHearMs=Date.now()-sent;t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
+      lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
@@ -704,6 +718,12 @@ textarea{min-height:120px;resize:vertical}
     return out;
   }
   var meterAt=0,meterEl=null,audioFrames=0,audioCheck=null;
+  var dA={n:0,v:0,sum:0,max:0,at:0};
+  function dbgAudio(rms,voice,thresh,now){
+    dA.n++;if(voice)dA.v++;dA.sum+=rms;if(rms>dA.max)dA.max=rms;
+    if(!dA.at)dA.at=now;
+    if(now-dA.at>=3000){dbg('audio frames '+dA.n+' voiced '+Math.round(dA.v/dA.n*100)+'% avg '+(dA.sum/dA.n).toFixed(4)+' max '+dA.max.toFixed(4)+' floor '+noiseFloor.toFixed(4)+' thresh '+thresh.toFixed(4)+' chunk '+(chunkMs/1000).toFixed(1)+'s spoken '+(speechSamples/SR16).toFixed(1)+'s ctx '+(ctx?ctx.state:'none'));dA={n:0,v:0,sum:0,max:0,at:now}}
+  }
   function meterTick(rms,voice,now){
     if(now-meterAt<90)return;meterAt=now;meterEl=meterEl||$('meter');if(!meterEl)return;
     var db=20*Math.log10(Math.max(rms,1e-5)),pct=Math.max(0,Math.min(100,Math.round((db+52)/44*100))); // -52 dB (silence) to -8 dB (very loud)
@@ -779,12 +799,12 @@ textarea{min-height:120px;resize:vertical}
       var rms=Math.sqrt(sum/d.length),now=Date.now();
       // voice = clearly louder than the quiet moments, and not tiny next to the loudest recent speech
       // the noise floor only learns from quiet moments and never rises while someone is talking (a long sentence must not become "noise")
-      peakLvl=Math.max(rms,peakLvl*0.995);
+      peakLvl=Math.max(rms,peakLvl*0.98);
       if(rms<noiseFloor*1.6){noiseFloor=Math.min(0.012,noiseFloor*0.92+rms*0.08);quietAt=now}
       else if(now-quietAt>20000){noiseFloor=Math.min(0.012,noiseFloor*1.02)} // a steady hum for 20 s: slowly accept it as background
-      var thresh=Math.max(noisy?0.005:0.003,noiseFloor*(noisy?3:2.2),peakLvl*0.06),voice=rms>thresh;
+      var thresh=Math.max(noisy?0.005:0.003,noiseFloor*(noisy?3:2.2),peakLvl*0.04),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
-      meterTick(rms,voice,now);
+      meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
@@ -824,7 +844,7 @@ textarea{min-height:120px;resize:vertical}
   }
 
   async function start(){
-    running=true;ui();lastResult=Date.now();setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
