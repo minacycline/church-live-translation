@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v17">
+<meta name="build" content="v18">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -78,9 +78,10 @@ textarea{min-height:120px;resize:vertical}
 .rv .saved{color:var(--green);font-size:14px}
 #testfile{font-size:15px}
 @media (prefers-reduced-motion:reduce){#en p{transition:none}}
-</style>
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}</style>
 </head>
 <body>
+<div id="alert"></div>
 <header>
   <div class="titlerow">
     <span class="dot" id="dot"></span>
@@ -162,7 +163,8 @@ textarea{min-height:120px;resize:vertical}
   </div>
   <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
   <label for="testfile">Test with a recording</label>
-  <div class="actions"><button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div id="chkOut" class="help" style="white-space:pre-line"></div>
   <div class="help">If something goes wrong, press this right after, then paste into a message to Claude. It lists what the app heard and how long each step took (no audio, no key).</div>
   <input id="testfile" type="file" accept="audio/*,video/*">
   <div class="help">Pick a recording of the priest. It runs through the same hearing and translation, so you can check the result and correct it under ✎. Needs the Groq key. Counts toward the daily limit.</div>
@@ -412,6 +414,47 @@ textarea{min-height:120px;resize:vertical}
     else if(/qwen3/.test(model)){b.reasoning_effort='none';b.max_tokens=maxTok}
     return JSON.stringify(b);
   }
+  function showAlert(msg,ok,ms){var a=$('alert');if(!a)return;if(!msg){a.style.display='none';return}a.textContent=msg;a.className=ok?'ok':'';a.style.display='block';if(ms)setTimeout(function(){if(a.textContent===msg)a.style.display='none'},ms)}
+  $('alert').onclick=function(){showAlert('')};
+  // Checks every outside service the app depends on and says plainly what is wrong. Runs at Start and from Settings.
+  async function healthCheck(){
+    var res=[],key=S.get('groqKey','');
+    if(!key){res.push({n:'Groq key',ok:false,m:'No key on this device. Paste it in Settings.'});return res}
+    var ids=[];
+    try{
+      var r=await fetchT('https://api.groq.com/openai/v1/models',{headers:{'authorization':'Bearer '+key}},8000);
+      if(r.status===401||r.status===403)res.push({n:'Groq key',ok:false,m:'Groq does not accept this key (it may be wrong or deleted). Make a new one at console.groq.com/keys.'});
+      else if(!r.ok)res.push({n:'Groq',ok:false,m:'Groq answered with an error ('+r.status+'). Try again in a minute.'});
+      else{res.push({n:'Groq key',ok:true,m:'accepted'});ids=((await r.json()).data||[]).map(function(m){return m.id})}
+    }catch(e){res.push({n:'Internet',ok:false,m:'Cannot reach Groq. Check the Wi-Fi or cellular signal.'});return res}
+    if(!ids.length)return res;
+    await loadModels();
+    res.push({n:'Hearing model',ok:ids.indexOf(MODELS.asr)>=0,m:MODELS.asr+(ids.indexOf(MODELS.asr)>=0?'':' is not available to this key')});
+    for(var k=0;k<2;k++){
+      var model=k?MODELS.fast:MODELS.chat,label=k?'Quick translator':'Careful translator';
+      try{
+        var rr=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:chatBody(model,[{role:'user',content:'Translate to English, answer with the English only: الرب راعي'}],40,0)},12000);
+        await chatProblem(rr,model);
+        if(!rr.ok){var em='';try{em=((await rr.json()).error||{}).message||''}catch(e){}res.push({n:label,ok:false,m:model+' failed: '+(em||rr.status)});continue}
+        var ans=cleanLLM((await rr.json()).choices[0].message.content);
+        res.push({n:label,ok:!!ans,m:model+(ans?' works ("'+ans.slice(0,40)+'")':' answered with nothing')});
+      }catch(e){res.push({n:label,ok:false,m:model+' did not answer in time'})}
+    }
+    return res;
+  }
+  async function healthAtStart(){
+    var res=await healthCheck(),bad=res.filter(function(x){return !x.ok});
+    dbg('HEALTH '+res.map(function(x){return x.n+':'+(x.ok?'ok':'FAIL '+x.m)}).join(' | '));
+    if(bad.length&&running)showAlert('PROBLEM: '+bad.map(function(x){return x.n+' - '+x.m}).join('\n')+'\n(tap to hide)',false);
+  }
+  // does the web address hold a newer version of the app than the one on screen?
+  async function updateCheck(){
+    try{
+      var cur=(document.querySelector('meta[name=build]')||{}).content;if(!cur)return;
+      var r=await fetch(location.pathname+'?c='+Date.now(),{cache:'no-store'}),h=await r.text(),m=/name="build" content="([^"]+)"/.exec(h);
+      if(m&&m[1]!==cur){showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
+    }catch(e){}
+  }
   function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
     var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||12000);
     opts=opts||{};if(c)opts.signal=c.signal;
@@ -433,7 +476,7 @@ textarea{min-height:120px;resize:vertical}
     if(r.status>=500){groqBlockedUntil=Date.now()+20000;throw new Error('service error '+r.status)}
     var j=await r.json();
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
-    var out=j.choices[0].message.content.trim();
+    var out=cleanLLM(j.choices[0].message.content);if(!out)throw new Error('empty answer from '+MODELS.chat);
     if(canRevise){
       var m=out.match(/\{[\s\S]*\}/);
       if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'&&o.new.trim()){
@@ -444,6 +487,7 @@ textarea{min-height:120px;resize:vertical}
     }
     return out;
   }
+  function cleanLLM(s){return (s||'').replace(/<think>[\s\S]*?<\/think>/g,'').replace(/^```(?:json)?\s*|\s*```$/g,'').trim()}
   async function quick(ar){
     var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
@@ -452,7 +496,7 @@ textarea{min-height:120px;resize:vertical}
         {role:'user',content:ar}],200,0)});
     await chatProblem(r,MODELS.fast);
     if(!r.ok)throw new Error('quick '+r.status);
-    var j=await r.json();return (j.choices[0].message.content||'').trim();
+    var j=await r.json();return cleanLLM(j.choices[0].message.content);
   }
   function allTermsAll(){
     var list=pairs('terms');
@@ -469,7 +513,7 @@ textarea{min-height:120px;resize:vertical}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
     if(useAI)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){}); // fast first draft, replaced by the careful version
     queue=queue.then(function(){
-      if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
+      if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
@@ -499,6 +543,13 @@ textarea{min-height:120px;resize:vertical}
     renderTx();rdlg.showModal();
   }
   $('reviewBtn').onclick=openReview;
+  $('chkBtn').onclick=async function(){
+    var o=$('chkOut');o.textContent='Checking…';
+    var res=await healthCheck();
+    try{var d=new Date(),ds=('0'+d.getDate()).slice(-2)+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+d.getFullYear();var rr=await fetchT('https://api.katameros.app/readings/gregorian/'+ds+'?languageId=2',{},8000);res.push({n:"Today's readings",ok:rr.ok,m:rr.ok?'loaded':'not available ('+rr.status+'), the app still works without them'})}catch(e){res.push({n:"Today's readings",ok:false,m:'cannot reach the lectionary service, the app still works without it'})}
+    res.push({n:'Microphone permission',ok:true,m:'checked when you press Start'});
+    o.textContent=res.map(function(x){return (x.ok?'OK   ':'FAIL ')+x.n+': '+x.m}).join('\n');
+  };
   $('dbgBtn').onclick=function(){
     var txt=dbgReport(),b=$('dbgBtn');
     var done=function(ok){b.textContent=ok?'Copied. Paste it into your message.':'Select and copy from the box below';if(!ok){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='width:100%;height:160px;margin-top:8px';b.parentNode.appendChild(ta);ta.focus();ta.select()}setTimeout(function(){b.textContent='Copy debug report'},4000)};
@@ -888,7 +939,7 @@ textarea{min-height:120px;resize:vertical}
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
-    loadReadings();loadModels();
+    loadReadings();healthAtStart();
     if(useWhisper())setTimeout(startPreviewSR,600);
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
@@ -914,6 +965,7 @@ textarea{min-height:120px;resize:vertical}
     setStatus('Stopped');
   }
   $('go').onclick=function(){running?stop():start()};
+  setTimeout(updateCheck,1500);
 
   // ---- test with a recording: whole file to Whisper, then each segment through the usual path ----
   $('testfile').addEventListener('change',async function(){

@@ -664,6 +664,13 @@ window.COPTIC_TERMS = [
   ["ظهور العذراء في الزيتون", "the apparition of the Virgin at Zeitoun"],
 
   // Sermon vocabulary
+  ["معلم نبولس الرسول", "our teacher St. Paul the Apostle"],
+  ["نبولس الرسول", "St. Paul the Apostle"],
+  ["معلمنا بولس", "our teacher Paul"],
+  ["رسالة بولس الرسول", "the Epistle of St. Paul the Apostle"],
+  ["إلى تيموثاوس", "to Timothy"],
+  ["التيموسيوس", "Timothy"],
+  ["تيموسيوس", "Timothy"],
   ["أحبائى", "my beloved"],
   ["احبائي", "my beloved"],
   ["أحبائنا", "our beloved"],
