@@ -370,7 +370,7 @@ textarea{min-height:120px;resize:vertical}
     return out;
   }
   function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
-    var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||20000);
+    var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||12000);
     opts=opts||{};if(c)opts.signal=c.signal;
     return fetch(url,opts).then(function(r){clearTimeout(tm);return r},function(e){clearTimeout(tm);throw e});
   }
@@ -588,7 +588,7 @@ textarea{min-height:120px;resize:vertical}
   }
   var liveEn='',liveGen=0,interimBusy=false,interimAt=0,interimBlockedUntil=0;
   async function whisperLive(blob){
-    var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model','whisper-large-v3');
+    var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model','whisper-large-v3-turbo'); // faster model with its own free allowance, only for the running preview
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
@@ -598,7 +598,7 @@ textarea{min-height:120px;resize:vertical}
   }
   function liveStep(){ // while the priest is speaking: show a quick running translation of the piece heard so far
     var now=Date.now();
-    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<4500)return;
+    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<3000)return;
     if(speechSamples/SR16<0.9||sinceVoiceMs>600||bufLen<SR16*1.5)return;
     if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
@@ -609,7 +609,10 @@ textarea{min-height:120px;resize:vertical}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
     }).catch(function(){}).then(function(){interimBusy=false});
   }
-  var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false;
+  var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false,lastHearMs=0;
+  var hearInFlight=0,hearWaiters=[];
+  function hearSlot(){if(hearInFlight<3){hearInFlight++;return Promise.resolve()}return new Promise(function(r){hearWaiters.push(r)})}
+  function hearFree(){var w=hearWaiters.shift();if(!w)hearInFlight=Math.max(0,hearInFlight-1);else w()}
   function sendChunk(samples,speechSec){
     if(speechSec<0.7||samples.length<16000*0.9)return;
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
@@ -617,11 +620,13 @@ textarea{min-height:120px;resize:vertical}
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
-    hearPending++;hearStart=Date.now();
-    hearQueue=hearQueue.then(function(){hearStart=Date.now();return whisper(blob)}).then(function(t){hearPending=Math.max(0,hearPending-1);
-      t=cleanHeard(t);if(!t||t===lastText)return;
-      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
-    }).catch(function(e){hearPending=Math.max(0,hearPending-1);setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
+    hearPending++;var sent=Date.now();if(!hearStart)hearStart=sent;
+    // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
+    var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
+    hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
+      lastHearMs=Date.now()-sent;t=cleanHeard(t);if(!t||t===lastText)return;
+      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
+    }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
@@ -698,7 +703,7 @@ textarea{min-height:120px;resize:vertical}
       if(!running)return;
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
-      if(Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0} // a stuck request must not block the rest
+      if(hearStart&&Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[]} // a stuck request must not block the rest
     },1500);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
@@ -715,7 +720,7 @@ textarea{min-height:120px;resize:vertical}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;vadFeed(s16);
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>800&&sinceVoiceMs>350&&chunkMs>1300)cutChunk(false);           // natural pause
+      if(spoken>800&&sinceVoiceMs>300&&chunkMs>1200)cutChunk(false);           // natural pause
       else if(spoken>900&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>900)cutChunk(true);else{buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
@@ -771,7 +776,7 @@ textarea{min-height:120px;resize:vertical}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
     vadOk=false;vadQ=[];liveEn='';liveGen++;
-    clearInterval(audioWatch);hearPending=0;restarting=false;
+    clearInterval(audioWatch);hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[];restarting=false;
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
