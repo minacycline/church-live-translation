@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v15">
+<meta name="build" content="v16">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -844,6 +844,11 @@ textarea{min-height:120px;resize:vertical}
   }
 
   async function start(){
+    if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){
+      setStatus('NO GROQ KEY on this device. Paste it in ⚙ Settings, then press Start. (Without it the app is much worse.)');
+      try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
+      return;
+    }
     running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
