@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v32">
+<meta name="build" content="v33">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -428,7 +428,7 @@ textarea{min-height:120px;resize:vertical}
     return out.join(' ');
   }
   var SYS_MIXED=' The priest sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. Names of saints, popes and bishops may be misspelled by the speech recognition: match them to the nearest real Coptic name (e.g. Athanasius, Tawadros, Shenouda, Kyrillos, Bishoy, Antony, Macarius) and use the usual English spelling. Fixed wording: always translate أحبائي as "my beloved" (never "my darlings", "my dear ones" or "my loved ones"), and المعرض or معرض as "festival" (never "exhibition" or "exhibit"). The Arabic comes from speech recognition and may contain misheard words. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
+  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. Names of saints, popes and bishops may be misspelled by the speech recognition: match them to the nearest real Coptic name (e.g. Athanasius, Tawadros, Shenouda, Kyrillos, Bishoy, Antony, Macarius) and use the usual English spelling. Fixed wording: always translate أحبائي as "my beloved" (never "my darlings", "my dear ones" or "my loved ones"), and المعرض or معرض as "festival" (never "exhibition" or "exhibit"). The Arabic comes from speech recognition and may contain misheard words. If a word makes no sense in a church sermon, it is almost certainly a misheard religious word with a similar sound: choose the Bible, saint, feast or church word it most likely was (real examples: المعبدين or المبعدين means المعمدان the Baptist, الأتيم means العتيق the Old (Testament), نبولس means بولس Paul, أسنانيس means أثناسيوس Athanasius). Never translate a garbled word literally. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
   var groqBlockedUntil=0;
   function groqGlossary(ar,prev){
     var hay=' '+normAr(prev+' '+ar)+' ',ex=[],cx=[];
@@ -602,7 +602,7 @@ textarea{min-height:120px;resize:vertical}
   }
   async function quick(ar){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,300)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). Output only the English, nothing else.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,300)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). If a word makes no sense in a church sermon, it is almost certainly a misheard religious word with a similar sound: choose the Bible, saint, feast or church word it most likely was (real examples: المعبدين or المبعدين means المعمدان the Baptist, الأتيم means العتيق the Old (Testament), نبولس means بولس Paul, أسنانيس means أثناسيوس Athanasius). Never translate a garbled word literally. Output only the English, nothing else.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true);
     return res.text;
   }
