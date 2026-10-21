@@ -48,6 +48,9 @@ footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
 #go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
 #go.stop{background:var(--red);color:var(--fg)}
 #status{color:var(--dim);font-size:15px;min-width:0;font-style:italic}
+#meter{width:70px;height:8px;border:1px solid var(--gold);border-radius:4px;overflow:hidden;flex:none;opacity:.8}
+#meter i{display:block;height:100%;width:0;background:var(--dim);transition:width .08s}
+#meter.voice i{background:var(--green)}
 dialog{background:var(--panel);color:var(--fg);border:1px solid var(--gold2);border-radius:14px;width:min(680px,94vw);max-height:90vh;padding:22px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
 dialog::backdrop{background:rgba(0,0,0,.65)}
 dialog h2{margin:0 0 14px;font-size:22px;font-family:"Lora",serif;color:var(--gold)}
@@ -93,6 +96,7 @@ textarea{min-height:120px;resize:vertical}
 
 <footer>
   <button id="go">Start</button>
+  <span id="meter" title="Microphone level; green when the priest's voice is detected"><i></i></span>
   <span id="status">Ready</span>
 </footer>
 
@@ -406,7 +410,7 @@ textarea{min-height:120px;resize:vertical}
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;render();if(running&&!/AI busy/.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -489,15 +493,15 @@ textarea{min-height:120px;resize:vertical}
   // ---- speech: Whisper through Groq, or the iPad's own recognizer ----
   var running=false,rec=null,wake=null,maxTimer=null,restartTimer=null,lastResult=0,watchdog=null;
   var ctx=null,stream=null,proc=null,src=null,lastText='',whisperBlockedUntil=0,lastSpeechAt=0,idleTimer=null;
-  var micVad=null,vadProb=0,vadAt=0,vadOk=false;
+  var micVad=null,vadProb=0,vadAt=0,vadOk=false,vadHeard=0;
   async function startVad(dest){
-    vadOk=false;vadProb=0;
+    vadOk=false;vadProb=0;vadHeard=0;
     if(!window.vad||!window.vad.MicVAD||!window.ort)return;
     try{
       window.ort.env.wasm.numThreads=1;
-      micVad=await window.vad.MicVAD.new({audioContext:ctx,getStream:async function(){return dest.stream},model:'v5',baseAssetPath:new URL('vad/',location.href).href,onnxWASMBasePath:new URL('vad/',location.href).href,startOnLoad:false,
+      micVad=await window.vad.MicVAD.new({audioContext:ctx,getStream:async function(){return stream},model:'v5',baseAssetPath:new URL('vad/',location.href).href,onnxWASMBasePath:new URL('vad/',location.href).href,startOnLoad:false,
         positiveSpeechThreshold:S.get('noise','normal')==='noisy'?0.75:0.6,negativeSpeechThreshold:0.4,redemptionMs:400,minSpeechMs:200,preSpeechPadMs:200,
-        onFrameProcessed:function(p){vadProb=p.isSpeech;vadAt=Date.now()},onSpeechStart:function(){},onSpeechEnd:function(){},onVADMisfire:function(){}});
+        onFrameProcessed:function(p){vadProb=p.isSpeech;vadAt=Date.now();if(p.isSpeech>0.5)vadHeard=vadAt},onSpeechStart:function(){},onSpeechEnd:function(){},onVADMisfire:function(){}});
       await micVad.start();vadOk=true;
       if(running&&/^Listening \(Whisper\)/.test($('status').textContent))setStatus($('status').textContent.replace('(Whisper)','(Whisper, voice detector on)'));
     }catch(e){vadOk=false;micVad=null}
@@ -535,7 +539,7 @@ textarea{min-height:120px;resize:vertical}
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
     return (j.text||'').trim();
   }
-  var hearQueue=Promise.resolve();
+  var hearQueue=Promise.resolve(),heardCount=0;
   function sendChunk(samples,speechSec){
     if(speechSec<0.7||samples.length<16000*0.9)return;
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
@@ -546,7 +550,7 @@ textarea{min-height:120px;resize:vertical}
     hearQueue=hearQueue.then(function(){return whisper(blob)}).then(function(t){
       if(!t||t===lastText)return;
       if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return; // Whisper's known filler on near-silence
-      lastText=t;lastResult=Date.now();onFinal(t,[]);
+      lastText=t;lastResult=Date.now();heardCount++;onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){setStatus('Hearing problem: '+e.message)});
   }
 
@@ -557,6 +561,11 @@ textarea{min-height:120px;resize:vertical}
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
     return out;
+  }
+  var meterAt=0,meterEl=null;
+  function meterTick(rms,voice,now){
+    if(now-meterAt<90)return;meterAt=now;meterEl=meterEl||$('meter');if(!meterEl)return;
+    meterEl.firstChild.style.width=Math.min(100,Math.round(Math.sqrt(Math.min(rms,0.25)/0.25)*100))+'%';meterEl.classList.toggle('voice',!!voice);
   }
   function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
   function cutChunk(atQuietest){
@@ -597,12 +606,15 @@ textarea{min-height:120px;resize:vertical}
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
-      var rms=Math.sqrt(sum/d.length);
-      // adaptive threshold: track the room's quiet level, speak when well above it
-      if(rms<noiseFloor*1.5||rms<0.003)noiseFloor=noiseFloor*0.95+rms*0.05;else noiseFloor=Math.min(noiseFloor*1.002,0.02);
-      var thresh=noisy?Math.max(0.012,noiseFloor*5):Math.max(0.006,noiseFloor*3.5),voice=rms>thresh;
-      if(vadOk&&Date.now()-vadAt<800)voice=vadProb>(noisy?0.75:0.6)&&rms>Math.max(0.0025,noiseFloor*1.5); // neural voice detector decides; loudness only guards against the far-off murmur
+      var rms=Math.sqrt(sum/d.length),now=Date.now();
+      var vadLive=vadOk&&now-vadAt<800,vadTrusted=vadLive&&now-vadHeard<60000; // trusted only once it has actually heard speech recently
+      var thresh=noisy?Math.max(0.012,noiseFloor*5):Math.max(0.006,noiseFloor*3),voice=rms>thresh;
+      if(vadTrusted){voice=vadProb>(noisy?0.75:0.6)&&rms>Math.max(0.0025,noiseFloor*1.5)} // neural detector decides; loudness only guards against the far-off murmur
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
+      // noise floor: follow quiet moments quickly, never learn the priest's voice as "noise"
+      if(rms<noiseFloor*1.5||rms<0.003)noiseFloor=noiseFloor*0.95+rms*0.05;
+      else if(!voice&&(!vadTrusted||vadProb<0.3))noiseFloor=Math.min(noiseFloor*1.01,0.012); // steady non-voice sound (fan, hum): adapt up slowly
+      meterTick(rms,voice,now);
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;
@@ -657,7 +669,7 @@ textarea{min-height:120px;resize:vertical}
     try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
   }
   function stop(){
-    running=false;ui();clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
+    running=false;ui();if($('meter')){$('meter').firstChild.style.width='0';$('meter').classList.remove('voice')}clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
     try{rec&&rec.stop()}catch(e){}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
