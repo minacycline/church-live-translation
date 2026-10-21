@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v26">
+<meta name="build" content="v27">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -121,7 +121,7 @@ textarea{min-height:120px;resize:vertical}
   <div class="help">Optional. Raises the free daily limit from 5,000 to 50,000 characters. Nothing is sent to this address.</div>
 
   <label for="groqKey">Groq key (free tier)</label>
-  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_..."><div id="keyNote" class="help"></div>
+  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_..."><div class="actions" style="margin-top:6px"><button id="pasteKey" type="button">Paste key</button></div><div id="keyNote" class="help"></div>
   <div class="help">One free key does two jobs: better hearing (Whisper) and AI correction of each sentence. Without it, the iPad's own recognizer and a basic translator are used. The key stays on this iPad.</div>
 
   <label for="engine">Hearing</label>
@@ -234,6 +234,7 @@ textarea{min-height:120px;resize:vertical}
   $('close').onclick=function(){dlg.close()};
   function keyChanged(){var v=$('groqKey').value.trim();if(!v)return;var ok=saveKey(v);groqBlockedUntil=0;whisperBlockedUntil=0;
     $('keyNote').textContent=ok?(/^gsk_/.test(v)?'Key saved on this device ✓':'Saved, but Groq keys usually start with gsk_. Check you copied all of it.'):'Could not save the key: this device\'s storage is full or blocked (Private Browsing?).'}
+  $('pasteKey').onclick=function(){try{navigator.clipboard.readText().then(function(v){v=(v||'').trim();if(!v){$('keyNote').textContent='Nothing copied. Copy the key first (it starts with gsk_).';return}$('groqKey').value=v;keyChanged()},function(){$('keyNote').textContent='Tap in the box, then tap and hold, then Paste.'})}catch(e){$('keyNote').textContent='Tap in the box, then tap and hold, then Paste.'}};
   $('groqKey').addEventListener('input',keyChanged);$('groqKey').addEventListener('change',keyChanged);$('groqKey').addEventListener('blur',keyChanged);
   dlg.addEventListener('close',function(){var v=$('groqKey').value.trim();if(v&&v!==S.get('groqKey',''))saveKey(v)}); // closing the settings any way keeps a newly pasted key
   $('save').onclick=function(){FIELDS.forEach(function(k){if(k==='groqKey'){var kv=String($(k).value).trim();if(kv)saveKey(kv);return}S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;applyView();dlg.close();LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running){stop();start()}};
@@ -1101,6 +1102,13 @@ textarea{min-height:120px;resize:vertical}
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   setTimeout(updateCheck,1500);
+  setTimeout(function(){
+    if(running||!IOS)return;
+    var standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+    var inApp=!/Safari\//.test(navigator.userAgent)||/CriOS|FxiOS|Claude|GSA|FBAN|Instagram/.test(navigator.userAgent);
+    if(standalone)return;
+    if(!S.get('groqKey','')||inApp)showAlert((inApp?'This page is open inside another app\'s browser, which forgets settings. ':'')+'For church, open the app from its Home Screen icon so the key stays saved. (In Safari: Share, then Add to Home Screen.)\n(tap to hide)',false,15000);
+  },2500);
 
   // ---- test with a recording: whole file to Whisper, then each segment through the usual path ----
   $('testfile').addEventListener('change',async function(){
