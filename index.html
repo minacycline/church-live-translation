@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v24">
+<meta name="build" content="v25">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -121,7 +121,7 @@ textarea{min-height:120px;resize:vertical}
   <div class="help">Optional. Raises the free daily limit from 5,000 to 50,000 characters. Nothing is sent to this address.</div>
 
   <label for="groqKey">Groq key (free tier)</label>
-  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_...">
+  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_..."><div id="keyNote" class="help"></div>
   <div class="help">One free key does two jobs: better hearing (Whisper) and AI correction of each sentence. Without it, the iPad's own recognizer and a basic translator are used. The key stays on this iPad.</div>
 
   <label for="engine">Hearing</label>
@@ -200,6 +200,22 @@ textarea{min-height:120px;resize:vertical}
 (function(){
   var $=function(id){return document.getElementById(id)};
   var S={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  var KEYDB={
+    open:function(){return new Promise(function(res,rej){try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}catch(e){rej(e)}})},
+    put:function(k,v){return KEYDB.open().then(function(db){return new Promise(function(res){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=function(){res(true)};tx.onerror=function(){res(false)}})}).catch(function(){return false})},
+    get:function(k){return KEYDB.open().then(function(db){return new Promise(function(res){var q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=function(){res(q.result||'')};q.onerror=function(){res('')}})}).catch(function(){return ''})}
+  };
+  function saveKey(v){
+    v=(v||'').trim();if(!v)return false;
+    var ok=false;
+    for(var i=0;i<3&&!ok;i++){try{localStorage.setItem('groqKey',v);ok=localStorage.getItem('groqKey')===v}catch(e){try{var tl=JSON.parse(localStorage.getItem('transcripts')||'[]');tl.shift();localStorage.setItem('transcripts',JSON.stringify(tl))}catch(e2){try{localStorage.removeItem('transcripts')}catch(e3){}}}} // storage full: make room by dropping the oldest saved service
+    KEYDB.put('groqKey',v);
+    return ok;
+  }
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+  // if the main copy of the key was lost, bring it back from the backup copy
+  if(!S.get('groqKey',''))KEYDB.get('groqKey').then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v)}});
+  else KEYDB.get('groqKey').then(function(v){var cur=S.get('groqKey','');if(cur&&v!==cur)KEYDB.put('groqKey',cur)});
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
@@ -214,9 +230,13 @@ textarea{min-height:120px;resize:vertical}
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
-  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;dlg.showModal()};
+  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;dlg.showModal()};
   $('close').onclick=function(){dlg.close()};
-  $('save').onclick=function(){FIELDS.forEach(function(k){S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;applyView();dlg.close();LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running){stop();start()}};
+  function keyChanged(){var v=$('groqKey').value.trim();if(!v)return;var ok=saveKey(v);groqBlockedUntil=0;whisperBlockedUntil=0;
+    $('keyNote').textContent=ok?(/^gsk_/.test(v)?'Key saved on this device ✓':'Saved, but Groq keys usually start with gsk_. Check you copied all of it.'):'Could not save the key: this device\'s storage is full or blocked (Private Browsing?).'}
+  $('groqKey').addEventListener('input',keyChanged);$('groqKey').addEventListener('change',keyChanged);$('groqKey').addEventListener('blur',keyChanged);
+  dlg.addEventListener('close',function(){var v=$('groqKey').value.trim();if(v&&v!==S.get('groqKey',''))saveKey(v)}); // closing the settings any way keeps a newly pasted key
+  $('save').onclick=function(){FIELDS.forEach(function(k){if(k==='groqKey'){var kv=String($(k).value).trim();if(kv)saveKey(kv);return}S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;applyView();dlg.close();LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running){stop();start()}};
   $('clear').onclick=function(){lines=[];enEl.innerHTML='';render()};
 
   function pairs(key){
@@ -1021,6 +1041,7 @@ textarea{min-height:120px;resize:vertical}
   }
 
   async function start(){
+    if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){var bk=await KEYDB.get('groqKey');if(bk){S.set('groqKey',bk);dbg('key restored from backup copy')}}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){
       setStatus('NO GROQ KEY on this device. Paste it in ⚙ Settings, then press Start. (Without it the app is much worse.)');
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
