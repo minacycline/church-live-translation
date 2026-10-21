@@ -136,6 +136,10 @@ textarea{min-height:120px;resize:vertical}
   <textarea id="terms" dir="auto" placeholder="Abuna = Father&#10;Pope Tawadros the Second = Pope Tawadros II&#10;ثيئوتوكوس = Theotokos"></textarea>
   <div class="help">Applied to every caption. Left side can be Arabic (matched before translating) or English (fixed after translating).</div>
 
+  <label for="preview">Instant preview while speaking</label>
+  <select id="preview"><option value="1">On (phone's own recognizer, shown dimmed until the accurate line arrives)</option><option value="0">Off</option></select>
+  <div class="help">Uses the iPhone/iPad speech recognizer for a rough line within a second, then Whisper replaces it. Turn off if the microphone misbehaves.</div>
+
   <label for="builtin">Built-in Coptic terms</label>
   <select id="builtin"><option value="1">On</option><option value="0">Off</option></select>
   <details style="margin-top:6px"><summary class="help" style="cursor:pointer">See the built-in list</summary><div id="builtinList" class="help" dir="auto" style="max-height:200px;overflow:auto;white-space:pre-line"></div></details>
@@ -191,7 +195,7 @@ textarea{min-height:120px;resize:vertical}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
 
-  var FIELDS=['groqKey','engine','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:'1',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -625,13 +629,42 @@ textarea{min-height:120px;resize:vertical}
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
-    if(r.status===429){interimBlockedUntil=Date.now()+30000;throw new Error('limit')}
+    if(r.status===429){interimBlockedUntil=Date.now()+20000;throw new Error('limit')}
     if(!r.ok)throw new Error('http '+r.status);
     return ((await r.json()).text||'').trim();
   }
+  // Instant preview: the phone's own speech recognizer gives words as they are spoken (less accurate), translated at once with the fast model.
+  // Whisper still produces the real line a moment later and replaces the preview.
+  var sr2=null,sr2On=false,sr2Dead=false,sr2Text='',sr2At=0,sr2Busy=false,sr2Timer=null,sr2StartedAt=0,sr2Gen=0;
+  function startPreviewSR(){
+    if(!SR||sr2Dead||sr2On||!running||S.get('preview','1')!=='1')return;
+    try{
+      sr2=new SR();sr2.lang='ar-EG';sr2.interimResults=true;sr2.continuous=!IOS;sr2.maxAlternatives=1;
+      sr2.onresult=function(e){
+        var txt='';for(var i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript+' ';
+        txt=txt.trim();if(!txt)return;
+        sr2Text=txt;arEl.textContent=txt;
+        clearTimeout(sr2Timer);sr2Timer=setTimeout(previewTranslate,250);
+      };
+      sr2.onerror=function(e){if(e.error==='not-allowed'||e.error==='service-not-allowed'){sr2Dead=true;sr2On=false}};
+      sr2.onend=function(){sr2On=false;sr2Text='';if(running&&!sr2Dead)setTimeout(startPreviewSR,IOS?150:50)};
+      sr2.start();sr2On=true;sr2StartedAt=Date.now();
+    }catch(e){sr2On=false}
+  }
+  function stopPreviewSR(){try{sr2&&(sr2.onend=null);sr2&&sr2.stop()}catch(e){}sr2=null;sr2On=false;sr2Text='';clearTimeout(sr2Timer)}
+  function previewTranslate(){
+    var txt=sr2Text;if(!txt||sr2Busy||!running||Date.now()<groqBlockedUntil)return;
+    if(Date.now()-sr2At<900){clearTimeout(sr2Timer);sr2Timer=setTimeout(previewTranslate,900-(Date.now()-sr2At));return}
+    sr2Busy=true;sr2At=Date.now();var gen=++sr2Gen;
+    var fixed=fixNames(txt),p=matchPrayer(fixed);
+    var done=function(d){sr2Busy=false;if(gen!==sr2Gen||!running||!d)return;liveEn=d;render()};
+    if(p){done(p.b);return}
+    quick(fixed).then(function(d){done(d&&!/^\s*(""|\[.*\])\s*$/.test(d)?d:'')}).catch(function(){sr2Busy=false});
+  }
   function liveStep(){ // while the priest is speaking: show a quick running translation of the piece heard so far
     var now=Date.now();
-    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<3000)return;
+    if(sr2On)return; // the phone's recognizer is giving the instant preview
+    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<2500)return;
     if(speechSamples/SR16<0.9||sinceVoiceMs>600||bufLen<SR16*1.5)return;
     if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
@@ -658,7 +691,7 @@ textarea{min-height:120px;resize:vertical}
     var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
       lastHearMs=Date.now()-sent;t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
-      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
+      lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
@@ -734,6 +767,7 @@ textarea{min-height:120px;resize:vertical}
     clearInterval(audioWatch);var lastF=-1,stuck=0;
     audioWatch=setInterval(function(){
       if(!running)return;
+      if(audioFrames===lastF&&sr2On&&Date.now()-sr2StartedAt<6000){sr2Dead=true;stopPreviewSR();setStatus('Instant preview is off on this device (it blocked the microphone).')}
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
       if(hearStart&&Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[]} // a stuck request must not block the rest
@@ -792,6 +826,7 @@ textarea{min-height:120px;resize:vertical}
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
     loadReadings();
+    if(useWhisper())setTimeout(startPreviewSR,600);
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
       var ref=useWhisper()?lastSpeechAt:lastResult;
@@ -806,7 +841,7 @@ textarea{min-height:120px;resize:vertical}
     try{rec&&rec.stop()}catch(e){}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
-    vadOk=false;vadQ=[];liveEn='';liveGen++;
+    vadOk=false;vadQ=[];liveEn='';liveGen++;stopPreviewSR();
     clearInterval(audioWatch);hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[];restarting=false;
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
