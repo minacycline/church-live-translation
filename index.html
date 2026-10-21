@@ -41,7 +41,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex
 #en p.fixed{color:var(--green)}
 #en p .draft{opacity:.72}
 #en p.pending{color:var(--dim);font-style:italic;font-weight:500}
-#en .interim{color:var(--dim);font-style:italic;font-weight:500}
+#en .interim{color:var(--dim);font-style:italic;font-weight:500;opacity:.85}
 #ar{direction:rtl;color:var(--gold2);font-size:calc(var(--fs)*.42);min-height:1.5em;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Georgia,"Lora",serif}
 #ar[hidden]{display:none}
 .empty{color:var(--dim);font-size:22px;line-height:1.5;font-style:italic;text-align:center}
@@ -566,6 +566,30 @@ textarea{min-height:120px;resize:vertical}
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
     return (j.text||'').trim();
   }
+  var liveEn='',liveGen=0,interimBusy=false,interimAt=0,interimBlockedUntil=0;
+  async function whisperLive(blob){
+    var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model','whisper-large-v3');
+    if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
+    var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
+    var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    if(r.status===429){interimBlockedUntil=Date.now()+30000;throw new Error('limit')}
+    if(!r.ok)throw new Error('http '+r.status);
+    return ((await r.json()).text||'').trim();
+  }
+  function liveStep(){ // while the priest is speaking: show a quick running translation of the piece heard so far
+    var now=Date.now();
+    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<4500)return;
+    if(speechSamples/SR16<0.9||sinceVoiceMs>600||bufLen<SR16*1.5)return;
+    if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
+    interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
+    whisperLive(blob).then(function(t){
+      if(!t||gen!==liveGen||!running)return;
+      if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return;
+      arEl.textContent=t;
+      var p=matchPrayer(t);if(p){liveEn=p.b;render();return}
+      return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
+    }).catch(function(){}).then(function(){interimBusy=false});
+  }
   var hearQueue=Promise.resolve(),heardCount=0;
   function sendChunk(samples,speechSec){
     if(speechSec<0.7||samples.length<16000*0.9)return;
@@ -573,17 +597,17 @@ textarea{min-height:120px;resize:vertical}
     var secs=samples.length/16000;
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
-    var blob=wavBlob(samples);
+    var blob=wavBlob(samples);liveGen++;
     hearQueue=hearQueue.then(function(){return whisper(blob)}).then(function(t){
       if(!t||t===lastText)return;
       if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return; // Whisper's known filler on near-silence
-      lastText=t;lastResult=Date.now();heardCount++;onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
+      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){setStatus('Hearing problem: '+e.message)});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=7000,HARD_MS=20000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=6000,HARD_MS=20000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -609,6 +633,7 @@ textarea{min-height:120px;resize:vertical}
     buf=[rest.slice()];bufLen=rest.length;energy=energy.slice(-Math.round(OVERLAP/SR16*1000/FRAME_MS)-1);
     speechSamples=0;chunkMs=rest.length/SR16*1000;
     sendChunk(send,sp);
+    if(sp<0.7){liveEn='';liveGen++;render()}
   }
 
   async function startWhisper(){
@@ -647,8 +672,8 @@ textarea{min-height:120px;resize:vertical}
       meterTick(rms,voice,now);
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;vadFeed(s16);
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
-      var spoken=speechSamples/SR16*1000;
-      if(spoken>900&&sinceVoiceMs>420&&chunkMs>1800)cutChunk(false);           // natural pause
+      var spoken=speechSamples/SR16*1000;liveStep();
+      if(spoken>800&&sinceVoiceMs>350&&chunkMs>1300)cutChunk(false);           // natural pause
       else if(spoken>900&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>900)cutChunk(true);else{buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
@@ -703,7 +728,7 @@ textarea{min-height:120px;resize:vertical}
     try{rec&&rec.stop()}catch(e){}
     if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
-    vadOk=false;vadQ=[];
+    vadOk=false;vadQ=[];liveEn='';liveGen++;
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
