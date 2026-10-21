@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2a0e10">
+<meta name="apple-mobile-web-app-title" content="Translation">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Live Translation</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Uncial+Antiqua&family=Lora:ital,wght@0,500;0,600;1,500&display=swap">
+<style>
+/* Palette: icon ground oxblood, parchment text, gold leaf, aged gold for quiet lines */
+:root{--bg:#2a0e10;--bg2:#1c090a;--fg:#f3e6c8;--dim:#b89d72;--gold:#d8ad55;--gold2:#8a6a34;--panel:#3a1618;--line:#5a2c2c;--red:#b5322f;--green:#9fc78f;--fs:46px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:"Lora",Georgia,"Times New Roman",serif;-webkit-text-size-adjust:100%}
+body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) max(22px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(22px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% 0%,#3b1517 0%,var(--bg) 45%,var(--bg2) 100%)}
+header{display:flex;flex-direction:column;align-items:center;padding:16px 0 0}
+.titlerow{display:flex;align-items:center;gap:10px;width:100%}
+#title{flex:1;min-width:0;text-align:center;font-family:"Uncial Antiqua","Lora",serif;font-size:clamp(26px,4vw,44px);color:var(--gold);letter-spacing:.02em;outline:none;border-radius:8px;padding:4px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 #000}
+#title:focus{background:var(--panel);white-space:normal}
+.rule{display:flex;align-items:center;gap:14px;width:min(100%,900px);margin:8px auto 0}
+.rule::before,.rule::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold2) 30%,var(--gold))}
+.rule::after{background:linear-gradient(90deg,var(--gold),var(--gold2) 70%,transparent)}
+.rule svg{width:48px;height:48px;flex:none}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--gold2);flex:none;transition:background .3s}
+.dot.on{background:var(--green)}
+button{font:inherit;border:0;border-radius:10px;cursor:pointer}
+.icon{background:transparent;color:var(--dim);width:42px;height:42px;font-size:21px;flex:none;border:1px solid var(--line)}
+.icon:focus-visible,#go:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:18px 0 10px;overflow:hidden}
+#en{display:flex;flex-direction:column;justify-content:flex-end;gap:.45em;font-size:var(--fs);line-height:1.3;font-weight:600;overflow:hidden;text-wrap:pretty}
+#en p{margin:0;flex-shrink:0;transition:opacity .45s ease,transform .45s ease,max-height .45s ease;max-height:12em;overflow:hidden}
+#en p.in{opacity:0;transform:translateY(.4em)}
+#en p.out{opacity:0;max-height:0;transform:translateY(-.3em)}
+#en p.old{color:var(--dim);font-weight:500}
+#en p.fixed{color:var(--green)}
+#en p.pending{color:var(--dim);font-style:italic;font-weight:500}
+#en .interim{color:var(--dim);font-style:italic;font-weight:500}
+#ar{direction:rtl;color:var(--gold2);font-size:calc(var(--fs)*.42);min-height:1.5em;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Georgia,"Lora",serif}
+#ar[hidden]{display:none}
+.empty{color:var(--dim);font-size:22px;line-height:1.5;font-style:italic;text-align:center}
+footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
+#go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
+#go.stop{background:var(--red);color:var(--fg)}
+#status{color:var(--dim);font-size:15px;min-width:0;font-style:italic}
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--gold2);border-radius:14px;width:min(680px,94vw);max-height:90vh;padding:22px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+dialog h2{margin:0 0 14px;font-size:22px;font-family:"Lora",serif;color:var(--gold)}
+label{display:block;font-size:14px;color:var(--dim);margin:14px 0 6px}
+input,textarea,select{width:100%;font:inherit;font-size:16px;background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:120px;resize:vertical}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1;min-width:140px}
+.help{font-size:13px;color:var(--dim);margin-top:4px;line-height:1.4}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.actions button{padding:12px 22px;background:var(--gold);color:#2a0e10;font-weight:600}
+.actions .ghost{background:var(--line);color:var(--fg)}
+#review{background:var(--panel);color:var(--fg);border:1px solid var(--gold2);border-radius:14px;width:min(820px,96vw);max-height:92vh;padding:18px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#review h2{margin:0 0 6px;font-size:22px;font-family:"Lora",serif;color:var(--gold)}
+.rv{border-top:1px solid var(--line);padding:10px 0}
+.rv .a{direction:rtl;text-align:right;color:var(--dim);font-size:15px}
+.rv .e{font-size:17px;margin:4px 0}
+.rv .fixrow{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.rv input{flex:1;min-width:200px}
+.rv button{padding:8px 12px;background:var(--line);color:var(--fg);font-size:14px}
+.rv button.primary{background:var(--gold);color:#2a0e10;font-weight:600}
+.rv .saved{color:var(--green);font-size:14px}
+#testfile{font-size:15px}
+@media (prefers-reduced-motion:reduce){#en p{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="titlerow">
+    <span class="dot" id="dot"></span>
+    <div id="title" contenteditable="true" spellcheck="false" aria-label="Title, tap to edit">Live Translation</div>
+    <button class="icon" id="reviewBtn" aria-label="Review and correct">✎</button>
+    <button class="icon" id="clear" aria-label="Clear captions">⌫</button>
+    <button class="icon" id="gear" aria-label="Settings">⚙</button>
+  </div>
+  <div class="rule"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="#d8ad55" stroke-width="3.6" stroke-linecap="round"><path d="M20 5v30M5 20h30"/><circle cx="20" cy="20" r="7.5"/><path d="M20 3.5l-3 3h6zM20 36.5l-3-3h6zM3.5 20l3-3v6zM36.5 20l-3-3v6z" fill="#d8ad55" stroke="none"/></g></svg></div>
+</header>
+
+<main>
+  <div id="en"><div class="empty">Tap the title to change it. Press Start when the priest begins.</div></div>
+  <div id="ar"></div>
+</main>
+
+<footer>
+  <button id="go">Start</button>
+  <span id="status">Ready</span>
+</footer>
+
+<dialog id="settings">
+  <h2>Settings</h2>
+  <label for="email">Email for the free translation service</label>
+  <input id="email" type="email" autocomplete="off" placeholder="church@example.com">
+  <div class="help">Optional. Raises the free daily limit from 5,000 to 50,000 characters. Nothing is sent to this address.</div>
+
+  <label for="groqKey">Groq key (free tier)</label>
+  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_...">
+  <div class="help">One free key does two jobs: better hearing (Whisper) and AI correction of each sentence. Without it, the iPad's own recognizer and a basic translator are used. The key stays on this iPad.</div>
+
+  <label for="engine">Hearing</label>
+  <select id="engine"><option value="whisper">Whisper through Groq (recommended, needs the key)</option><option value="apple">iPad built-in recognizer</option></select>
+
+  <label for="micMode">Microphone</label>
+  <select id="micMode"><option value="room">iPad microphone in the room</option><option value="direct">Direct feed from the priest's mic or the mixer</option></select>
+  <div class="help">For a direct feed the iPad's noise cleanup is turned off, which keeps the sound cleaner.</div>
+  <label for="noise">Background noise</label>
+  <select id="noise"><option value="normal">Normal</option><option value="noisy">Noisy (children, crying, chatter)</option></select>
+  <div class="help">Noisy mode only counts sound in the range of an adult voice as speech, needs it louder before sending, and tells the AI to ignore anything that is not the priest.</div>
+  <label for="lang">What the priest speaks</label>
+  <select id="lang"><option value="ar">Arabic only</option><option value="mixed">Arabic with some English</option></select>
+  <div class="help">With "some English", sentences the priest says in English are shown as he said them instead of being forced through Arabic.</div>
+  <label for="autoRead">Today's readings</label>
+  <select id="autoRead"><option value="1">Load automatically from the Coptic lectionary (Katameros)</option><option value="0">Off</option></select>
+  <div class="help">Each day the Psalm, Gospel, Pauline, Catholic and Acts readings are fetched in Arabic and English (NKJV). When the priest reads a verse, the exact English is shown. <span id="readStatus"></span></div>
+
+  <label for="notes">Today's notes for the AI (optional)</label>
+  <textarea id="notes" style="min-height:70px" dir="auto" placeholder="Example: Gospel reading is Luke 15, the Prodigal Son. Feast of St. Mary. Visiting bishop is Anba Youssef."></textarea>
+  <div class="help">Anything that helps the AI guess an unclear word: today's Gospel passage, the feast, names of people mentioned.</div>
+
+  <label for="terms">Church terms, one per line: wrong or Arabic = correct English</label>
+  <textarea id="terms" dir="auto" placeholder="Abuna = Father&#10;Pope Tawadros the Second = Pope Tawadros II&#10;ثيئوتوكوس = Theotokos"></textarea>
+  <div class="help">Applied to every caption. Left side can be Arabic (matched before translating) or English (fixed after translating).</div>
+
+  <label for="builtin">Built-in Coptic terms</label>
+  <select id="builtin"><option value="1">On</option><option value="0">Off</option></select>
+  <details style="margin-top:6px"><summary class="help" style="cursor:pointer">See the built-in list</summary><div id="builtinList" class="help" dir="auto" style="max-height:200px;overflow:auto;white-space:pre-line"></div></details>
+  <div class="help">Your own terms above take priority over the built-in ones.</div>
+  <label for="reading">Today's reading, one verse per line: Arabic = English</label>
+  <textarea id="reading" dir="auto" placeholder="وَكَانَ لإِنْسَانٍ ابْنَانِ = A certain man had two sons.&#10;فَقَالَ أَصْغَرُهُمَا لأَبِيهِ = And the younger of them said to his father"></textarea>
+  <div class="help">Paste the Gospel or Epistle for this service. When the priest reads a verse, your English is shown instead of a translation. Clear it after the service.</div>
+
+  <label for="prayers">Prayer library, one per line: Arabic text = approved English</label>
+  <textarea id="prayers" dir="auto" placeholder="المجد للآب والابن والروح القدس = Glory be to the Father, and to the Son, and to the Holy Spirit"></textarea>
+  <div class="help">When a heard sentence closely matches one of these, your English is shown instead of a machine translation. Built in already: the Liturgy of St. Basil, the Midnight Praises, doxologies, the Agpeya and common hymns, plus the whole Bible (Arabic Van Dyck matched to English) for verses quoted in the sermon. <span id="libNote"></span></div>
+
+  <div class="row">
+    <div><label for="size">Biggest text size</label><input id="size" type="range" min="28" max="90" value="46"></div>
+    <div><label for="showAr">Show Arabic being heard</label><select id="showAr"><option value="0">Hide</option><option value="1">Show</option></select></div>
+    <div><label for="maxMin">Stop after (minutes)</label><input id="maxMin" type="number" min="5" max="300" value="120"></div>
+    <div><label for="idleMin">Stop when quiet for (minutes)</label><input id="idleMin" type="number" min="2" max="60" value="10"></div>
+    <div><label for="dailyCap">Daily limit (minutes of speech)</label><input id="dailyCap" type="number" min="10" max="480" value="240"></div>
+  </div>
+  <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
+  <label for="testfile">Test with a recording</label>
+  <input id="testfile" type="file" accept="audio/*,video/*">
+  <div class="help">Pick a recording of the priest. It runs through the same hearing and translation, so you can check the result and correct it under ✎. Needs the Groq key. Counts toward the daily limit.</div>
+  <div class="actions">
+    <button class="ghost" id="close">Cancel</button>
+    <button id="save">Save</button>
+  </div>
+</dialog>
+
+<dialog id="review">
+  <h2>Review and correct</h2>
+  <div class="help">Each line shows what was heard and what was shown. Type the correct English and save it. A short phrase goes into the church terms; a whole sentence goes into the prayer library. The fix applies from the next time it is heard.</div>
+  <div id="reviewList"></div>
+  <h2 style="margin-top:18px">Saved services</h2>
+  <div class="help">Every service is saved on this iPad by itself, from Start to Stop. The last 10 are kept; older ones are removed automatically. Tap Share to send one out, for example to email or Files.</div>
+  <div id="txList"></div>
+  <div class="actions"><button class="ghost" id="reviewClose">Close</button></div>
+</dialog>
+
+<script src="terms.js"></script>
+<script src="liturgy.js"></script>
+<script src="vad/ort.wasm.min.js"></script>
+<script src="vad/bundle.min.js"></script>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var S={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+
+  // ---- title and settings ----
+  var title=$('title');
+  title.textContent=S.get('title','Live Translation');
+  title.addEventListener('input',function(){S.set('title',title.textContent.trim()||'Live Translation')});
+  title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
+  title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
+
+  var FIELDS=['groqKey','engine','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
+  function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
+  applyView();
+  var dlg=$('settings');
+  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;dlg.showModal()};
+  $('close').onclick=function(){dlg.close()};
+  $('save').onclick=function(){FIELDS.forEach(function(k){S.set(k,String($(k).value).trim())});applyView();dlg.close();LIB=null;loadReadings();if(running){stop();start()}};
+  $('clear').onclick=function(){lines=[];enEl.innerHTML='';render()};
+
+  function pairs(key){
+    return S.get(key,'').split('\n').map(function(l){var i=l.indexOf('=');if(i<1)return null;return {a:l.slice(0,i).trim(),b:l.slice(i+1).trim()}}).filter(function(p){return p&&p.a&&p.b});
+  }
+  function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+  var AR=/[؀-ۿ]/;
+  function normAr(s){return s.replace(/[ً-ْـ]/g,'').replace(/[إأآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[،؛؟٪٫٬٠-٩]/g,' ').replace(/[^؀-ۿ\s]/g,' ').replace(/\s+/g,' ').trim()}
+  function arPat(t){var al=/^ال/.test(t);return (al?'(?:ال|لل)':'')+escRe(al?t.slice(2):t).replace(/[اأإآ]/g,'[اأإآ]').replace(/[ةه]/g,'[ةه]').replace(/[يى]/g,'[يى]')}
+  function words(s){return normAr(s).split(' ').filter(Boolean)}
+  function similarity(a,b){
+    var A=words(a),B=words(b);if(!A.length||!B.length)return 0;
+    var set={},hit=0;B.forEach(function(w){set[w]=(set[w]||0)+1});
+    A.forEach(function(w){if(set[w]){hit++;set[w]--}});
+    return (2*hit)/(A.length+B.length);
+  }
+  // ---- library: your pairs, today's readings, the liturgy and the Bible, matched by weighted word overlap ----
+  var LIB=null,readStatus='';
+  function libNote(){var l=getLib();return (window.COPTIC_LITURGY||[]).length+' liturgy lines'+(window.BIBLE?', '+l.bible+' Bible verses':', Bible still loading')+(l.reading?', '+l.reading+' verses from today\'s readings':'')+'.'}
+  function getLib(){
+    if(LIB)return LIB;
+    var entries=[],idx={},df={};
+    function put(a,b,kind,ref,next){var w=words(a);if(!w.length)return;var id=entries.length;entries.push({a:a,b:b,k:kind,r:ref,w:w,n:next});var seen={};w.forEach(function(x){if(seen[x])return;seen[x]=1;(idx[x]=idx[x]||[]).push(id);df[x]=(df[x]||0)+1})}
+    pairs('reading').forEach(function(p){put(p.a,p.b,'user')});
+    pairs('prayers').forEach(function(p){put(p.a,p.b,'user')});
+    var rd=autoReadingPairs();rd.forEach(function(p){put(p[0],p[1],'reading')});
+    (window.COPTIC_LITURGY||[]).forEach(function(p){put(p[0],p[1],'lit')});
+    var nb=0;
+    if(window.BIBLE){Object.keys(window.BIBLE).forEach(function(bk){var name=(window.BIBLE_BOOKS||{})[bk]||'';Object.keys(window.BIBLE[bk]).forEach(function(ch){var vs=window.BIBLE[bk][ch];vs.forEach(function(v,i){put(v[1],v[2],'bible',name+' '+ch+':'+v[0],i+1<vs.length?entries.length+1:-1);nb++})})})}
+    var N=entries.length;LIB={entries:entries,idx:idx,df:df,idf:function(w){return Math.log((N+1)/((df[w]||0)+1))+0.3},bible:nb,reading:rd.length};
+    return LIB;
+  }
+  function scorePair(A,B,idf){
+    var set={},tot=0,hit=0,wb=0;B.forEach(function(w){set[w]=(set[w]||0)+1;wb+=idf(w)});
+    A.forEach(function(w){var x=idf(w);tot+=x;if(set[w]){hit+=x;set[w]--}});
+    return {contain:tot?hit/tot:0,cover:wb?hit/wb:0};
+  }
+  function matchOne(ar){
+    var L=getLib(),A=words(ar);if(A.length<2)return null;
+    var hits={},seen={};
+    A.forEach(function(w){if(seen[w])return;seen[w]=1;var ids=L.idx[w];if(!ids||ids.length>600)return;var x=L.idf(w);ids.forEach(function(id){hits[id]=(hits[id]||0)+x})});
+    var cand=Object.keys(hits).sort(function(x,y){return hits[y]-hits[x]}).slice(0,40);
+    var best=null,bs=0;
+    cand.forEach(function(id){
+      var e=L.entries[id],sc=scorePair(A,e.w,L.idf),en=e.b,ref=e.r,wl=e.w.length;
+      if(sc.contain<0.72&&e.k==='bible'&&e.n>=0){var nx=L.entries[e.n],sc2=scorePair(A,e.w.concat(nx.w),L.idf);if(sc2.contain>sc.contain){sc=sc2;en=e.b+' '+nx.b;ref=e.r+'-'+nx.r.split(':')[1];wl+=nx.w.length}}
+      var ok;
+      if(A.length<=3)ok=sc.contain>=0.95&&wl<=A.length+1;
+      else if(A.length<=5)ok=sc.contain>=0.85&&wl<=A.length*1.6+2;
+      else ok=sc.contain>=0.72&&wl<=A.length*2.5+2;
+      if(e.k==='user'&&A.length>3)ok=ok||sc.contain>=0.65&&wl<=A.length*3;
+      var total=sc.contain+0.3*sc.cover+(e.k==='user'?0.2:e.k==='reading'?0.1:0);
+      if(ok&&total>bs){bs=total;best={b:en,ref:e.k==='bible'?ref:'',k:e.k}}
+    });
+    return best;
+  }
+  function matchPrayer(ar){
+    var m=matchOne(ar);if(m)return m;
+    var parts=ar.split(/[.؟!?:؛]+/).map(function(x){return x.trim()}).filter(function(x){return words(x).length>=3});
+    if(parts.length>1&&parts.length<=4){
+      var out=[],ref='',total=0,matched=0;
+      for(var i=0;i<parts.length;i++){var n=words(parts[i]).length;total+=n;var r=matchOne(parts[i]);if(!r)return null;matched+=n;out.push(r.b);if(r.ref)ref=ref?ref+'; '+r.ref:r.ref}
+      if(matched/total>=0.8)return {b:out.join(' '),ref:ref};
+    }
+    return null;
+  }
+  // ---- today's readings from the Coptic lectionary (api.katameros.app, free, MIT) ----
+  function autoReadingPairs(){try{var o=JSON.parse(S.get('autoReading','{}'));return o.date===today()&&o.pairs?o.pairs:[]}catch(e){return []}}
+  function verseMap(day){
+    var m={};(day.sections||[]).forEach(function(sec){(sec.subSections||[]).forEach(function(ss){(ss.readings||[]).forEach(function(r){(r.passages||[]).forEach(function(p){(p.verses||[]).forEach(function(v){m[sec.id+'/'+ss.id+'/'+r.id+'/'+p.bookId+'/'+p.chapter+'/'+v.number]=(v.text||'').trim()})})})})});
+    return m;
+  }
+  function loadReadings(){
+    if(S.get('autoRead','1')!=='1'){readStatus='';return}
+    if(autoReadingPairs().length){readStatus='Loaded for today ('+autoReadingPairs().length+' verses).';return}
+    var d=new Date(),ds=('0'+d.getDate()).slice(-2)+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+d.getFullYear();
+    readStatus='Loading…';
+    Promise.all([2,3].map(function(l){return fetch('https://api.katameros.app/readings/gregorian/'+ds+'?languageId='+l).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})}))
+      .then(function(res){
+        var en=verseMap(res[0]),ar=verseMap(res[1]),pairsOut=[];
+        Object.keys(ar).forEach(function(k){if(en[k]&&ar[k])pairsOut.push([ar[k],en[k]])});
+        S.set('autoReading',JSON.stringify({date:today(),title:res[0].title||'',pairs:pairsOut}));LIB=null;
+        readStatus=pairsOut.length?'Loaded for today ('+pairsOut.length+' verses). '+(res[0].title||''):'Nothing came back for today.';
+        if($('readStatus'))$('readStatus').textContent=readStatus;
+      }).catch(function(e){readStatus='Could not load today\'s readings ('+e.message+'). Paste them under Today\'s reading if you need them.';if($('readStatus'))$('readStatus').textContent=readStatus});
+  }
+  function allTerms(){
+    var list=pairs('terms');
+    if(S.get('builtin','1')==='1'){
+      var seen={};list.forEach(function(p){seen[p.a]=1});
+      (window.COPTIC_TERMS||[]).forEach(function(t){if(!t[2]&&!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1]})}});
+    }
+    return list.sort(function(x,y){return y.a.length-x.a.length});
+  }
+  function applyTerms(ar){
+    var list=allTerms();
+    list.forEach(function(p){
+      if(AR.test(p.a)){
+        // whole word only, allowing one attached prefix letter (و ب ل ف ك)
+        var re=new RegExp('(^|[^\u0600-\u06FF])([وبلفك]?)'+arPat(p.a)+'(?![\u0600-\u06FF])','g');
+        ar=ar.replace(re,function(m,pre,letter){return pre+(letter==='و'?'و ':'')+' '+p.b+' '});
+      }
+    });
+    return {ar:ar,fixEn:function(text){
+      text=text.replace(/\s+/g,' ').trim();
+      list.forEach(function(p){if(!AR.test(p.a))text=text.replace(new RegExp('\\b'+escRe(p.a)+'\\b','gi'),p.b)});
+      return text;
+    }};
+  }
+  $('builtinList').textContent=(window.COPTIC_TERMS||[]).map(function(p){return p[0]+' = '+p[1]}).join('\n');
+
+  // ---- captions ----
+  var lines=[],enEl=$('en'),arEl=$('ar');
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  var MAXL=4,shownIds=[];
+  function lineHtml(l){return esc(l.en||'…')}
+  function lineClass(l,idx,n){return (l.en?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
+  function render(){
+    var shown=lines.slice(-MAXL);
+    if(!lines.length){enEl.innerHTML='<div class="empty">Tap the title to change it. Press Start when the priest begins.</div>';shownIds=[];return}
+    shown.forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
+    var keep={};shown.forEach(function(l){keep[l.id]=1});
+    Array.prototype.slice.call(enEl.children).forEach(function(el){
+      if(el.classList.contains('empty')||el.classList.contains('interim')){el.remove();return}
+      if(!keep[el.id]&&!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},480)}
+    });
+    shown.forEach(function(l,i){
+      var el=document.getElementById(l.id);
+      if(!el){el=document.createElement('p');el.id=l.id;el.className='in';enEl.appendChild(el);requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
+      el.innerHTML=lineHtml(l);el.className=(el.classList.contains('in')?'in ':'')+lineClass(l,i,shown.length);
+      enEl.appendChild(el);
+    });
+    if(typeof liveEn!=='undefined'&&liveEn){var li=document.createElement('p');li.className='interim';li.textContent=liveEn;enEl.appendChild(li)}
+    fit();setTimeout(fit,520);
+    if(txId)txSave(false);
+  }
+  var lineSeq=0;
+  function fit(){
+    if(!enEl)return;
+    var root=document.documentElement,base=parseInt(S.get('size','46'),10)||46,fs=base;
+    root.style.setProperty('--fs',fs+'px');
+    function over(){var ps=enEl.querySelectorAll('p');if(!ps.length)return false;var a=enEl.getBoundingClientRect(),f=ps[0].getBoundingClientRect(),l=ps[ps.length-1].getBoundingClientRect();return (l.bottom-f.top)>a.height+1}
+    while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
+  }
+  window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
+  function setStatus(t){$('status').textContent=t}
+
+  // ---- free translation (MyMemory) ----
+  function chunk(t){var w=t.split(/\s+/),out=[],cur='';w.forEach(function(x){if((cur+' '+x).length>450){out.push(cur);cur=x}else cur=cur?cur+' '+x:x});if(cur)out.push(cur);return out}
+  async function mymemory(text){
+    var parts=chunk(text),out=[];
+    for(var i=0;i<parts.length;i++){
+      var u='https://api.mymemory.translated.net/get?q='+encodeURIComponent(parts[i])+'&langpair=ar|en'+(S.get('email','')?'&de='+encodeURIComponent(S.get('email','')):'');
+      var r=await fetch(u),j=await r.json();
+      if(j.responseStatus&&j.responseStatus!==200)throw new Error(j.responseDetails||('code '+j.responseStatus));
+      out.push(j.responseData.translatedText);
+    }
+    return out.join(' ');
+  }
+  var SYS_MIXED=' The priest sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
+  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. The Arabic comes from speech recognition and may contain misheard words. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
+  var groqBlockedUntil=0;
+  function groqGlossary(ar,prev){
+    var hay=' '+normAr(prev+' '+ar)+' ',ex=[],cx=[];
+    allTermsAll().forEach(function(t){var n=normAr(t.a);if(!n||hay.indexOf(n)<0)return;(t.c?cx:ex).push(t.a+' = '+t.b)});
+    var out='';
+    if(ex.length)out+='\n\nTranslate these terms exactly this way:\n'+ex.join('\n');
+    if(cx.length)out+='\n\nIn church context these words usually mean the following; use it when it fits the sentence:\n'+cx.join('\n');
+    return out;
+  }
+  async function groq(ar,alts,prevItem){
+    var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
+    var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
+    var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
+    var g=groqGlossary(ar,prev);
+    var r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',temperature:0.2,max_tokens:300,messages:[
+        {role:'system',content:SYS+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
+        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}]})});
+    if(r.status===429){groqBlockedUntil=Date.now()+30000;throw new Error('rate limit')}
+    if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;throw new Error('key not accepted, check it in Settings')}
+    if(r.status>=500){groqBlockedUntil=Date.now()+20000;throw new Error('service error '+r.status)}
+    var j=await r.json();
+    if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
+    var out=j.choices[0].message.content.trim();
+    if(canRevise){
+      var m=out.match(/\{[\s\S]*\}/);
+      if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'&&o.new.trim()){
+        if(typeof o.previous==='string'&&o.previous.trim()&&o.previous.trim()!==prevItem.en){prevItem.en=o.previous.trim();prevItem.revised=true}
+        return o.new.trim();
+      }}catch(e){}}
+      out=out.replace(/^\{[\s\S]*"new"\s*:\s*"/,'').replace(/"\s*\}\s*$/,'');
+    }
+    return out;
+  }
+  function allTermsAll(){
+    var list=pairs('terms');
+    if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
+    return list;
+  }
+  var queue=Promise.resolve();
+  function onFinal(ar,alts){
+    if(!ar.trim())return;
+    if(!AR.test(ar)&&S.get('lang','ar')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
+    var item={ar:ar,en:''};lines.push(item);arEl.textContent=ar;render();
+    var p=matchPrayer(ar);
+    if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;render();return}
+    var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
+    queue=queue.then(function(){
+      if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
+      var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
+    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;render();if(running&&!/AI busy/.test($('status').textContent))setStatus('Listening')})
+      .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
+  }
+
+  // ---- review and correct ----
+  var rdlg=$('review');
+  function addPair(key,a,b){var cur=S.get(key,'');var line=a+' = '+b;S.set(key,(cur?cur+'\n':'')+line)}
+  function openReview(){
+    var list=$('reviewList');list.innerHTML='';
+    var items=lines.slice(-40).reverse();
+    if(!items.length){list.innerHTML='<div class="help">Nothing to review yet.</div>'}
+    items.forEach(function(l){
+      var d=document.createElement('div');d.className='rv';
+      d.innerHTML='<div class="a"></div><div class="e"></div><div class="fixrow"><input placeholder="Correct English for this line" aria-label="Correct English"><button class="primary">Save fix</button><span class="saved"></span></div>';
+      d.querySelector('.a').textContent=l.ar;d.querySelector('.e').textContent=(l.fixed?'✓ ':'')+(l.en||'…');
+      var inp=d.querySelector('input'),btn=d.querySelector('button'),msg=d.querySelector('.saved');
+      btn.onclick=function(){
+        var v=inp.value.trim();if(!v)return;
+        var wordsAr=words(l.ar).length;
+        if(wordsAr<=3){addPair('terms',l.ar,v);msg.textContent='Saved to church terms.'}
+        else{addPair('prayers',l.ar,v);msg.textContent='Saved to prayer library.'}
+        l.en=v;l.fixed=true;render();
+      };
+      list.appendChild(d);
+    });
+    renderTx();rdlg.showModal();
+  }
+  $('reviewBtn').onclick=openReview;
+  // ---- transcripts: saved automatically on this iPad, last 10 services kept ----
+  var txId=null,txTimer=null,PAGE=Date.now().toString(36);
+  function txAll(){try{return JSON.parse(S.get('transcripts','[]'))||[]}catch(e){return []}}
+  function txWrite(list){
+    list.sort(function(a,b){return a.start-b.start});
+    while(list.length>10)list.shift();
+    for(;;){var str=JSON.stringify(list);if(str.length<3000000||list.length<=1){try{S.set('transcripts',str);break}catch(e){}}list.shift();if(!list.length)break}
+  }
+  function txBegin(){
+    var list=txAll(),last=list[list.length-1];
+    if(last&&last.end&&Date.now()-last.end<20*60000){txId=last.start;return} // same service, resumed within 20 minutes
+    txId=Date.now();list.push({start:txId,end:0,title:$('title').textContent.trim(),lines:[]});txWrite(list);
+  }
+  function txSave(final){
+    clearTimeout(txTimer);
+    var run=function(){
+      if(!txId)return;var list=txAll(),cur=null;list.forEach(function(t){if(t.start===txId)cur=t});if(!cur)return;
+      var pos={};cur.lines.forEach(function(x,i){if(x[2])pos[x[2]]=i});
+      lines.forEach(function(l){if(!l.en||/^\[/.test(l.en))return;if(!l.id)l.id='l'+(++lineSeq);var k=PAGE+':'+l.id;if(k in pos)cur.lines[pos[k]]=[l.ar,l.en,k];else{pos[k]=cur.lines.length;cur.lines.push([l.ar,l.en,k])}});
+      cur.title=$('title').textContent.trim();if(final)cur.end=Date.now();
+      txWrite(list);
+    };
+    if(final)run();else txTimer=setTimeout(run,1500);
+  }
+  function txText(t){return t.title+' \u2014 '+new Date(t.start).toLocaleString()+'\n\n'+t.lines.map(function(l){return l[0]+'\n\u2192 '+l[1]}).join('\n\n')}
+  function txShare(t){
+    var name='translation-'+new Date(t.start).toISOString().slice(0,10)+'.txt',blob=new Blob([txText(t)],{type:'text/plain;charset=utf-8'});
+    var file=new File([blob],name,{type:'text/plain'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(function(){})}
+    else{var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},2000)}
+  }
+  function renderTx(){
+    var box=$('txList');box.innerHTML='';var list=txAll().slice().reverse();
+    if(!list.length){box.innerHTML='<div class="help">No saved services yet.</div>';return}
+    list.forEach(function(t){
+      var d=document.createElement('div');d.className='rv';
+      d.innerHTML='<div class="e"></div><div class="fixrow"><button class="primary">Share</button><button class="ghost">Delete</button><span class="saved"></span></div>';
+      d.querySelector('.e').textContent=new Date(t.start).toLocaleString()+' \u00b7 '+t.title+' \u00b7 '+t.lines.length+' lines'+(t.end?'':' (in progress)');
+      var bs=d.querySelectorAll('button');
+      bs[0].onclick=function(){txShare(t)};
+      bs[1].onclick=function(){if(!confirm('Delete this saved service?'))return;txWrite(txAll().filter(function(x){return x.start!==t.start}));if(t.start===txId)txId=null;renderTx()};
+      box.appendChild(d);
+    });
+  }
+  $('reviewClose').onclick=function(){rdlg.close()};
+
+  // ---- usage: seconds of speech sent today, kept on this iPad ----
+  function today(){return new Date().toISOString().slice(0,10)}
+  function usedToday(){return S.get('useDay','')===today()?parseFloat(S.get('useSec','0'))||0:0}
+  function addUsage(sec){S.set('useDay',today());S.set('useSec',String(usedToday()+sec))}
+  function num(k,d){var v=parseInt(S.get(k,d),10);return isFinite(v)&&v>0?v:d}
+
+  // ---- speech: Whisper through Groq, or the iPad's own recognizer ----
+  var running=false,rec=null,wake=null,maxTimer=null,restartTimer=null,lastResult=0,watchdog=null;
+  var ctx=null,stream=null,proc=null,src=null,lastText='',whisperBlockedUntil=0,lastSpeechAt=0,idleTimer=null;
+  var micVad=null,vadProb=0,vadAt=0,vadOk=false;
+  async function startVad(dest){
+    vadOk=false;vadProb=0;
+    if(!window.vad||!window.vad.MicVAD||!window.ort)return;
+    try{
+      window.ort.env.wasm.numThreads=1;
+      micVad=await window.vad.MicVAD.new({audioContext:ctx,getStream:async function(){return dest.stream},model:'v5',baseAssetPath:new URL('vad/',location.href).href,onnxWASMBasePath:new URL('vad/',location.href).href,startOnLoad:false,
+        positiveSpeechThreshold:S.get('noise','normal')==='noisy'?0.75:0.6,negativeSpeechThreshold:0.4,redemptionMs:400,minSpeechMs:200,preSpeechPadMs:200,
+        onFrameProcessed:function(p){vadProb=p.isSpeech;vadAt=Date.now()},onSpeechStart:function(){},onSpeechEnd:function(){},onVADMisfire:function(){}});
+      await micVad.start();vadOk=true;
+      if(running&&/^Listening \(Whisper\)/.test($('status').textContent))setStatus($('status').textContent.replace('(Whisper)','(Whisper, voice detector on)'));
+    }catch(e){vadOk=false;micVad=null}
+  }
+  function ui(){$('go').textContent=running?'Stop':'Start';$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running)}
+  function useWhisper(){return S.get('engine','whisper')==='whisper'&&!!S.get('groqKey','')}
+
+  // -- Whisper hints: a few terms, then today's notes, then the last thing heard (Whisper keeps the END of the prompt) --
+  function whisperPrompt(){
+    var terms=[],len=0;
+    pairs('terms').concat((S.get('builtin','1')==='1'?(window.COPTIC_TERMS||[]).filter(function(t){return !t[2]}).map(function(t){return {a:t[0]}}):[])).forEach(function(t){
+      if(len>260||!AR.test(t.a))return;terms.push(t.a);len+=t.a.length+2;
+    });
+    var notes=S.get('notes','').trim().slice(0,200);
+    var tail=lastText.slice(-160);
+    return [terms.join('، '),notes,tail].filter(Boolean).join('. ');
+  }
+  function wavBlob(samples){
+    var n=samples.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+    function str(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}
+    str(0,'RIFF');v.setUint32(4,36+n*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,16000,true);v.setUint32(28,32000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,n*2,true);
+    for(var i=0;i<n;i++){var x=Math.max(-1,Math.min(1,samples[i]));v.setInt16(44+i*2,x<0?x*0x8000:x*0x7fff,true)}
+    return new Blob([buf],{type:'audio/wav'});
+  }
+  async function whisper(blob){
+    var fd=new FormData();
+    fd.append('file',blob,'a.wav');
+    fd.append('model','whisper-large-v3');if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
+    var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
+    var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);whisperBlockedUntil=Date.now()+Math.min(Math.max(ra,5),3600)*1000;throw new Error('hearing limit reached, waiting '+Math.min(Math.max(ra,5),3600)+' s')}
+    if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;throw new Error('key not accepted')}
+    var j=await r.json();
+    if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
+    return (j.text||'').trim();
+  }
+  var hearQueue=Promise.resolve();
+  function sendChunk(samples,speechSec){
+    if(speechSec<0.7||samples.length<16000*0.9)return;
+    if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
+    var secs=samples.length/16000;
+    if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
+    addUsage(secs);
+    var blob=wavBlob(samples);
+    hearQueue=hearQueue.then(function(){return whisper(blob)}).then(function(t){
+      if(!t||t===lastText)return;
+      if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return; // Whisper's known filler on near-silence
+      lastText=t;lastResult=Date.now();onFinal(t,[]);
+    }).catch(function(e){setStatus('Hearing problem: '+e.message)});
+  }
+
+  // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
+  var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=12000,HARD_MS=20000,FRAME_MS=0;
+  function resample(data,rate){
+    var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
+    for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
+    return out;
+  }
+  function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
+  function cutChunk(atQuietest){
+    var all=flatten(),cut=all.length;
+    if(atQuietest&&energy.length>6){
+      // find the quietest frame in the last 2.5 s and cut there
+      var frames=Math.min(energy.length,Math.round(2500/FRAME_MS)),best=0,bi=energy.length-1;
+      for(var i=energy.length-frames;i<energy.length;i++){if(i===energy.length-frames||energy[i]<best){best=energy[i];bi=i}}
+      var keepFrames=energy.length-bi;cut=Math.max(SR16,all.length-keepFrames*Math.round(FRAME_MS*SR16/1000));
+    }
+    var send=all.subarray(0,cut),rest=all.subarray(Math.max(0,cut-OVERLAP));
+    var sp=speechSamples/SR16;
+    buf=[rest.slice()];bufLen=rest.length;energy=energy.slice(-Math.round(OVERLAP/SR16*1000/FRAME_MS)-1);
+    speechSamples=0;chunkMs=rest.length/SR16*1000;
+    sendChunk(send,sp);
+  }
+
+  async function startWhisper(){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
+    var direct=S.get('micMode','room')==='direct';
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:!direct,autoGainControl:!direct}})}
+    catch(e){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');try{ctx.close()}catch(e2){}return false}
+    if(ctx.state==='suspended'){try{await ctx.resume()}catch(e){}}
+    src=ctx.createMediaStreamSource(stream);proc=ctx.createScriptProcessor(2048,1,1);
+    var hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=85;hp.Q.value=0.7;
+    var lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=4800;lp.Q.value=0.7;
+    var an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0.2;var spec=new Float32Array(an.frequencyBinCount),binHz=ctx.sampleRate/an.fftSize;
+    src.connect(hp);hp.connect(lp);lp.connect(an);lp.connect(proc);proc.connect(ctx.destination);
+    var dest=ctx.createMediaStreamDestination();lp.connect(dest);startVad(dest);
+    var noisy=S.get('noise','normal')==='noisy';
+    function voiceBand(){
+      an.getFloatFrequencyData(spec);var low=0,high=0;
+      for(var i=1;i<spec.length;i++){var hz=i*binHz,pw=Math.pow(10,spec[i]/10);if(hz>=85&&hz<1000)low+=pw;else if(hz>=1000&&hz<5000)high+=pw}
+      return low/(low+high+1e-12);
+    }
+    FRAME_MS=2048/ctx.sampleRate*1000;
+    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
+    proc.onaudioprocess=function(e){
+      var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
+      var rms=Math.sqrt(sum/d.length);
+      // adaptive threshold: track the room's quiet level, speak when well above it
+      if(rms<noiseFloor*1.5||rms<0.003)noiseFloor=noiseFloor*0.95+rms*0.05;else noiseFloor=Math.min(noiseFloor*1.002,0.02);
+      var thresh=noisy?Math.max(0.012,noiseFloor*5):Math.max(0.006,noiseFloor*3.5),voice=rms>thresh;
+      if(vadOk&&Date.now()-vadAt<800)voice=vadProb>(noisy?0.75:0.6)&&rms>Math.max(0.0025,noiseFloor*1.5); // neural voice detector decides; loudness only guards against the far-off murmur
+      if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
+      var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;
+      if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
+      var spoken=speechSamples/SR16*1000;
+      if(spoken>900&&sinceVoiceMs>520&&chunkMs>2500)cutChunk(false);           // natural pause
+      else if(spoken>900&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
+      else if(chunkMs>HARD_MS){if(spoken>900)cutChunk(true);else{buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
+    };
+    return true;
+  }
+
+  function makeRec(){
+    var r=new SR();
+    r.lang='ar-EG';r.interimResults=true;r.continuous=!IOS;r.maxAlternatives=3;
+    r.onresult=function(e){
+      lastResult=Date.now();
+      var interim='';
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        var res=e.results[i],t=res[0].transcript.trim();
+        if(res.isFinal){var alts=[];for(var k=1;k<res.length;k++){var a=(res[k].transcript||'').trim();if(a&&a!==t)alts.push(a)}onFinal(t,alts)}else interim+=t+' ';
+      }
+      if(interim.trim())arEl.textContent=interim.trim();
+    };
+    r.onerror=function(e){
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return}
+      if(e.error==='network')setStatus('No connection for speech recognition.');
+    };
+    r.onend=function(){if(running){clearTimeout(restartTimer);restartTimer=setTimeout(function(){if(running){try{rec.start()}catch(e){}}},IOS?250:50)}};
+    return r;
+  }
+  async function startApple(){
+    if(!SR){running=false;ui();setStatus('This iPad browser has no speech recognition. Use Safari, or add a Groq key.');return false}
+    try{var s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(function(t){t.stop()})}catch(e){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return false}
+    rec=rec||makeRec();
+    try{rec.start()}catch(e){}
+    watchdog=setInterval(function(){if(running&&Date.now()-lastResult>25000){try{rec.stop()}catch(e){}lastResult=Date.now()}},5000);
+    return true;
+  }
+
+  async function start(){
+    running=true;ui();lastResult=Date.now();setStatus('Starting microphone…');txBegin();
+    var ok=useWhisper()?await startWhisper():await startApple();
+    if(!ok)return;
+    setStatus(useWhisper()?'Listening (Whisper'+(vadOk?', voice detector on':'')+'). Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
+    loadReadings();
+    lastSpeechAt=Date.now();clearInterval(idleTimer);
+    idleTimer=setInterval(function(){
+      var ref=useWhisper()?lastSpeechAt:lastResult;
+      if(running&&Date.now()-ref>num('idleMin',10)*60000){stop();setStatus('Stopped: nothing was heard for '+num('idleMin',10)+' minutes.')}
+    },15000);
+    var mins=parseInt(S.get('maxMin','120'),10)||120;
+    maxTimer=setTimeout(function(){stop();setStatus('Stopped automatically after '+mins+' minutes.')},mins*60000);
+    try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
+  }
+  function stop(){
+    running=false;ui();clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
+    try{rec&&rec.stop()}catch(e){}
+    if(proc&&speechSamples/SR16>0.7){try{cutChunk(false)}catch(e){}}
+    buf=[];bufLen=0;energy=[];speechSamples=0;
+    try{if(micVad){micVad.destroy?micVad.destroy():micVad.pause()}}catch(e){}micVad=null;vadOk=false;
+    try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
+    try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+    stream=null;ctx=null;proc=null;src=null;
+    try{wake&&wake.release()}catch(e){}
+    setTimeout(function(){txSave(true);txId=null},4000); // wait for the last sentences to finish translating
+    setStatus('Stopped');
+  }
+  $('go').onclick=function(){running?stop():start()};
+
+  // ---- test with a recording: whole file to Whisper, then each segment through the usual path ----
+  $('testfile').addEventListener('change',async function(){
+    var f=this.files&&this.files[0];if(!f)return;this.value='';
+    if(!S.get('groqKey','')){setStatus('Add the Groq key first.');return}
+    dlg.close();if(running)stop();
+    setStatus('Hearing the recording…');lines=[];enEl.innerHTML='';render();
+    try{
+      var fd=new FormData();fd.append('file',f,f.name||'test.m4a');fd.append('model','whisper-large-v3');if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+      var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
+      var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+      var j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
+      var segs=(j.segments||[]).map(function(x){return (x.text||'').trim()}).filter(Boolean);
+      if(!segs.length&&j.text)segs=[j.text.trim()];
+      if(j.duration)addUsage(j.duration);
+      setStatus('Translating '+segs.length+' sentences…');
+      segs.forEach(function(t){onFinal(t,[])});
+      queue=queue.then(function(){setStatus('Recording done. Tap ✎ to review and correct.')});
+    }catch(e){setStatus('Test problem: '+e.message)}
+  });
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden&&running){if(rec){try{rec.stop()}catch(e){}}}
+    else if(running){if(rec&&!useWhisper()){try{rec.start()}catch(e){}};if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){wake=w}).catch(function(){})}
+  });
+  if(!SR&&!S.get('groqKey',''))setStatus('Add a Groq key in Settings, or open this page in Safari.');
+  (function(){var sc=document.createElement('script');sc.src='bible.js';sc.async=true;sc.onload=function(){LIB=null;setTimeout(function(){try{getLib()}catch(e){}},300)};document.head.appendChild(sc)})();
+  loadReadings();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+Free data and software used by this app
+
+Liturgy, Midnight Praises (Tasbeha), doxologies, fractions, Agpeya and hymn texts (liturgy.js):
+  - coptish-datastore, https://github.com/ShadyZekry/coptish-datastore  (Mozilla Public License 2.0)
+  - coptic.io, https://github.com/abanobmikaeel/coptic.io  (MIT License)
+  - coptic-hymns, https://github.com/ryakoub/coptic-hymns
+
+Bible (bible.js):
+  - Arabic: Van Dyck translation (public domain), taken from the Katameros database, https://github.com/pierresaid/katameros-api (MIT License)
+  - English: World English Bible (public domain), https://www.npmjs.com/package/world-english-bible
+
+Daily readings (fetched each day by the app):
+  - Katameros API, https://api.katameros.app  (MIT License), English readings in the New King James Version
+
+Voice detection (vad/):
+  - Silero VAD model, https://github.com/snakers4/silero-vad  (MIT License)
+  - @ricky0123/vad-web, https://github.com/ricky0123/vad  (ISC License)
+  - ONNX Runtime Web, https://github.com/microsoft/onnxruntime  (MIT License)
+
+Hearing and translation: Groq (Whisper large v3, Llama 3.3 70B) with the church's own key. Fallback translation: MyMemory.
