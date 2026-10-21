@@ -39,6 +39,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex
 #en p.out{opacity:0;max-height:0;transform:translateY(-.3em)}
 #en p.old{color:var(--dim);font-weight:500}
 #en p.fixed{color:var(--green)}
+#en p .draft{opacity:.72}
 #en p.pending{color:var(--dim);font-style:italic;font-weight:500}
 #en .interim{color:var(--dim);font-style:italic;font-weight:500}
 #ar{direction:rtl;color:var(--gold2);font-size:calc(var(--fs)*.42);min-height:1.5em;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Georgia,"Lora",serif}
@@ -313,8 +314,8 @@ textarea{min-height:120px;resize:vertical}
   var lines=[],enEl=$('en'),arEl=$('ar');
   function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
   var MAXL=4,shownIds=[];
-  function lineHtml(l){return esc(l.en||'…')}
-  function lineClass(l,idx,n){return (l.en?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
+  function lineHtml(l){return l.en?esc(l.en):l.draft?'<span class="draft">'+esc(l.draft)+'</span>':'…'}
+  function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
   function render(){
     var shown=lines.slice(-MAXL);
     if(!lines.length){enEl.innerHTML='<div class="empty">Tap the title to change it. Press Start when the priest begins.</div>';shownIds=[];return}
@@ -394,6 +395,15 @@ textarea{min-height:120px;resize:vertical}
     }
     return out;
   }
+  async function quick(ar){
+    var r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
+      body:JSON.stringify({model:'llama-3.1-8b-instant',temperature:0,max_tokens:200,messages:[
+        {role:'system',content:'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Output only the English, nothing else.'+groqGlossary(ar,'')},
+        {role:'user',content:ar}]})});
+    if(!r.ok)throw new Error('quick '+r.status);
+    var j=await r.json();return (j.choices[0].message.content||'').trim();
+  }
   function allTermsAll(){
     var list=pairs('terms');
     if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
@@ -403,14 +413,15 @@ textarea{min-height:120px;resize:vertical}
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','ar')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
-    var item={ar:ar,en:''};lines.push(item);arEl.textContent=ar;render();
+    var item={ar:ar,en:'',t0:Date.now()};lines.push(item);arEl.textContent=ar;render();
     var p=matchPrayer(ar);
-    if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;render();return}
+    if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
+    if(useAI)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){}); // fast first draft, replaced by the careful version
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -424,7 +435,7 @@ textarea{min-height:120px;resize:vertical}
     items.forEach(function(l){
       var d=document.createElement('div');d.className='rv';
       d.innerHTML='<div class="a"></div><div class="e"></div><div class="fixrow"><input placeholder="Correct English for this line" aria-label="Correct English"><button class="primary">Save fix</button><span class="saved"></span></div>';
-      d.querySelector('.a').textContent=l.ar;d.querySelector('.e').textContent=(l.fixed?'✓ ':'')+(l.en||'…');
+      d.querySelector('.a').textContent=l.ar;d.querySelector('.e').textContent=(l.fixed?'✓ ':'')+(l.en||'…')+(l.t0&&l.t1?'  ('+((l.tDraft?('draft '+((l.tDraft-l.t0)/1000).toFixed(1)+' s, '):'')+'final '+((l.t1-l.t0)/1000).toFixed(1))+' s)':'');
       var inp=d.querySelector('input'),btn=d.querySelector('button'),msg=d.querySelector('.saved');
       btn.onclick=function(){
         var v=inp.value.trim();if(!v)return;
@@ -556,7 +567,7 @@ textarea{min-height:120px;resize:vertical}
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=12000,HARD_MS=20000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=7000,HARD_MS=20000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -618,7 +629,7 @@ textarea{min-height:120px;resize:vertical}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;
-      if(spoken>900&&sinceVoiceMs>520&&chunkMs>2500)cutChunk(false);           // natural pause
+      if(spoken>900&&sinceVoiceMs>420&&chunkMs>1800)cutChunk(false);           // natural pause
       else if(spoken>900&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>900)cutChunk(true);else{buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
