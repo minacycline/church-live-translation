@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v16">
+<meta name="build" content="v17">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -381,6 +381,37 @@ textarea{min-height:120px;resize:vertical}
     if(cx.length)out+='\n\nIn church context these words usually mean the following; use it when it fits the sentence:\n'+cx.join('\n');
     return out;
   }
+  // Groq retires models from time to time (llama-3.3-70b-versatile and llama-3.1-8b-instant ended 16 Aug 2026): ask Groq what this key can use
+  var MODELS={chat:'openai/gpt-oss-120b',fast:'openai/gpt-oss-20b',asr:'whisper-large-v3',asrFast:'whisper-large-v3-turbo',ready:false};
+  var PREF_CHAT=['openai/gpt-oss-120b','qwen/qwen3.6-27b','llama-3.3-70b-versatile','llama-3.1-70b-versatile'];
+  var PREF_FAST=['openai/gpt-oss-20b','llama-3.1-8b-instant','openai/gpt-oss-120b'];
+  var PREF_ASR=['whisper-large-v3','whisper-large-v3-turbo'];
+  var BAD={},REASON_OK=true;
+  function pick(ids,pref,fallback){for(var i=0;i<pref.length;i++)if(ids.indexOf(pref[i])>=0&&!BAD[pref[i]])return pref[i];return fallback}
+  async function chatProblem(r,model){ // a model that is gone, or a setting this model dislikes: learn from it so the next piece works
+    if(r.ok)return;
+    var msg='';try{msg=((await r.clone().json()).error||{}).message||''}catch(e){}
+    if(r.status===404||/does not exist|not have access|decommission|model_not_found/i.test(msg)){BAD[model]=1;dbg('MODEL unavailable: '+model+' ('+msg.slice(0,80)+')');await loadModels()}
+    else if(r.status===400&&REASON_OK&&/reason|include|effort|param/i.test(msg)){REASON_OK=false;dbg('Reasoning options refused, retrying plain: '+msg.slice(0,80))}
+  }
+  async function loadModels(){
+    if(!S.get('groqKey',''))return;
+    try{
+      var r=await fetchT('https://api.groq.com/openai/v1/models',{headers:{'authorization':'Bearer '+S.get('groqKey','')}},8000);
+      if(!r.ok){dbg('MODELS list failed '+r.status);return}
+      var j=await r.json(),ids=(j.data||[]).map(function(m){return m.id});
+      MODELS.chat=pick(ids,PREF_CHAT,MODELS.chat);MODELS.fast=pick(ids,PREF_FAST,MODELS.fast);
+      MODELS.asr=pick(ids,PREF_ASR,MODELS.asr);MODELS.asrFast=ids.indexOf('whisper-large-v3-turbo')>=0?'whisper-large-v3-turbo':MODELS.asr;MODELS.ready=true;
+      dbg('MODELS chat='+MODELS.chat+' fast='+MODELS.fast+' asr='+MODELS.asr+' ('+ids.length+' available)');
+    }catch(e){dbg('MODELS list error '+e.message)}
+  }
+  function chatBody(model,messages,maxTok,temp){ // reasoning models need a small reasoning budget so answers come back fast
+    var b={model:model,temperature:temp,max_tokens:maxTok,messages:messages};
+    if(!REASON_OK){}
+    else if(/gpt-oss/.test(model)){b.reasoning_effort='low';b.include_reasoning=false;b.max_tokens=maxTok+400}
+    else if(/qwen3/.test(model)){b.reasoning_effort='none';b.max_tokens=maxTok}
+    return JSON.stringify(b);
+  }
   function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
     var c=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(function(){try{c&&c.abort()}catch(e){}},ms||12000);
     opts=opts||{};if(c)opts.signal=c.signal;
@@ -393,9 +424,10 @@ textarea{min-height:120px;resize:vertical}
     var g=groqGlossary(ar,prev);
     var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',temperature:0.2,max_tokens:300,messages:[
+      body:chatBody(MODELS.chat,[
         {role:'system',content:SYS+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
-        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}]})});
+        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2)});
+    await chatProblem(r,MODELS.chat);
     if(r.status===429){groqBlockedUntil=Date.now()+30000;throw new Error('rate limit')}
     if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;throw new Error('key not accepted, check it in Settings')}
     if(r.status>=500){groqBlockedUntil=Date.now()+20000;throw new Error('service error '+r.status)}
@@ -415,9 +447,10 @@ textarea{min-height:120px;resize:vertical}
   async function quick(ar){
     var r=await fetchT('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
       headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',temperature:0,max_tokens:200,messages:[
+      body:chatBody(MODELS.fast,[
         {role:'system',content:'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). Output only the English, nothing else.'+groqGlossary(ar,'')},
-        {role:'user',content:ar}]})});
+        {role:'user',content:ar}],200,0)});
+    await chatProblem(r,MODELS.fast);
     if(!r.ok)throw new Error('quick '+r.status);
     var j=await r.json();return (j.choices[0].message.content||'').trim();
   }
@@ -618,6 +651,8 @@ textarea{min-height:120px;resize:vertical}
     }).join('');
   }
   function wavBlob(samples){
+    var pk=0,k;for(k=0;k<samples.length;k+=7){var a0=Math.abs(samples[k]);if(a0>pk)pk=a0}
+    if(pk>0.004&&pk<0.5){var g=Math.min(30,0.6/pk),o=new Float32Array(samples.length);for(k=0;k<samples.length;k++)o[k]=samples[k]*g;samples=o} // quiet phone microphone: bring the loudest part to a healthy level
     var n=samples.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
     function str(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}
     str(0,'RIFF');v.setUint32(4,36+n*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
@@ -628,7 +663,7 @@ textarea{min-height:120px;resize:vertical}
   async function whisper(blob){
     var fd=new FormData();
     fd.append('file',blob,'a.wav');
-    fd.append('model','whisper-large-v3');if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
+    fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
@@ -639,7 +674,7 @@ textarea{min-height:120px;resize:vertical}
   }
   var liveEn='',liveGen=0,interimBusy=false,interimAt=0,interimBlockedUntil=0;
   async function whisperLive(blob){
-    var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model','whisper-large-v3-turbo'); // faster model with its own free allowance, only for the running preview
+    var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model',MODELS.asrFast); // faster model with its own free allowance, only for the running preview
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchT('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
@@ -740,7 +775,7 @@ textarea{min-height:120px;resize:vertical}
     }
     var send=all.subarray(0,cut),rest=all.subarray(Math.max(0,cut-OVERLAP));
     var sp=speechSamples/SR16;
-    if(energy.length>8){var me=0;energy.forEach(function(x){me+=x});me/=energy.length;if(sp<0.6&&me>Math.max(0.004,noiseFloor*2.5)&&send.length>SR16*1.5)sp=Math.max(sp,0.8)} // loud overall: it is speech
+    if(energy.length>8){var me=0;energy.forEach(function(x){me+=x});me/=energy.length;if(sp<0.6&&me>Math.max(0.0015,noiseFloor*2.5)&&send.length>SR16*1.5)sp=Math.max(sp,0.8)} // loud overall: it is speech
     buf=[rest.slice()];bufLen=rest.length;energy=energy.slice(-Math.round(OVERLAP/SR16*1000/FRAME_MS)-1);
     speechSamples=0;chunkMs=rest.length/SR16*1000;
     sendChunk(send,sp);
@@ -802,7 +837,7 @@ textarea{min-height:120px;resize:vertical}
       peakLvl=Math.max(rms,peakLvl*0.98);
       if(rms<noiseFloor*1.6){noiseFloor=Math.min(0.012,noiseFloor*0.92+rms*0.08);quietAt=now}
       else if(now-quietAt>20000){noiseFloor=Math.min(0.012,noiseFloor*1.02)} // a steady hum for 20 s: slowly accept it as background
-      var thresh=Math.max(noisy?0.005:0.003,noiseFloor*(noisy?3:2.2),peakLvl*0.04),voice=rms>thresh;
+      var thresh=Math.max(noisy?0.004:0.0016,noiseFloor*(noisy?3:2.5),peakLvl*0.04),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
       meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
@@ -853,7 +888,7 @@ textarea{min-height:120px;resize:vertical}
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
-    loadReadings();
+    loadReadings();loadModels();
     if(useWhisper())setTimeout(startPreviewSR,600);
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
@@ -887,7 +922,7 @@ textarea{min-height:120px;resize:vertical}
     dlg.close();if(running)stop();
     setStatus('Hearing the recording…');lines=[];enEl.innerHTML='';render();
     try{
-      var fd=new FormData();fd.append('file',f,f.name||'test.m4a');fd.append('model','whisper-large-v3');if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+      var fd=new FormData();fd.append('file',f,f.name||'test.m4a');fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
       var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
       var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
       var j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
