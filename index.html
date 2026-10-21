@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v31">
+<meta name="build" content="v32">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -809,6 +809,7 @@ textarea{min-height:120px;resize:vertical}
   function fixNames(txt){
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
     txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يسر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ');
+    txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');
     txt=txt.replace(/معلم\s+نبولس/g,'معلمنا بولس').replace(/(^|\s)نبولس/g,'$1بولس').replace(/معلم\s+نبطرس/g,'معلمنا بطرس');
     var names=nameWords();if(!names.length)return txt;
     return txt.split(/(\s+)/).map(function(w){
