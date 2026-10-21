@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v20">
+<meta name="build" content="v21">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -48,6 +48,12 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex
 #ar{direction:rtl;color:var(--gold2);font-size:calc(var(--fs)*.42);min-height:1.5em;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Georgia,"Lora",serif}
 #ar[hidden]{display:none}
 .empty{color:var(--dim);font-size:22px;line-height:1.5;font-style:italic;text-align:center}
+#rst{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;font-size:13px;padding:4px 9px;opacity:.55;flex:none}
+#rst:active{opacity:1}
+#rstDlg{border:1px solid var(--gold2);background:var(--panel);color:var(--fg);border-radius:14px;padding:18px 20px;max-width:320px;text-align:center}
+#rstDlg::backdrop{background:rgba(0,0,0,.6)}
+#rstDlg button{font-size:17px;padding:10px 18px;margin:8px 6px 0;border-radius:10px;border:1px solid var(--gold2);background:transparent;color:var(--fg)}
+#rstDlg button.yes{background:var(--red);border-color:var(--red)}
 footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
 #go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
 #go.stop{background:var(--red);color:var(--fg)}
@@ -104,7 +110,9 @@ textarea{min-height:120px;resize:vertical}
   <button id="go">Start</button>
   <span id="meter" title="Microphone level; green when the priest's voice is detected"><i></i></span>
   <span id="status">Ready</span>
+  <button id="rst" type="button" aria-label="Restart">↻</button>
 </footer>
+<dialog id="rstDlg"><div style="font-size:19px">Restart the app?</div><div class="help" style="margin-top:6px">Listening stops and the screen clears. Your settings and saved services are kept.</div><button id="rstNo" type="button">Cancel</button><button id="rstYes" class="yes" type="button">Restart</button></dialog>
 
 <dialog id="settings">
   <h2>Settings</h2>
@@ -165,7 +173,7 @@ textarea{min-height:120px;resize:vertical}
   </div>
   <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
   <label for="testfile">Test with a recording</label>
-  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="lrnBtn" type="button">Reset learning</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
   <div id="chkOut" class="help" style="white-space:pre-line"></div>
   <div class="help">If something goes wrong, press this right after, then paste into a message to Claude. It lists what the app heard and how long each step took (no audio, no key).</div>
   <input id="testfile" type="file" accept="audio/*,video/*">
@@ -354,11 +362,14 @@ textarea{min-height:120px;resize:vertical}
     while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
   }
   window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
+  // The app tunes itself from what it observes and remembers it on this device (it cannot rewrite its own code, but it can adjust its settings)
+  var LEARN={};try{LEARN=JSON.parse(localStorage.getItem('learn')||'{}')||{}}catch(e){LEARN={}}
+  function learnSave(){try{localStorage.setItem('learn',JSON.stringify(LEARN))}catch(e){}}
   var DBG=[],DBG0=Date.now();
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
@@ -398,13 +409,14 @@ textarea{min-height:120px;resize:vertical}
   var PREF_CHAT=['openai/gpt-oss-120b','qwen/qwen3.6-27b','llama-3.3-70b-versatile','llama-3.1-70b-versatile'];
   var PREF_FAST=['openai/gpt-oss-20b','llama-3.1-8b-instant','openai/gpt-oss-120b'];
   var PREF_ASR=['whisper-large-v3','whisper-large-v3-turbo'];
-  var BAD={},REASON_OK=true;
+  var BAD={},REASON_OK=LEARN.reasonOk!==false;
+  if(LEARN.models){MODELS.chat=LEARN.models.chat||MODELS.chat;MODELS.fast=LEARN.models.fast||MODELS.fast;MODELS.asr=LEARN.models.asr||MODELS.asr;MODELS.asrFast=LEARN.models.asrFast||MODELS.asrFast}
   function pick(ids,pref,fallback){for(var i=0;i<pref.length;i++)if(ids.indexOf(pref[i])>=0&&!BAD[pref[i]])return pref[i];return fallback}
   async function chatProblem(r,model){ // a model that is gone, or a setting this model dislikes: learn from it so the next piece works
     if(r.ok)return;
     var msg='';try{msg=((await r.clone().json()).error||{}).message||''}catch(e){}
     if(r.status===404||/does not exist|not have access|decommission|model_not_found/i.test(msg)){BAD[model]=1;dbg('MODEL unavailable: '+model+' ('+msg.slice(0,80)+')');await loadModels()}
-    else if(r.status===400&&REASON_OK&&/reason|include|effort|param/i.test(msg)){REASON_OK=false;dbg('Reasoning options refused, retrying plain: '+msg.slice(0,80))}
+    else if(r.status===400&&REASON_OK&&/reason|include|effort|param/i.test(msg)){REASON_OK=false;LEARN.reasonOk=false;learnSave();dbg('Reasoning options refused, retrying plain: '+msg.slice(0,80))}
   }
   async function loadModels(){
     if(!S.get('groqKey',''))return;
@@ -415,6 +427,7 @@ textarea{min-height:120px;resize:vertical}
       MODELS.chat=pick(ids,PREF_CHAT,MODELS.chat);MODELS.fast=pick(ids,PREF_FAST,MODELS.fast);
       MODELS.asr=pick(ids,PREF_ASR,MODELS.asr);MODELS.asrFast=ids.indexOf('whisper-large-v3-turbo')>=0?'whisper-large-v3-turbo':MODELS.asr;MODELS.ready=true;
       dbg('MODELS chat='+MODELS.chat+' fast='+MODELS.fast+' asr='+MODELS.asr+' ('+ids.length+' available)');
+      LEARN.models={chat:MODELS.chat,fast:MODELS.fast,asr:MODELS.asr,asrFast:MODELS.asrFast};learnSave();
     }catch(e){dbg('MODELS list error '+e.message)}
   }
   function chatBody(model,messages,maxTok,temp){ // reasoning models need a small reasoning budget so answers come back fast
@@ -564,6 +577,7 @@ textarea{min-height:120px;resize:vertical}
     renderTx();rdlg.showModal();
   }
   $('reviewBtn').onclick=openReview;
+  $('lrnBtn').onclick=function(){try{localStorage.removeItem('learn')}catch(e){}$('chkOut').textContent='Learned settings cleared. They rebuild themselves as the app listens. (Restart the app to apply.)'};
   $('chkBtn').onclick=async function(){
     var o=$('chkOut');o.textContent='Checking…';
     var res=await healthCheck();
@@ -679,8 +693,17 @@ textarea{min-height:120px;resize:vertical}
     return [terms.join('، '),notes,tail].filter(Boolean).join('. ');
   }
   // Whisper sometimes invents text on near-silence: echoes the hint list, loops one word, or writes English/subtitle filler
+  // never learn to ignore real prayers: anything in the prayer library, the term list, or the user's own terms is safe
+  function looksLiturgical(txt){
+    try{if(matchPrayer(txt))return true}catch(e){}
+    var n=' '+normAr(txt)+' ',hit=false;
+    (window.COPTIC_TERMS||[]).forEach(function(x){if(!hit&&n.indexOf(normAr(x[0]))>=0&&normAr(x[0]).length>=3)hit=true});
+    pairs('terms').forEach(function(p){if(!hit&&AR.test(p.a)&&n.indexOf(normAr(p.a))>=0)hit=true});
+    return hit||/^(امين|آمين|هلليلويا|كيرياليسون|يا رب ارحم|ارحمنا|المجد لك|يارب)/.test(normAr(txt));
+  }
   function cleanHeard(txt){
     txt=(txt||'').trim();if(!txt)return '';
+    if((LEARN.junk||[]).indexOf(normAr(txt))>=0)return '';
     if(S.get('lang','ar')!=='mixed'&&!AR.test(txt))return '';
     if(/اشترك|القناة|ترجمة نانسي|ترجمة|شكرا للمشاهدة|شكراً للمشاهدة|مترجم|subscribe|thank you for watching/i.test(txt)&&txt.length<45)return '';
     var w=txt.split(/\s+/).filter(Boolean);
@@ -750,7 +773,7 @@ textarea{min-height:120px;resize:vertical}
     if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
-    if(r.status===429){interimBlockedUntil=Date.now()+20000;throw new Error('limit')}
+    if(r.status===429){interimBlockedUntil=Date.now()+20000;LEARN.gap=Math.min(8000,(LEARN.gap||2500)+1000);learnSave();dbg('LEARNED slower preview gap '+LEARN.gap);throw new Error('limit')}
     if(!r.ok)throw new Error('http '+r.status);
     return ((await r.json()).text||'').trim();
   }
@@ -785,7 +808,7 @@ textarea{min-height:120px;resize:vertical}
   function liveStep(){ // while the priest is speaking: show a quick running translation of the piece heard so far
     var now=Date.now();
     if(sr2On)return; // the phone's recognizer is giving the instant preview
-    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<2500)return;
+    if(interimBusy||now<interimBlockedUntil||now<whisperBlockedUntil||now<groqBlockedUntil||now-interimAt<(LEARN.gap||2500))return;
     if(speechSamples/SR16<0.9||sinceVoiceMs>600||bufLen<SR16*1.5)return;
     if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
@@ -811,13 +834,14 @@ textarea{min-height:120px;resize:vertical}
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
     var p=hearSlot().then(function(){return whisper(blob).catch(function(e){if(/limit reached/.test(e.message)){var w=Math.max(0,whisperBlockedUntil-Date.now());if(w>0&&w<25000)return new Promise(function(x){setTimeout(x,w+200)}).then(function(){return whisper(blob)})}throw e})}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
-      lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
+      lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));
+      if(t&&speechSec<0.9&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
-  var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,peakLvl=0,quietAt=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
+  var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
   var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=5000,HARD_MS=12000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
@@ -902,7 +926,7 @@ textarea{min-height:120px;resize:vertical}
       lastF=audioFrames;
       if(hearStart&&Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[]} // a stuck request must not block the rest
     },1500);
-    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
+    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
@@ -911,8 +935,9 @@ textarea{min-height:120px;resize:vertical}
       peakLvl=Math.max(rms,peakLvl*0.98);
       if(rms<noiseFloor*1.6){noiseFloor=Math.min(0.012,noiseFloor*0.92+rms*0.08);quietAt=now}
       else if(now-quietAt>20000){noiseFloor=Math.min(0.012,noiseFloor*1.02)} // a steady hum for 20 s: slowly accept it as background
-      var thresh=Math.max(noisy?0.004:0.0016,noiseFloor*(noisy?3:2.5),peakLvl*0.04),voice=rms>thresh;
+      var thresh=Math.max(noisy?0.004:0.0016,noiseFloor*(noisy?3:2.5),peakLvl*0.04,(LEARN.speech||0)*0.15),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
+      if(voice){speechSum+=rms;speechN++;if(speechN>=400){LEARN.speech=Math.round(((LEARN.speech||speechSum/speechN)*0.7+(speechSum/speechN)*0.3)*1e5)/1e5;LEARN.floor=Math.round(Math.min(0.012,noiseFloor)*1e5)/1e5;learnSave();dbg('LEARNED mic: speech level '+LEARN.speech+' room floor '+LEARN.floor);speechSum=0;speechN=0}}
       meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
@@ -988,6 +1013,10 @@ textarea{min-height:120px;resize:vertical}
     setStatus('Stopped');
   }
   $('go').onclick=function(){running?stop():start()};
+  $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
+  $('rstNo').onclick=function(){$('rstDlg').close()};
+  $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
+  function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   setTimeout(updateCheck,1500);
 
   // ---- test with a recording: whole file to Whisper, then each segment through the usual path ----
