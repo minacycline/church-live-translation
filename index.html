@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v25">
+<meta name="build" content="v26">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -781,7 +781,7 @@ textarea{min-height:120px;resize:vertical}
   function nameWords(){
     var key=S.get('terms','')+'|'+S.get('builtin','1');
     if(nameWordsCache&&nameWordsKey===key)return nameWordsCache;
-    var m={};nameTerms().forEach(function(a){a.split(/\s+/).forEach(function(w){var n=normAr(w);if(n.length>=5&&!/^(القديس|القديسه|الانبا|البابا|الملاك|رئيس|الشهيد|الشهيده|الكنيسه|العذراء|السيده|الرسول|البشير|الكبير|النبي|الحكيم|الصديق|المعمدان|الحبيب|الدير|الكاتدرائيه|الاسقف|المطران|القمص|ابونا|معلمنا|الاباء|الكهنه|الرهبان|الخدام|التسبحه|الاجبيه|السنكسار|الدفنار|القطمارس|الخولاجي|البولس|الكاثوليكون|الابركسيس|كيهك|الملائكه|والده|الاله|الثاني|الثالث|السادس|الاول|الاولي|الصالح|الاعظم|الاسود|العظيم|الجديد|الدين|الليل|الامير|المصريه|الشهداء|الروماني|المتوحدين|واولادها)$/.test(n))m[n]=w})});
+    var m={};nameTerms().forEach(function(a){a.split(/\s+/).forEach(function(w){var n=normAr(w);if(n.length>=5&&!/^(القديس|القديسه|الانبا|البابا|الملاك|رئيس|الشهيد|الشهيده|الكنيسه|العذراء|السيده|الرسول|البشير|الكبير|النبي|الحكيم|الصديق|المعمدان|الحبيب|الدير|الكاتدرائيه|الاسقف|المطران|القمص|ابونا|معلمنا|الاباء|الكهنه|الرهبان|الخدام|التسبحه|الاجبيه|السنكسار|الدفنار|القطمارس|الخولاجي|البولس|الكاثوليكون|الابركسيس|كيهك|الملائكه|والده|الاله|الثاني|الثالث|السادس|الاول|الاولي|الصالح|الاعظم|الاسود|العظيم|الجديد|الدين|الليل|الامير|المصريه|الشهداء|الروماني|المتوحدين|واولادها|الرسولي|الرسول|الرسل|البطريرك|الاعظم|المعترف|العريان|القبطي)$/.test(n))m[n]=w})});
     nameWordsKey=key;nameWordsCache=Object.keys(m).map(function(n){return [n,m[n]]});return nameWordsCache;
   }
   function editDist(a,b){
@@ -791,6 +791,7 @@ textarea{min-height:120px;resize:vertical}
     return prev[b.length];
   }
   function fixNames(txt){
+    txt=txt.replace(/معلم\s+نبولس/g,'معلمنا بولس').replace(/(^|\s)نبولس/g,'$1بولس').replace(/معلم\s+نبطرس/g,'معلمنا بطرس');
     var names=nameWords();if(!names.length)return txt;
     return txt.split(/(\s+)/).map(function(w){
       var n=normAr(w);if(n.length<5)return w;
@@ -879,6 +880,23 @@ textarea{min-height:120px;resize:vertical}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
     }).catch(function(){}).then(function(){interimBusy=false});
   }
+  var heldText='',heldTimerT=null;
+  function joinAndFinal(t){ // a 1-3 word piece that does not end a sentence is joined to the next piece instead of translated alone
+    clearTimeout(heldTimerT);
+    var txt=heldText?(heldText+' '+t):t;heldText='';
+    var words=txt.trim().split(/\s+/).length,ends=/[.!?؟。]\s*$/.test(txt);
+    if(words<3||(words<4&&!ends)){
+      var prev=lines[lines.length-1];
+      if(prev&&!prev.fixed&&prev.ar&&prev.en&&Date.now()-(prev.t0||0)<15000&&!/[.!?؟]\s*$/.test(prev.ar)){prev.ar=prev.ar+' '+txt;retranslate(prev);return} // it finishes the sentence before it
+      heldText=txt;heldTimerT=setTimeout(function(){var h=heldText;heldText='';if(h)onFinal(h,[])},7000);return
+    }
+    onFinal(txt,[]);
+  }
+  function retranslate(item){
+    dbg('JOINED fragment into previous line: '+item.ar.slice(-40));
+    var idx=lines.indexOf(item),before=idx>0?lines[idx-1]:null;
+    queue=queue.then(function(){return groq(item.ar,[],before&&before.en&&!before.fixed?null:null).then(function(en){if(en&&!AR.test(en)){item.en=en;item.revised=true;render()}}).catch(function(){})});
+  }
   var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false,lastHearMs=0;
   var hearInFlight=0,hearWaiters=[],heldChunks=[],heldTimer=null;
   function flushHeld(){heldTimer=null;if(!running){heldChunks=[];return}if(Date.now()<whisperBlockedUntil){heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300));return}var h=heldChunks;heldChunks=[];dbg('resending '+h.length+' held pieces');h.forEach(function(c){sendChunk(c[0],c[1],c[2])})}
@@ -897,13 +915,13 @@ textarea{min-height:120px;resize:vertical}
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
       lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));
       if(t&&speechSec<0.9&&loud!==undefined&&loud<Math.max(0.0015,noiseFloor*2)&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
-      lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
+      lastText=t;lastResult=Date.now();heardCount++;liveEn='';sr2Gen++;joinAndFinal(t);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=5000,HARD_MS=12000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=9000,HARD_MS=14000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -957,7 +975,7 @@ textarea{min-height:120px;resize:vertical}
     var direct=S.get('micMode','room')==='direct';
     var pre=new (window.AudioContext||window.webkitAudioContext)(); // created inside the tap so iOS allows sound; recreated after the mic is open so the rate matches
     try{if(pre.state==='suspended')pre.resume()}catch(e){}
-    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:!direct,autoGainControl:!direct}})}
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:!direct,noiseSuppression:!direct,autoGainControl:!direct,channelCount:1}})}
     catch(e){try{pre.close()}catch(e2){}if(retrying){dbg('mic open failed on retry: '+(e&&e.name));return false}running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return false}
     try{pre.close()}catch(e){}
     ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -1005,7 +1023,7 @@ textarea{min-height:120px;resize:vertical}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>700&&sinceVoiceMs>300&&chunkMs>1000)cutChunk(false);           // natural pause
+      if(spoken>1000&&sinceVoiceMs>550&&chunkMs>2500)cutChunk(false);           // natural pause
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
@@ -1068,6 +1086,7 @@ textarea{min-height:120px;resize:vertical}
     if(proc&&speechSamples/SR16>0.7&&usedToday()<num('dailyCap',240)*60){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
     vadOk=false;vadQ=[];liveEn='';liveGen++;stopPreviewSR();
+    if(heldText){clearTimeout(heldTimerT);var hz=heldText;heldText='';onFinal(hz,[])}
     clearInterval(audioWatch);hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[];restarting=false;
     try{proc&&(proc.onaudioprocess=null);proc&&proc.disconnect();src&&src.disconnect();ctx&&ctx.close()}catch(e){}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
