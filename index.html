@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v18">
+<meta name="build" content="v19">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -30,6 +30,8 @@ header{display:flex;flex-direction:column;align-items:center;padding:16px 0 0}
 .rule svg{width:48px;height:48px;flex:none}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--gold2);flex:none;transition:background .3s}
 .dot.on{background:var(--green)}
+.dot.warn{background:#e0a030;box-shadow:0 0 0 3px rgba(224,160,48,.25)}
+.dot{cursor:pointer;padding:0}
 button{font:inherit;border:0;border-radius:10px;cursor:pointer}
 .icon{background:transparent;color:var(--dim);width:42px;height:42px;font-size:21px;flex:none;border:1px solid var(--line)}
 .icon:focus-visible,#go:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -358,7 +360,15 @@ textarea{min-height:120px;resize:vertical}
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
       'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
-  function setStatus(t){$('status').textContent=t;dbg('STATUS '+t)}
+  // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
+  var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
+  function setStatus(t){
+    dbg('STATUS '+t);
+    if(typeof running!=='undefined'&&running&&PROBLEM_RE.test(t)&&!/^Listening/.test(t)){problemText=t;var d=$('dot');d&&d.classList.add('warn');return}
+    if(/^Listening/.test(t)&&typeof running!=='undefined'&&running){var dd=$('dot');if(dd&&Date.now()-problemAt>8000){dd.classList.remove('warn');problemText=''}}
+    $('status').textContent=t;
+  }
+  var problemAt=0;
 
   // ---- free translation (MyMemory) ----
   function chunk(t){var w=t.split(/\s+/),out=[],cur='';w.forEach(function(x){if((cur+' '+x).length>450){out.push(cur);cur=x}else cur=cur?cur+' '+x:x});if(cur)out.push(cur);return out}
@@ -414,7 +424,12 @@ textarea{min-height:120px;resize:vertical}
     else if(/qwen3/.test(model)){b.reasoning_effort='none';b.max_tokens=maxTok}
     return JSON.stringify(b);
   }
-  function showAlert(msg,ok,ms){var a=$('alert');if(!a)return;if(!msg){a.style.display='none';return}a.textContent=msg;a.className=ok?'ok':'';a.style.display='block';if(ms)setTimeout(function(){if(a.textContent===msg)a.style.display='none'},ms)}
+  function showAlert(msg,ok,ms,force){
+    var a=$('alert');if(!a)return;if(!msg){a.style.display='none';return}
+    if(running&&!force){problemText=msg.replace(/\n\(tap to hide\)/,'');problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');return} // the congregation is watching: no banners
+    a.textContent=msg;a.className=ok?'ok':'';a.style.display='block';if(ms)setTimeout(function(){if(a.textContent===msg)a.style.display='none'},ms)
+  }
+  setTimeout(function(){var d=$('dot');if(d)d.onclick=function(){showAlert(problemText?('Last problem: '+problemText+'\n(tap to hide)'):'No problems.\n(tap to hide)',!problemText,7000,true)}},0);
   $('alert').onclick=function(){showAlert('')};
   // Checks every outside service the app depends on and says plainly what is wrong. Runs at Start and from Settings.
   async function healthCheck(){
@@ -452,7 +467,7 @@ textarea{min-height:120px;resize:vertical}
     try{
       var cur=(document.querySelector('meta[name=build]')||{}).content;if(!cur)return;
       var r=await fetch(location.pathname+'?c='+Date.now(),{cache:'no-store'}),h=await r.text(),m=/name="build" content="([^"]+)"/.exec(h);
-      if(m&&m[1]!==cur){showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
+      if(m&&m[1]!==cur&&!running){showAlert('A newer version is ready. TAP HERE to update.',true);$('alert').onclick=function(){location.replace(location.pathname+'?v='+Date.now())}}
     }catch(e){}
   }
   function fetchT(url,opts,ms){ // a call that never answers must not freeze everything behind it
@@ -516,7 +531,7 @@ textarea{min-height:120px;resize:vertical}
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
-      .catch(function(e){item.en='[could not translate]';render();setStatus('Translation problem: '+e.message)});
+      .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
 
   // ---- review and correct ----
@@ -639,7 +654,7 @@ textarea{min-height:120px;resize:vertical}
       vadBusy=false;vadPump();
     }).catch(function(){vadBusy=false;vadOk=false});
   }
-  function ui(){$('go').textContent=running?'Stop':'Start';$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running)}
+  function ui(){$('go').textContent=running?'Stop':'Start';$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running);if(!running)$('dot').classList.remove('warn')}
   function useWhisper(){return S.get('engine','whisper')==='whisper'&&!!S.get('groqKey','')}
 
   // -- Whisper hints: a few terms, then today's notes, then the last thing heard (Whisper keeps the END of the prompt) --
