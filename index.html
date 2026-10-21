@@ -358,7 +358,7 @@ textarea{min-height:120px;resize:vertical}
     return out.join(' ');
   }
   var SYS_MIXED=' The priest sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. Fixed wording: always translate أحبائي as "my beloved" (never "my darlings", "my dear ones" or "my loved ones"), and المعرض or معرض as "festival" (never "exhibition" or "exhibit"). The Arabic comes from speech recognition and may contain misheard words. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
+  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. Names of saints, popes and bishops may be misspelled by the speech recognition: match them to the nearest real Coptic name (e.g. Athanasius, Tawadros, Shenouda, Kyrillos, Bishoy, Antony, Macarius) and use the usual English spelling. Fixed wording: always translate أحبائي as "my beloved" (never "my darlings", "my dear ones" or "my loved ones"), and المعرض or معرض as "festival" (never "exhibition" or "exhibit"). The Arabic comes from speech recognition and may contain misheard words. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
   var groqBlockedUntil=0;
   function groqGlossary(ar,prev){
     var hay=' '+normAr(prev+' '+ar)+' ',ex=[],cx=[];
@@ -541,11 +541,16 @@ textarea{min-height:120px;resize:vertical}
   function useWhisper(){return S.get('engine','whisper')==='whisper'&&!!S.get('groqKey','')}
 
   // -- Whisper hints: a few terms, then today's notes, then the last thing heard (Whisper keeps the END of the prompt) --
+  var NAME_RE=/^(St\.|Pope|Anba|Archangel|His (Holiness|Grace)|Hegumen|the (Monastery|Theotokos|Agpeya|Psalmody|Synaxarium|Difnar|Katameros|Euchologion|Midnight Praise|Praxis|Pauline|Catholic Epistle|Koiak))/;
+  function nameTerms(){ // the words speech recognition gets wrong: names and Coptic words, user terms first
+    var out=[],seen={};
+    pairs('terms').forEach(function(p){if(AR.test(p.a)&&!seen[p.a]){seen[p.a]=1;out.push(p.a)}});
+    if(S.get('builtin','1')==='1')(window.COPTIC_TERMS||[]).forEach(function(x){if(!x[2]&&NAME_RE.test(x[1])&&!seen[x[0]]){seen[x[0]]=1;out.push(x[0])}});
+    return out;
+  }
   function whisperPrompt(){
     var terms=[],len=0;
-    pairs('terms').concat((S.get('builtin','1')==='1'?(window.COPTIC_TERMS||[]).filter(function(t){return !t[2]}).map(function(t){return {a:t[0]}}):[])).forEach(function(t){
-      if(len>260||!AR.test(t.a))return;terms.push(t.a);len+=t.a.length+2;
-    });
+    nameTerms().forEach(function(a){if(len>420)return;terms.push(a);len+=a.length+2});
     var notes=S.get('notes','').trim().slice(0,200);
     var tail=lastText.slice(-160);
     return [terms.join('، '),notes,tail].filter(Boolean).join('. ');
@@ -565,6 +570,35 @@ textarea{min-height:120px;resize:vertical}
     return txt;
   }
   function looksLikeTermList(txt){var terms=(window.COPTIC_TERMS||[]).map(function(t){return t[0]}),n=0;terms.forEach(function(x){if(txt.indexOf(x)>=0)n++});return n>=3}
+  // speech recognition often misspells names (أثناسيوس, تواضروس, شنودة...). Snap near-misses to the known spelling.
+  var nameWordsCache=null,nameWordsKey='';
+  function nameWords(){
+    var key=S.get('terms','')+'|'+S.get('builtin','1');
+    if(nameWordsCache&&nameWordsKey===key)return nameWordsCache;
+    var m={};nameTerms().forEach(function(a){a.split(/\s+/).forEach(function(w){var n=normAr(w);if(n.length>=5&&!/^(القديس|القديسه|الانبا|البابا|الملاك|رئيس|الشهيد|الشهيده|الكنيسه|العذراء|السيده|الرسول|البشير|الكبير|النبي|الحكيم|الصديق|المعمدان|الحبيب|الدير|الكاتدرائيه|الاسقف|المطران|القمص|ابونا|معلمنا|الاباء|الكهنه|الرهبان|الخدام|التسبحه|الاجبيه|السنكسار|الدفنار|القطمارس|الخولاجي|البولس|الكاثوليكون|الابركسيس|كيهك|الملائكه|والده|الاله|الثاني|الثالث|السادس|الاول|الاولي|الصالح|الاعظم|الاسود|العظيم|الجديد|الدين|الليل|الامير|المصريه|الشهداء|الروماني|المتوحدين|واولادها)$/.test(n))m[n]=w})});
+    nameWordsKey=key;nameWordsCache=Object.keys(m).map(function(n){return [n,m[n]]});return nameWordsCache;
+  }
+  function editDist(a,b){
+    if(Math.abs(a.length-b.length)>2)return 9;
+    var prev=[],cur=[],i,j;for(j=0;j<=b.length;j++)prev[j]=j;
+    for(i=1;i<=a.length;i++){cur[0]=i;for(j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1))}prev=cur;cur=[]}
+    return prev[b.length];
+  }
+  function fixNames(txt){
+    var names=nameWords();if(!names.length)return txt;
+    return txt.split(/(\s+)/).map(function(w){
+      var n=normAr(w);if(n.length<5)return w;
+      var lead=/^(و|ل|ب|ف|ال|وال|بال|لل)/.exec(n),core=n,pre='';
+      for(var k=0;k<names.length;k++){if(names[k][0]===n)return w}
+      var best=null,bd=9;
+      names.forEach(function(p){var d=editDist(n,p[0]);if(d<bd){bd=d;best=p}
+        if(lead){var d2=editDist(n.slice(lead[0].length),p[0]);if(d2<bd&&n.length-lead[0].length>=5){bd=d2;best=p;pre=lead[0]}}});
+      var allow=(n.length>=7&&best&&best[0].length>=7&&Math.abs((pre?n.length-pre.length:n.length)-best[0].length)<=1)?2:1;
+      if(best&&bd===1&&n.length<=6&&(pre?n.slice(pre.length):n)[0]!==best[0][0])best=null; // short words must at least start with the same letter
+      if(best&&bd<=allow&&bd>0){var keepPre=pre&&bd===editDist(n.slice(pre.length),best[0])?w.slice(0,pre.length):'';return keepPre+best[1]}
+      return w;
+    }).join('');
+  }
   function wavBlob(samples){
     var n=samples.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
     function str(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}
@@ -602,7 +636,7 @@ textarea{min-height:120px;resize:vertical}
     if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
     whisperLive(blob).then(function(t){
-      t=cleanHeard(t);if(!t||gen!==liveGen||!running)return;
+      t=fixNames(cleanHeard(t));if(!t||gen!==liveGen||!running)return;
       arEl.textContent=t;
       var p=matchPrayer(t);if(p){liveEn=p.b;render();return}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
@@ -623,7 +657,7 @@ textarea{min-height:120px;resize:vertical}
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
     var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
-      lastHearMs=Date.now()-sent;t=cleanHeard(t);if(!t||t===lastText)return;
+      lastHearMs=Date.now()-sent;t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
