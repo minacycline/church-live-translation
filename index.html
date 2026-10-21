@@ -546,6 +546,21 @@ textarea{min-height:120px;resize:vertical}
     var tail=lastText.slice(-160);
     return [terms.join('، '),notes,tail].filter(Boolean).join('. ');
   }
+  // Whisper sometimes invents text on near-silence: echoes the hint list, loops one word, or writes English/subtitle filler
+  function cleanHeard(txt){
+    txt=(txt||'').trim();if(!txt)return '';
+    if(S.get('lang','ar')!=='mixed'&&!AR.test(txt))return '';
+    if(/اشترك|القناة|ترجمة نانسي|ترجمة|شكرا للمشاهدة|شكراً للمشاهدة|مترجم|subscribe|thank you for watching/i.test(txt)&&txt.length<45)return '';
+    var w=txt.split(/\s+/).filter(Boolean);
+    if(w.length>=6){ // one word or phrase repeated over and over
+      var cnt={},top=0;w.forEach(function(x){cnt[x]=(cnt[x]||0)+1;if(cnt[x]>top)top=cnt[x]});
+      if(top/w.length>0.6)return w.slice(0,Math.min(3,w.length)).join(' ');
+    }
+    var hint={};(whisperPrompt()||'').split(/[\s،.]+/).forEach(function(x){if(x)hint[normAr(x)]=1});
+    if(w.length>=5){var inHint=w.filter(function(x){return hint[normAr(x)]}).length;if(inHint/w.length>0.85&&txt.length>25&&lastText.indexOf(txt.slice(0,12))<0&&looksLikeTermList(txt))return ''}
+    return txt;
+  }
+  function looksLikeTermList(txt){var terms=(window.COPTIC_TERMS||[]).map(function(t){return t[0]}),n=0;terms.forEach(function(x){if(txt.indexOf(x)>=0)n++});return n>=3}
   function wavBlob(samples){
     var n=samples.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
     function str(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}
@@ -583,8 +598,7 @@ textarea{min-height:120px;resize:vertical}
     if(usedToday()>num('dailyCap',240)*60*0.5)return; // keep half of the free allowance for the real pass
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
     whisperLive(blob).then(function(t){
-      if(!t||gen!==liveGen||!running)return;
-      if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return;
+      t=cleanHeard(t);if(!t||gen!==liveGen||!running)return;
       arEl.textContent=t;
       var p=matchPrayer(t);if(p){liveEn=p.b;render();return}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;liveEn=d;render()});
@@ -599,8 +613,7 @@ textarea{min-height:120px;resize:vertical}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
     hearQueue=hearQueue.then(function(){return whisper(blob)}).then(function(t){
-      if(!t||t===lastText)return;
-      if(/اشترك|القناة|ترجمة نانسي/.test(t)&&t.length<40)return; // Whisper's known filler on near-silence
+      t=cleanHeard(t);if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){setStatus('Hearing problem: '+e.message)});
   }
