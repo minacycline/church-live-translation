@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v30">
+<meta name="build" content="v31">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -210,12 +210,25 @@ textarea{min-height:120px;resize:vertical}
     var ok=false;
     for(var i=0;i<3&&!ok;i++){try{localStorage.setItem('groqKey',v);ok=localStorage.getItem('groqKey')===v}catch(e){try{var tl=JSON.parse(localStorage.getItem('transcripts')||'[]');tl.shift();localStorage.setItem('transcripts',JSON.stringify(tl))}catch(e2){try{localStorage.removeItem('transcripts')}catch(e3){}}}} // storage full: make room by dropping the oldest saved service
     KEYDB.put('groqKey',v);
+    try{document.cookie='gk='+encodeURIComponent(v)+';max-age=31536000;path=/;SameSite=Strict;Secure'}catch(e){}
+    try{if(window.caches)caches.open('church-kv').then(function(c){return c.put('/key',new Response(v))})}catch(e){}
     return ok;
   }
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   // if the main copy of the key was lost, bring it back from the backup copy
-  if(!S.get('groqKey',''))KEYDB.get('groqKey').then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v)}});
+  function cookieKey(){try{var m=/(?:^|; )gk=([^;]*)/.exec(document.cookie);return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
+  var KEYSRC='';
+  if(!S.get('groqKey','')){
+    KEYDB.get('groqKey').then(function(v){
+      if(!v)v=cookieKey();
+      if(v)return v;
+      try{return window.caches?caches.open('church-kv').then(function(c){return c.match('/key')}).then(function(r){return r?r.text():''}):''}catch(e){return ''}
+    }).then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v);KEYSRC='restored from backup'}}).catch(function(){});
+  }
   else KEYDB.get('groqKey').then(function(v){var cur=S.get('groqKey','');if(cur&&v!==cur)KEYDB.put('groqKey',cur)});
+  var LAUNCHES=0,STANDALONE=false;
+  try{LAUNCHES=(parseInt(localStorage.getItem('launches')||'0',10)||0)+1;localStorage.setItem('launches',String(LAUNCHES))}catch(e){}
+  try{STANDALONE=!!(window.navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches))}catch(e){}
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
@@ -390,7 +403,7 @@ textarea{min-height:120px;resize:vertical}
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
