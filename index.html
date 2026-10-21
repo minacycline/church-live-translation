@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v28">
+<meta name="build" content="v29">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -767,6 +767,7 @@ textarea{min-height:120px;resize:vertical}
     txt=(txt||'').trim();if(!txt)return '';
     if((LEARN.junk||[]).indexOf(normAr(txt))>=0)return '';
     if(S.get('lang','ar')!=='mixed'&&!AR.test(txt))return '';
+    if(/^(شكرا|شكراً|شكرا لكم|شكرا جزيلا)[.!؟]*$/.test(txt))return ''; // Whisper's favourite invention on noise
     if(/اشترك|القناة|ترجمة نانسي|ترجمة|شكرا للمشاهدة|شكراً للمشاهدة|مترجم|subscribe|thank you for watching/i.test(txt)&&txt.length<45)return '';
     var w=txt.split(/\s+/).filter(Boolean);
     if(w.length>=6){ // one word or phrase repeated over and over
@@ -793,6 +794,8 @@ textarea{min-height:120px;resize:vertical}
     return prev[b.length];
   }
   function fixNames(txt){
+    // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
+    txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يسر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ');
     txt=txt.replace(/معلم\s+نبولس/g,'معلمنا بولس').replace(/(^|\s)نبولس/g,'$1بولس').replace(/معلم\s+نبطرس/g,'معلمنا بطرس');
     var names=nameWords();if(!names.length)return txt;
     return txt.split(/(\s+)/).map(function(w){
