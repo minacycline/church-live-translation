@@ -664,6 +664,12 @@ window.COPTIC_TERMS = [
   ["ظهور العذراء في الزيتون", "the apparition of the Virgin at Zeitoun"],
 
   // Sermon vocabulary
+  ["أحبائى", "my beloved"],
+  ["احبائي", "my beloved"],
+  ["أحبائنا", "our beloved"],
+  ["حبايبي", "my beloved"],
+  ["المعرض", "festival"],
+  ["معرض", "festival"],
   ["يا أحبائي", "my beloved"],
   ["أحبائي", "my beloved"],
   ["يا إخوتي", "my brethren"],
