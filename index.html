@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v27">
+<meta name="build" content="v28">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -173,9 +173,9 @@ textarea{min-height:120px;resize:vertical}
   </div>
   <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
   <label for="testfile">Test with a recording</label>
-  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="lrnBtn" type="button">Reset learning</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="lrnBtn" type="button">Reset learning</button> <button id="recBtn" type="button">Share last recording</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
   <div id="chkOut" class="help" style="white-space:pre-line"></div>
-  <div class="help">If something goes wrong, press this right after, then paste into a message to Claude. It lists what the app heard and how long each step took (no audio, no key).</div>
+  <div class="help">If something goes wrong, press Copy debug report right after and paste it into a message to Claude. Share last recording sends the last 12 minutes of what the microphone heard as an audio file, so the hearing can be tuned on the real sound.</div>
   <input id="testfile" type="file" accept="audio/*,video/*">
   <div class="help">Pick a recording of the priest. It runs through the same hearing and translation, so you can check the result and correct it under ✎. Needs the Groq key. Counts toward the daily limit.</div>
   <div class="actions">
@@ -638,6 +638,7 @@ textarea{min-height:120px;resize:vertical}
     renderTx();rdlg.showModal();
   }
   $('reviewBtn').onclick=openReview;
+  $('recBtn').onclick=recShare;
   $('lrnBtn').onclick=function(){try{localStorage.removeItem('learn')}catch(e){}$('chkOut').textContent='Learned settings cleared. They rebuild themselves as the app listens. (Restart the app to apply.)'};
   $('chkBtn').onclick=async function(){
     var o=$('chkOut');o.textContent='Checking…';
@@ -820,14 +821,26 @@ textarea{min-height:120px;resize:vertical}
   async function whisper(blob){
     var fd=new FormData();
     fd.append('file',blob,'a.wav');
-    fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
+    fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
     if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;throw new Error('key not accepted')}
     var j=await r.json();
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
-    return (j.text||'').trim();
+    return confident(j);
+  }
+  // Whisper reports how sure it is of each part. Unsure parts (mumbled, far away, noise) become nonsense words, so they are dropped rather than shown.
+  function confident(j){
+    var segs=j.segments||[];if(!segs.length)return (j.text||'').trim();
+    var keep=[],dropped=[];
+    segs.forEach(function(s){
+      var txt=(s.text||'').trim();if(!txt)return;
+      var bad=(s.no_speech_prob>0.6&&s.avg_logprob<-0.6)||s.avg_logprob<-1.1||s.compression_ratio>2.6;
+      (bad?dropped:keep).push(txt+(bad?' ('+(s.avg_logprob||0).toFixed(2)+')':''));
+    });
+    if(dropped.length)dbg('UNSURE dropped: '+dropped.join(' | ').slice(0,120));
+    return keep.join(' ').trim();
   }
   var liveEn='',liveGen=0,interimBusy=false,interimAt=0,interimBlockedUntil=0;
   async function whisperLive(blob){
@@ -898,6 +911,27 @@ textarea{min-height:120px;resize:vertical}
     var idx=lines.indexOf(item),before=idx>0?lines[idx-1]:null;
     queue=queue.then(function(){return groq(item.ar,[],before&&before.en&&!before.fixed?null:null).then(function(en){if(en&&!AR.test(en)){item.en=en;item.revised=true;render()}}).catch(function(){})});
   }
+  var REC={on:true,max:12*60}; // minutes of audio kept on the device, oldest dropped first
+  function recPut(samples){
+    if(!REC.on)return;
+    var copy=new Int16Array(samples.length);for(var i=0;i<samples.length;i++){var x=Math.max(-1,Math.min(1,samples[i]));copy[i]=x<0?x*0x8000:x*0x7fff}
+    KEYDB.open().then(function(db){var tx=db.transaction('kv','readwrite'),st=tx.objectStore('kv');st.put({t:Date.now(),n:copy.length,d:copy.buffer},'rec:'+Date.now()+':'+Math.random().toString(36).slice(2,6))}).catch(function(){});
+  }
+  function recList(){return KEYDB.open().then(function(db){return new Promise(function(res){var out=[],q=db.transaction('kv').objectStore('kv').openCursor();q.onsuccess=function(){var c=q.result;if(!c){res(out);return}if(String(c.key).indexOf('rec:')===0)out.push({k:c.key,v:c.value});c.continue()};q.onerror=function(){res(out)}})}).catch(function(){return []})}
+  function recTrim(){recList().then(function(all){all.sort(function(a,b){return a.v.t-b.v.t});var total=0,drop=[];for(var i=all.length-1;i>=0;i--){total+=all[i].v.n/SR16;if(total>REC.max)drop.push(all[i].k)}if(!drop.length)return;KEYDB.open().then(function(db){var tx=db.transaction('kv','readwrite'),st=tx.objectStore('kv');drop.forEach(function(k){st.delete(k)})})})}
+  function recShare(){
+    recList().then(function(all){
+      if(!all.length){alert('No recording kept yet. Start, speak, then try again.');return}
+      all.sort(function(a,b){return a.v.t-b.v.t});var n=0;all.forEach(function(x){n+=x.v.n});
+      var pcm=new Int16Array(n),o=0;all.forEach(function(x){pcm.set(new Int16Array(x.v.d),o);o+=x.v.n});
+      var buf=new ArrayBuffer(44+n*2),v=new DataView(buf);function str(p,s){for(var i=0;i<s.length;i++)v.setUint8(p+i,s.charCodeAt(i))}
+      str(0,'RIFF');v.setUint32(4,36+n*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,SR16,true);v.setUint32(28,SR16*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,n*2,true);
+      new Uint8Array(buf,44).set(new Uint8Array(pcm.buffer));
+      var name='church-audio-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.wav',blob=new Blob([buf],{type:'audio/wav'}),file=new File([blob],name,{type:'audio/wav'});
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(function(){})}
+      else{var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},2000)}
+    });
+  }
   var hearQueue=Promise.resolve(),heardCount=0,hearPending=0,hearStart=0,audioWatch=null,restarting=false,lastHearMs=0;
   var hearInFlight=0,hearWaiters=[],heldChunks=[],heldTimer=null;
   function flushHeld(){heldTimer=null;if(!running){heldChunks=[];return}if(Date.now()<whisperBlockedUntil){heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300));return}var h=heldChunks;heldChunks=[];dbg('resending '+h.length+' held pieces');h.forEach(function(c){sendChunk(c[0],c[1],c[2])})}
@@ -906,7 +940,7 @@ textarea{min-height:120px;resize:vertical}
   function sendChunk(samples,speechSec,loud){
     if(speechSec<0.6||samples.length<16000*0.8){dbg('CHUNK dropped (too little speech) '+(samples.length/16000).toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');return}
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');if(heldChunks.length<6){heldChunks.push([samples,speechSec,loud]);if(!heldTimer)heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300))}return}
-    var secs=samples.length/16000;dbg('CHUNK sent '+secs.toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');
+    var secs=samples.length/16000;dbg('CHUNK sent '+secs.toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');recPut(samples);
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
@@ -1093,6 +1127,7 @@ textarea{min-height:120px;resize:vertical}
     try{stream&&stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
     stream=null;ctx=null;proc=null;src=null;
     try{wake&&wake.release()}catch(e){}
+    recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');
   }
