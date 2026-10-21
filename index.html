@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v29">
+<meta name="build" content="v30">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -902,10 +902,10 @@ textarea{min-height:120px;resize:vertical}
     clearTimeout(heldTimerT);
     var txt=heldText?(heldText+' '+t):t;heldText='';
     var words=txt.trim().split(/\s+/).length,ends=/[.!?؟。]\s*$/.test(txt);
-    if(words<3||(words<4&&!ends)){
+    if(words<3){
       var prev=lines[lines.length-1];
       if(prev&&!prev.fixed&&prev.ar&&prev.en&&Date.now()-(prev.t0||0)<15000&&!/[.!?؟]\s*$/.test(prev.ar)){prev.ar=prev.ar+' '+txt;retranslate(prev);return} // it finishes the sentence before it
-      heldText=txt;heldTimerT=setTimeout(function(){var h=heldText;heldText='';if(h)onFinal(h,[])},7000);return
+      heldText=txt;heldTimerT=setTimeout(function(){var h=heldText;heldText='';if(h)onFinal(h,[])},2500);return
     }
     onFinal(txt,[]);
   }
@@ -959,7 +959,7 @@ textarea{min-height:120px;resize:vertical}
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=9000,HARD_MS=14000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=7000,HARD_MS=14000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -1061,7 +1061,7 @@ textarea{min-height:120px;resize:vertical}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>1000&&sinceVoiceMs>550&&chunkMs>2500)cutChunk(false);           // natural pause
+      if(spoken>900&&sinceVoiceMs>450&&chunkMs>1800)cutChunk(false);           // natural pause
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
