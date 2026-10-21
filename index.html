@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v23">
+<meta name="build" content="v24">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -210,7 +210,7 @@ textarea{min-height:120px;resize:vertical}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -369,7 +369,7 @@ textarea{min-height:120px;resize:vertical}
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO'),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
@@ -410,6 +410,7 @@ textarea{min-height:120px;resize:vertical}
   var PREF_FAST=['openai/gpt-oss-20b','llama-3.1-8b-instant','openai/gpt-oss-120b'];
   var PREF_ASR=['whisper-large-v3','whisper-large-v3-turbo'];
   var BAD={},REASON_OK=LEARN.reasonOk!==false;
+  if(LEARN.pool&&LEARN.pool.length)POOL=LEARN.pool;
   if(LEARN.models){MODELS.chat=LEARN.models.chat||MODELS.chat;MODELS.fast=LEARN.models.fast||MODELS.fast;MODELS.asr=LEARN.models.asr||MODELS.asr;MODELS.asrFast=LEARN.models.asrFast||MODELS.asrFast}
   function pick(ids,pref,fallback){for(var i=0;i<pref.length;i++)if(ids.indexOf(pref[i])>=0&&!BAD[pref[i]])return pref[i];return fallback}
   async function chatProblem(r,model){ // a model that is gone, or a setting this model dislikes: learn from it so the next piece works
@@ -427,8 +428,46 @@ textarea{min-height:120px;resize:vertical}
       MODELS.chat=pick(ids,PREF_CHAT,MODELS.chat);MODELS.fast=pick(ids,PREF_FAST,MODELS.fast);
       MODELS.asr=pick(ids,PREF_ASR,MODELS.asr);MODELS.asrFast=ids.indexOf('whisper-large-v3-turbo')>=0?'whisper-large-v3-turbo':MODELS.asr;MODELS.ready=true;
       dbg('MODELS chat='+MODELS.chat+' fast='+MODELS.fast+' asr='+MODELS.asr+' ('+ids.length+' available)');
-      LEARN.models={chat:MODELS.chat,fast:MODELS.fast,asr:MODELS.asr,asrFast:MODELS.asrFast};learnSave();
+      POOL=POOL_ORDER.filter(function(x){return ids.indexOf(x)>=0&&!BAD[x]});if(!POOL.length)POOL=[MODELS.chat,MODELS.fast];dbg('POOL '+POOL.join(', '));
+      LEARN.models={chat:MODELS.chat,fast:MODELS.fast,asr:MODELS.asr,asrFast:MODELS.asrFast};LEARN.pool=POOL;learnSave();
     }catch(e){dbg('MODELS list error '+e.message)}
+  }
+  // Free plan: each chat model has its own allowance (about 30 requests and 8,000 tokens a minute, 1,000 requests and 200,000 tokens a day).
+  // Spread the work across every suitable model the key can use, so a long service never runs one dry.
+  var POOL_ORDER=['openai/gpt-oss-120b','qwen/qwen3.6-27b','moonshotai/kimi-k2-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','llama-3.3-70b-versatile','openai/gpt-oss-20b','meta-llama/llama-4-scout-17b-16e-instruct','llama-3.1-8b-instant'];
+  var POOL=['openai/gpt-oss-120b','openai/gpt-oss-20b'],USE={},COOL={};
+  var TPM_SAFE=6500,RPM_SAFE=26,TPD_SAFE=185000,RPD_SAFE=950;
+  function useOf(m){var u=USE[m];if(!u){u=USE[m]={min:[],day:{d:today(),tok:0,req:0}};try{var sv=JSON.parse(localStorage.getItem('use_'+m)||'null');if(sv&&sv.d===today())u.day=sv}catch(e){}}if(u.day.d!==today())u.day={d:today(),tok:0,req:0};var cut=Date.now()-60000;while(u.min.length&&u.min[0][0]<cut)u.min.shift();return u}
+  function canUse(m,est){
+    if(BAD[m]||(COOL[m]&&Date.now()<COOL[m]))return false;
+    var u=useOf(m),tok=0;u.min.forEach(function(x){tok+=x[1]});
+    return tok+est<TPM_SAFE&&u.min.length<RPM_SAFE&&u.day.tok+est<TPD_SAFE&&u.day.req<RPD_SAFE;
+  }
+  function noteUse(m,tokens){var u=useOf(m);u.min.push([Date.now(),tokens]);u.day.tok+=tokens;u.day.req++;try{localStorage.setItem('use_'+m,JSON.stringify(u.day))}catch(e){}}
+  function pickModel(est,preferFast){
+    var order=preferFast?POOL.slice().reverse():POOL;
+    for(var i=0;i<order.length;i++)if(canUse(order[i],est))return order[i];
+    return null;
+  }
+  function coolDown(m,r){var ra=parseInt(r.headers.get('retry-after')||'20',10);if(!(ra>0))ra=20;COOL[m]=Date.now()+Math.min(ra,3600)*1000;dbg('MODEL busy, resting '+m+' '+ra+'s')}
+  function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
+  async function chatCall(msgs,maxTok,temp,preferFast){ // returns {text, model}; tries other models when one is busy or gone
+    var est=estTokens(msgs,maxTok+(preferFast?150:250)),tried={};
+    for(var k=0;k<4;k++){
+      var m=pickModel(est,preferFast);
+      if(!m||tried[m])break;tried[m]=1;
+      var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)});
+      await chatProblem(r,m);
+      if(r.status===429){coolDown(m,r);continue}
+      if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;throw new Error('key not accepted, check it in Settings')}
+      if(r.status===404||BAD[m])continue;
+      if(r.status===400&&!REASON_OK){r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)})}
+      if(!r.ok){var em='';try{em=((await r.json()).error||{}).message||''}catch(e){}if(r.status>=500)continue;throw new Error(em||('HTTP '+r.status))}
+      var j=await r.json();noteUse(m,(j.usage&&j.usage.total_tokens)||est);
+      var txt=cleanLLM(j.choices[0].message.content);
+      if(txt)return {text:txt,model:m};
+    }
+    throw new Error('rate limit (all free models busy this minute)');
   }
   function chatBody(model,messages,maxTok,temp){ // reasoning models need a small reasoning budget so answers come back fast
     var b={model:model,temperature:temp,max_tokens:maxTok,messages:messages};
@@ -494,23 +533,16 @@ textarea{min-height:120px;resize:vertical}
     opts=opts||{};if(c)opts.signal=c.signal;
     return fetch(url,opts).then(function(r){clearTimeout(tm);return r},function(e){clearTimeout(tm);throw e});
   }
+  var lastModel='';
   async function groq(ar,alts,prevItem){
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
     var g=groqGlossary(ar,prev);
-    var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
-      headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
-      body:chatBody(MODELS.chat,[
+    var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
-        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2)});
-    await chatProblem(r,MODELS.chat);
-    if(r.status===429){groqBlockedUntil=Date.now()+30000;throw new Error('rate limit')}
-    if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;throw new Error('key not accepted, check it in Settings')}
-    if(r.status>=500){groqBlockedUntil=Date.now()+20000;throw new Error('service error '+r.status)}
-    var j=await r.json();
-    if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
-    var out=cleanLLM(j.choices[0].message.content);if(!out)throw new Error('empty answer from '+MODELS.chat);
+        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2,false);
+    var out=res.text;lastModel=res.model;
     if(canRevise){
       var m=out.match(/\{[\s\S]*\}/);
       if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'&&o.new.trim()){
@@ -529,21 +561,16 @@ textarea{min-height:120px;resize:vertical}
     var recent=lines.filter(function(l){return l.en&&!/^\[/.test(l.en)}).slice(-12).map(function(l){return l.en}).join(' ');
     if(recent.length<80)return;
     memoBusy=true;
-    fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
-      body:chatBody(MODELS.fast,[{role:'system',content:'You keep a running summary of a Coptic Orthodox sermon so a translator understands the context. In at most 3 short sentences give: the main theme, the Bible passage or story being discussed (book and chapter if clear), and the saints or people named. Output only the summary.'},
-        {role:'user',content:(sermonMemo?'Summary so far: '+sermonMemo+'\n\n':'')+'Latest sentences: '+recent}],160,0)},15000)
-    .then(function(r){return r.ok?r.json():null}).then(function(j){var s=j&&cleanLLM(j.choices[0].message.content);if(s&&s.length<600){sermonMemo=s;dbg('MEMO '+s.slice(0,120))}})
+    chatCall([{role:'system',content:'You keep a running summary of a Coptic Orthodox sermon so a translator understands the context. In at most 3 short sentences give: the main theme, the Bible passage or story being discussed (book and chapter if clear), and the saints or people named. Output only the summary.'},
+        {role:'user',content:(sermonMemo?'Summary so far: '+sermonMemo+'\n\n':'')+'Latest sentences: '+recent}],160,0,true)
+    .then(function(res){var s=res&&res.text;if(s&&s.length<600){sermonMemo=s;dbg('MEMO '+s.slice(0,120))}})
     .catch(function(){}).then(function(){memoBusy=false});
   }
   async function quick(ar){
-    var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
-      headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},
-      body:chatBody(MODELS.fast,[
+    var res=await chatCall([
         {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,300)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). Output only the English, nothing else.'+groqGlossary(ar,'')},
-        {role:'user',content:ar}],200,0)});
-    await chatProblem(r,MODELS.fast);
-    if(!r.ok)throw new Error('quick '+r.status);
-    var j=await r.json();return cleanLLM(j.choices[0].message.content);
+        {role:'user',content:ar}],200,0,true);
+    return res.text;
   }
   function allTermsAll(){
     var list=pairs('terms');
@@ -562,7 +589,7 @@ textarea{min-height:120px;resize:vertical}
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s total: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%5===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%5===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -794,7 +821,7 @@ textarea{min-height:120px;resize:vertical}
   // Whisper still produces the real line a moment later and replaces the preview.
   var sr2=null,sr2On=false,sr2Dead=false,sr2Text='',sr2At=0,sr2Busy=false,sr2Timer=null,sr2StartedAt=0,sr2Gen=0;
   function startPreviewSR(){
-    if(!SR||sr2Dead||sr2On||!running||S.get('preview','0')!=='1')return;
+    if(!SR||sr2Dead||sr2On||!running||S.get('preview',DEF.preview)!=='1')return;
     try{
       sr2=new SR();sr2.lang='ar-EG';sr2.interimResults=true;sr2.continuous=!IOS;sr2.maxAlternatives=1;
       sr2.onresult=function(e){
