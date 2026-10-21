@@ -177,7 +177,6 @@ textarea{min-height:120px;resize:vertical}
 
 <script src="terms.js"></script>
 <script src="liturgy.js"></script>
-<script src="vad/ort.wasm.min.js"></script>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
@@ -614,7 +613,7 @@ textarea{min-height:120px;resize:vertical}
   function hearSlot(){if(hearInFlight<3){hearInFlight++;return Promise.resolve()}return new Promise(function(r){hearWaiters.push(r)})}
   function hearFree(){var w=hearWaiters.shift();if(!w)hearInFlight=Math.max(0,hearInFlight-1);else w()}
   function sendChunk(samples,speechSec){
-    if(speechSec<0.7||samples.length<16000*0.9)return;
+    if(speechSec<0.6||samples.length<16000*0.8)return;
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');return}
     var secs=samples.length/16000;
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
@@ -625,13 +624,13 @@ textarea{min-height:120px;resize:vertical}
     var p=hearSlot().then(function(){return whisper(blob)}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
       lastHearMs=Date.now()-sent;t=cleanHeard(t);if(!t||t===lastText)return;
-      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening'+(vadOk?' (voice detector on)':'')+'. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
+      lastText=t;lastResult=Date.now();heardCount++;liveEn='';onFinal(t,[]);if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
-  var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=6000,HARD_MS=20000,FRAME_MS=0;
+  var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=0.004,peakLvl=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=5000,HARD_MS=12000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -686,7 +685,7 @@ textarea{min-height:120px;resize:vertical}
     var lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=4800;lp.Q.value=0.7;
     var an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0.2;var spec=new Float32Array(an.frequencyBinCount),binHz=ctx.sampleRate/an.fftSize;
     src.connect(hp);hp.connect(lp);lp.connect(an);lp.connect(proc);proc.connect(ctx.destination);
-    startVad();
+    // the neural voice detector is off: on iPhone/iPad it kept deciding the priest had stopped. Loudness alone decides now.
     var noisy=S.get('noise','normal')==='noisy';
     function voiceBand(){
       an.getFloatFrequencyData(spec);var low=0,high=0;
@@ -705,24 +704,22 @@ textarea{min-height:120px;resize:vertical}
       lastF=audioFrames;
       if(hearStart&&Date.now()-hearStart>45000&&hearPending>0){hearQueue=Promise.resolve();hearPending=0;hearStart=0;hearInFlight=0;hearWaiters=[]} // a stuck request must not block the rest
     },1500);
-    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;lastSpeechAt=Date.now();
+    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=0.004;peakLvl=0;lastSpeechAt=Date.now();
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
-      var vadLive=vadOk&&now-vadAt<800,vadTrusted=vadLive&&now-vadHeard<60000; // trusted only once it has actually heard speech recently
-      var thresh=noisy?Math.max(0.012,noiseFloor*5):Math.max(0.006,noiseFloor*3),voice=rms>thresh;
-      if(vadTrusted){voice=vadProb>(noisy?0.75:0.6)&&rms>Math.max(0.0025,noiseFloor*1.5)} // neural detector decides; loudness only guards against the far-off murmur
+      // voice = clearly louder than the quiet moments, and not tiny next to the loudest recent speech
+      peakLvl=Math.max(rms,peakLvl*0.985);
+      if(rms<noiseFloor)noiseFloor=noiseFloor*0.7+rms*0.3;else noiseFloor=Math.min(noiseFloor*1.003,0.02);
+      var thresh=Math.max(noisy?0.006:0.0035,noiseFloor*(noisy?3.5:2.5),peakLvl*0.12),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
-      // noise floor: follow quiet moments quickly, never learn the priest's voice as "noise"
-      if(rms<noiseFloor*1.5||rms<0.003)noiseFloor=noiseFloor*0.95+rms*0.05;
-      else if(!voice&&(!vadTrusted||vadProb<0.3))noiseFloor=Math.min(noiseFloor*1.01,0.012); // steady non-voice sound (fan, hum): adapt up slowly
       meterTick(rms,voice,now);
-      var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;vadFeed(s16);
+      var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>800&&sinceVoiceMs>300&&chunkMs>1200)cutChunk(false);           // natural pause
-      else if(spoken>900&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
-      else if(chunkMs>HARD_MS){if(spoken>900)cutChunk(true);else{buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
+      if(spoken>700&&sinceVoiceMs>300&&chunkMs>1000)cutChunk(false);           // natural pause
+      else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
+      else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
     return true;
   }
@@ -759,7 +756,7 @@ textarea{min-height:120px;resize:vertical}
     running=true;ui();lastResult=Date.now();setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
-    setStatus(useWhisper()?'Listening (Whisper'+(vadOk?', voice detector on':'')+'). Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
+    setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
     loadReadings();
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
