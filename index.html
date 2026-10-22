@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v37">
+<meta name="build" content="v38">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -227,6 +227,7 @@ textarea{min-height:120px;resize:vertical}
     }).then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v);KEYSRC='restored from backup'}}).catch(function(){});
   }
   else KEYDB.get('groqKey').then(function(v){var cur=S.get('groqKey','');if(cur&&v!==cur)KEYDB.put('groqKey',cur)});
+  try{if(!localStorage.getItem('langMig38')){localStorage.setItem('lang','mixed');localStorage.setItem('langMig38','1')}}catch(e){} // v38: English words by the priest are shown as said
   var LAUNCHES=0,STANDALONE=false;
   try{LAUNCHES=(parseInt(localStorage.getItem('launches')||'0',10)||0)+1;localStorage.setItem('launches',String(LAUNCHES))}catch(e){}
   try{STANDALONE=!!(window.navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches))}catch(e){}
@@ -240,7 +241,7 @@ textarea{min-height:120px;resize:vertical}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'ar',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -404,7 +405,7 @@ textarea{min-height:120px;resize:vertical}
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','ar'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
@@ -576,7 +577,7 @@ textarea{min-height:120px;resize:vertical}
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
-        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(S.get('lang','ar')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
+        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(S.get('lang','mixed')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
         {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2,false);
     var out=res.text;lastModel=res.model;
     if(canRevise){
@@ -616,7 +617,7 @@ textarea{min-height:120px;resize:vertical}
   var queue=Promise.resolve();
   function onFinal(ar,alts){
     if(!ar.trim())return;
-    if(!AR.test(ar)&&S.get('lang','ar')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
+    if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
     var item={ar:ar,en:'',t0:Date.now()};lines.push(item);arEl.textContent=ar;render();
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.t1=Date.now();render();return}
@@ -781,7 +782,7 @@ textarea{min-height:120px;resize:vertical}
   function cleanHeard(txt){
     txt=(txt||'').trim();if(!txt)return '';
     if((LEARN.junk||[]).indexOf(normAr(txt))>=0)return '';
-    if(S.get('lang','ar')!=='mixed'&&!AR.test(txt))return '';
+    if(S.get('lang','mixed')!=='mixed'&&!AR.test(txt))return '';
     if(/^(شكرا|شكراً|شكرا لكم|شكرا جزيلا)[.!؟]*$/.test(txt))return ''; // Whisper's favourite invention on noise
     if(/اشترك|القناة|ترجمة نانسي|ترجمة|شكرا للمشاهدة|شكراً للمشاهدة|مترجم|subscribe|thank you for watching/i.test(txt)&&txt.length<45)return '';
     var w=txt.split(/\s+/).filter(Boolean);
@@ -840,7 +841,7 @@ textarea{min-height:120px;resize:vertical}
   async function whisper(blob){
     var fd=new FormData();
     fd.append('file',blob,'a.wav');
-    fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+    fd.append('model',MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
@@ -864,7 +865,7 @@ textarea{min-height:120px;resize:vertical}
   var liveEn='',liveGen=0,interimBusy=false,interimAt=0,interimBlockedUntil=0;
   async function whisperLive(blob){
     var fd=new FormData();fd.append('file',blob,'a.wav');fd.append('model',MODELS.asrFast); // faster model with its own free allowance, only for the running preview
-    if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
+    if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){interimBlockedUntil=Date.now()+20000;LEARN.gap=Math.min(8000,(LEARN.gap||2500)+1000);learnSave();dbg('LEARNED slower preview gap '+LEARN.gap);throw new Error('limit')}
@@ -1207,7 +1208,7 @@ textarea{min-height:120px;resize:vertical}
     dlg.close();if(running)stop();
     setStatus('Hearing the recording…');lines=[];enEl.innerHTML='';render();
     try{
-      var fd=new FormData();fd.append('file',f,f.name||'test.m4a');fd.append('model',MODELS.asr);if(S.get('lang','ar')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+      var fd=new FormData();fd.append('file',f,f.name||'test.m4a');fd.append('model',MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
       var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
       var r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
       var j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
