@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v36">
+<meta name="build" content="v37">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -494,7 +494,7 @@ textarea{min-height:120px;resize:vertical}
       var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)});
       await chatProblem(r,m);
       if(r.status===429){coolDown(m,r);continue}
-      if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;throw new Error('key not accepted, check it in Settings')}
+      if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;keyRejected();throw new Error('key not accepted, check it in Settings')}
       if(r.status===404||BAD[m])continue;
       if(r.status===400&&!REASON_OK){r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)})}
       if(!r.ok){var em='';try{em=((await r.json()).error||{}).message||''}catch(e){}if(r.status>=500)continue;throw new Error(em||('HTTP '+r.status))}
@@ -525,6 +525,7 @@ textarea{min-height:120px;resize:vertical}
     var ids=[];
     try{
       var r=await fetchT('https://api.groq.com/openai/v1/models',{headers:{'authorization':'Bearer '+key}},8000);
+      if(r.status===401||r.status===403)keyRejected();
       if(r.status===401||r.status===403)res.push({n:'Groq key',ok:false,m:'Groq does not accept this key (it may be wrong or deleted). Make a new one at console.groq.com/keys.'});
       else if(!r.ok)res.push({n:'Groq',ok:false,m:'Groq answered with an error ('+r.status+'). Try again in a minute.'});
       else{res.push({n:'Groq key',ok:true,m:'accepted'});ids=((await r.json()).data||[]).map(function(m){return m.id})}
@@ -843,7 +844,7 @@ textarea{min-height:120px;resize:vertical}
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
-    if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;throw new Error('key not accepted')}
+    if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;keyRejected();throw new Error('key not accepted')}
     var j=await r.json();
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
     return confident(j);
@@ -1134,6 +1135,18 @@ textarea{min-height:120px;resize:vertical}
     saveKey(k);groqBlockedUntil=0;whisperBlockedUntil=0;$('pwIn').value='';$('pwDlg').close();start();
   }
   $('pwGo').onclick=tryUnlock;$('pwIn').addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock()});
+  // Groq refused the saved key (wrong, old or deleted): forget it everywhere and ask for the password, which unlocks the built-in key
+  var rejectedOnce=false;
+  function keyRejected(){
+    if(rejectedOnce)return;rejectedOnce=true;
+    dbg('KEY REJECTED by Groq');
+    try{localStorage.removeItem('groqKey')}catch(e){}
+    try{KEYDB.put('groqKey','')}catch(e){}
+    try{document.cookie='gk=;max-age=0;path=/'}catch(e){}
+    try{if(window.caches)caches.delete('church-kv')}catch(e){}
+    groqBlockedUntil=0;whisperBlockedUntil=0;
+    setTimeout(function(){rejectedOnce=false;if(typeof LOCKED!=='undefined'&&LOCKED){try{if(running)stop()}catch(e){}askPassword()}},300);
+  }
   async function start(){
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){var bk=await KEYDB.get('groqKey');if(bk){S.set('groqKey',bk);dbg('key restored from backup copy')}}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')&&LOCKED){askPassword();return}
