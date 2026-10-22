@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v33">
+<meta name="build" content="v34">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -112,6 +112,7 @@ textarea{min-height:120px;resize:vertical}
   <span id="status">Ready</span>
   <button id="rst" type="button" aria-label="Restart">↻</button>
 </footer>
+<dialog id="pwDlg"><div style="font-size:19px">Password</div><div class="help" style="margin-top:6px">Type the password to unlock the app.</div><input id="pwIn" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;margin-top:8px"><div id="pwMsg" class="help" style="margin-top:6px"></div><button id="pwGo" class="yes" type="button">Unlock</button></dialog>
 <dialog id="rstDlg"><div style="font-size:19px">Restart the app?</div><div class="help" style="margin-top:6px">Listening stops and the screen clears. Your settings and saved services are kept.</div><button id="rstNo" type="button">Cancel</button><button id="rstYes" class="yes" type="button">Restart</button></dialog>
 
 <dialog id="settings">
@@ -1110,8 +1111,32 @@ textarea{min-height:120px;resize:vertical}
     return true;
   }
 
+  var LOCKED={"s":"DZ5PNtUPwqXt07m8E5zHsQ==","i":"UmEeSyR6axW7q1Tj","c":"ma8PZSYQIIS2yPHvEPlwtDjLbaeYOUpRV9DmXMzberaZQHfuiG+HHmaD/4xmXXmayq/p6ti/WNZDtV+TsranQLdMAPCrkNPs","n":600000}; // the Groq key, locked with a password (AES-GCM). Without the password it is unreadable.
+  async function unlockKey(pw){
+    try{
+      var u=function(b){return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)})};
+      var km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw.trim().toLowerCase().replace(/\s+/g,' ')),'PBKDF2',false,['deriveKey']);
+      var k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:u(LOCKED.s),iterations:LOCKED.n,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+      var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:u(LOCKED.i)},k,u(LOCKED.c));
+      return new TextDecoder().decode(pt);
+    }catch(e){return ''}
+  }
+  function askPassword(){
+    var d=$('pwDlg');$('pwMsg').textContent='';$('pwIn').value='';
+    try{d.showModal()}catch(e){}
+    setTimeout(function(){try{$('pwIn').focus()}catch(e){}},200);
+  }
+  async function tryUnlock(){
+    var pw=$('pwIn').value;if(!pw.trim())return;
+    $('pwMsg').textContent='Checking…';
+    var k=await unlockKey(pw);
+    if(!k){$('pwMsg').textContent='Wrong password. Try again.';return}
+    saveKey(k);groqBlockedUntil=0;whisperBlockedUntil=0;$('pwIn').value='';$('pwDlg').close();start();
+  }
+  $('pwGo').onclick=tryUnlock;$('pwIn').addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock()});
   async function start(){
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){var bk=await KEYDB.get('groqKey');if(bk){S.set('groqKey',bk);dbg('key restored from backup copy')}}
+    if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')&&LOCKED){askPassword();return}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){
       setStatus('NO GROQ KEY on this device. Paste it in ⚙ Settings, then press Start. (Without it the app is much worse.)');
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
