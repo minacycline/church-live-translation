@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v38">
+<meta name="build" content="v39">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -430,7 +430,7 @@ textarea{min-height:120px;resize:vertical}
     return out.join(' ');
   }
   var SYS_MIXED=' The priest sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You correct and translate a live Coptic Orthodox sermon spoken in Egyptian Arabic. Names of saints, popes and bishops may be misspelled by the speech recognition: match them to the nearest real Coptic name (e.g. Athanasius, Tawadros, Shenouda, Kyrillos, Bishoy, Antony, Macarius) and use the usual English spelling. Fixed wording: always translate أحبائي as "my beloved" (never "my darlings", "my dear ones" or "my loved ones"), and المعرض or معرض as "festival" (never "exhibition" or "exhibit"). The Arabic comes from speech recognition and may contain misheard words. If a word makes no sense in a church sermon, it is almost certainly a misheard religious word with a similar sound: choose the Bible, saint, feast or church word it most likely was (real examples: المعبدين or المبعدين means المعمدان the Baptist, الأتيم means العتيق the Old (Testament), نبولس means بولس Paul, أسنانيس means أثناسيوس Athanasius). Never translate a garbled word literally. Using the earlier sentences as context, work out what the priest most likely said, then give a clear, natural English translation for the congregation to read on a screen. Use standard Coptic Orthodox English terms. When the priest quotes or paraphrases Scripture, render it in the wording of the New King James Version and keep the reference if he says it. Keep names of saints, popes and feasts in their usual Coptic English forms. If a passage cannot be made sense of, translate it literally rather than inventing content. The recording may include background noise, crying children, or congregation responses: ignore anything that is not the priest speaking, and if a piece contains no words from the priest reply with an empty string. Never add commentary. Output only the English translation of the NEW sentence, nothing else.';
+  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the priest; if there are no words, reply with an empty string. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
   function groqGlossary(ar,prev){
     var hay=' '+normAr(prev+' '+ar)+' ',ex=[],cx=[];
@@ -578,7 +578,7 @@ textarea{min-height:120px;resize:vertical}
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(S.get('lang','mixed')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+(canRevise?'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {"previous":"...","new":"..."}. "previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. "new" is the English of the NEW sentence.':'')},
-        {role:'user',content:(prev?'Earlier sentences (context only, do not repeat):\n'+prev+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2,false);
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nThe recognizer also offered these alternative hearings of the same sentence:\n'+alts.join('\n'):'')}],300,0.2,false);
     var out=res.text;lastModel=res.model;
     if(canRevise){
       var m=out.match(/\{[\s\S]*\}/);
@@ -605,7 +605,7 @@ textarea{min-height:120px;resize:vertical}
   }
   async function quick(ar){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,300)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. Use standard Coptic Orthodox English terms. Always translate أحبائي as \"my beloved\" (never \"my darlings\") and المعرض as \"festival\" (never \"exhibition\"). If a word makes no sense in a church sermon, it is almost certainly a misheard religious word with a similar sound: choose the Bible, saint, feast or church word it most likely was (real examples: المعبدين or المبعدين means المعمدان the Baptist, الأتيم means العتيق the Old (Testament), نبولس means بولس Paul, أسنانيس means أثناسيوس Athanasius). Never translate a garbled word literally. Output only the English, nothing else.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Output only the English.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true);
     return res.text;
   }
@@ -626,7 +626,7 @@ textarea{min-height:120px;resize:vertical}
     queue=queue.then(function(){
       if(useAI)return groq(ar,alts,prevItem).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%5===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
 
@@ -783,6 +783,7 @@ textarea{min-height:120px;resize:vertical}
     txt=(txt||'').trim();if(!txt)return '';
     if((LEARN.junk||[]).indexOf(normAr(txt))>=0)return '';
     if(S.get('lang','mixed')!=='mixed'&&!AR.test(txt))return '';
+    if(!AR.test(txt)&&(/^(thank you|thanks|bye|goodbye|you|okay|ok|merci|danke|gracias)[.! ]*$/i.test(txt)||/for watching|subscribe|subtitles|amara\.org/i.test(txt)))return '';
     if(/^(شكرا|شكراً|شكرا لكم|شكرا جزيلا)[.!؟]*$/.test(txt))return ''; // Whisper's favourite invention on noise
     if(/اشترك|القناة|ترجمة نانسي|ترجمة|شكرا للمشاهدة|شكراً للمشاهدة|مترجم|subscribe|thank you for watching/i.test(txt)&&txt.length<45)return '';
     var w=txt.split(/\s+/).filter(Boolean);
@@ -811,7 +812,7 @@ textarea{min-height:120px;resize:vertical}
   }
   function fixNames(txt){
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
-    txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يسر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ');
+    txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يس[يى]?ر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ').replace(/(أثناسيوس)\s+رسولي?(?=\s|$|[.,،!؟?])/g,'$1 الرسولي');
     txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');
     txt=txt.replace(/معلم\s+نبولس/g,'معلمنا بولس').replace(/(^|\s)نبولس/g,'$1بولس').replace(/معلم\s+نبطرس/g,'معلمنا بطرس');
     var names=nameWords();if(!names.length)return txt;
@@ -843,11 +844,13 @@ textarea{min-height:120px;resize:vertical}
     fd.append('file',blob,'a.wav');
     fd.append('model',MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
-    var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd});
+    var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd},15000);
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
     if(r.status===401||r.status===403){whisperBlockedUntil=Date.now()+3600000;keyRejected();throw new Error('key not accepted')}
     var j=await r.json();
     if(!r.ok)throw new Error(j.error&&j.error.message||('HTTP '+r.status));
+    var lg=String(j.language||'').toLowerCase();
+    if(lg&&!/^(ar|arabic|en|english)$/.test(lg)){dbg('WRONG LANGUAGE dropped ('+lg+'): '+String(j.text||'').slice(0,40));return ''}
     return confident(j);
   }
   // Whisper reports how sure it is of each part. Unsure parts (mumbled, far away, noise) become nonsense words, so they are dropped rather than shown.
@@ -976,7 +979,7 @@ textarea{min-height:120px;resize:vertical}
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=7000,HARD_MS=14000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=8000,HARD_MS=14000,FRAME_MS=0;
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -1078,7 +1081,7 @@ textarea{min-height:120px;resize:vertical}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>900&&sinceVoiceMs>450&&chunkMs>1800)cutChunk(false);           // natural pause
+      if(spoken>1000&&sinceVoiceMs>500&&chunkMs>2200)cutChunk(false);           // natural pause
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
