@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v43">
+<meta name="build" content="v44">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -204,6 +204,7 @@ textarea{min-height:120px;resize:vertical}
 </dialog>
 
 <script src="terms.js"></script>
+<script src="names.js"></script>
 <script src="liturgy.js"></script>
 <script>
 (function(){
@@ -480,10 +481,52 @@ textarea{min-height:120px;resize:vertical}
   var SYS_MIXED=' The priest sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
   var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the priest; if there are no words, reply with an empty string. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
+
+  // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
+  var NAMEIDX=null,BIBLEWORDS=null,LITWORDS=null,COMMONDIALECT='اللي الي ليه ايوه ايوا كمان تاني دلوقتي النهارده امبارح بكره عشان علشان بتاع بتاعه بتاعت اللى الذي التي الذين هذا هذه ذلك تلك كانت كانوا يكون تكون نكون ماذا لماذا كيف اين متي حين اذا لكن بيقول بتقول هيكون هتكون ممكن لازم مش مفيش فيه فيها فيهم منهم منها منه عنهم عنها عنه بينهم بينها'.split(' ');
+  function nameIdx(){
+    if(NAMEIDX)return NAMEIDX;
+    var m={},keys=[];Object.keys(window.BIBLE_NAMES||{}).forEach(function(a){var n=normAr(a);if(n&&!m[n]){m[n]={ar:a,en:window.BIBLE_NAMES[a]};keys.push(n)}});
+    NAMEIDX={map:m,keys:keys};return NAMEIDX;
+  }
+  function bibleWords(){ // every word of the Arabic Bible, so only words that are NOT real Arabic words get repaired
+    if(BIBLEWORDS)return BIBLEWORDS;if(!window.BIBLE)return null;
+    var w={};Object.keys(window.BIBLE).forEach(function(bk){Object.keys(window.BIBLE[bk]).forEach(function(ch){window.BIBLE[bk][ch].forEach(function(v){normAr(v[1]).split(' ').forEach(function(x){w[x]=(w[x]||0)+1})})})});
+    BIBLEWORDS=w;return w;
+  }
+  var SOFT={'ذ':'زد','ز':'ذس','د':'ذض','ض':'دظ','ظ':'ضز','ث':'سش','س':'ثصش','ص':'س','ش':'س','ط':'ت','ت':'ط','ق':'كء','ك':'ق','ع':'ءا','ء':'عا','ه':'ا','ي':'ا'};
+  function wdist(a,b){ // letter distance where sound-alike letters and the soft letters ا ي و ه cost half
+    var m=a.length,n=b.length,p=[],i,j;for(j=0;j<=n;j++)p[j]=j*(/[اويه]/.test(b[j-1]||'')?0.5:1)*(j?1:0);p[0]=0;
+    var cum=0;for(j=1;j<=n;j++){cum+=/[اويه]/.test(b[j-1])?0.5:1;p[j]=cum}
+    for(i=1;i<=m;i++){var prev=p[0];p[0]+=/[اويه]/.test(a[i-1])?0.5:1;
+      for(j=1;j<=n;j++){var t=p[j],ca=a[i-1],cb=b[j-1],sub=ca===cb?0:((SOFT[ca]||'').indexOf(cb)>=0?0.5:1);
+        p[j]=Math.min(p[j]+(/[اويه]/.test(ca)?0.5:1),p[j-1]+(/[اويه]/.test(cb)?0.5:1),prev+sub);prev=t}}
+    return p[n];
+  }
+  function nameGuesses(txt){ // words that are not real Bible or church words but sound like one Bible name: offered to the translator as a maybe, never rewritten
+    var bw=bibleWords(),ix=nameIdx(),out=[];if(!bw||!ix.keys.length)return out;
+    var litw=LITWORDS||(LITWORDS=(function(){var w={};(window.COPTIC_LITURGY||[]).forEach(function(p){normAr(p[0]).split(' ').forEach(function(x){w[x]=1})});(window.COPTIC_TERMS||[]).forEach(function(t){normAr(t[0]).split(' ').forEach(function(x){w[x]=1})});return w})());
+    var seen={};
+    normAr(txt).split(' ').forEach(function(n){
+      if(n.length<4||seen[n]||bw[n]||litw[n]||ix.map[n]||COMMONDIALECT.indexOf(n)>=0)return;seen[n]=1;
+      if(/^[وبلفك]/.test(n)&&n.length>4){var rest=n.slice(1);if(bw[rest]||litw[rest]||ix.map[rest])return}
+      var best=null,second=9;
+      ix.keys.forEach(function(k){if(k.length<4||Math.abs(k.length-n.length)>2)return;var d=wdist(n,k);if(!best||d<best.d){second=best?best.d:9;best={d:d,k:k}}else if(d<second)second=d});
+      if(best&&best.d<=1&&second-best.d>=0.5&&bw[best.k]>=8)out.push([n,ix.map[best.k].ar,ix.map[best.k].en]);
+    });
+    return out.slice(0,4);
+  }
+  function namesInSentence(txt){
+    var ix=nameIdx(),seen={},out=[];
+    normAr(txt).split(' ').forEach(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(k&&!seen[k.ar]){seen[k.ar]=1;out.push(k.ar+' = '+k.en)}});
+    return out.slice(0,12);
+  }
   function groqGlossary(ar,prev){
     var hay=' '+normAr(prev+' '+ar)+' ',ex=[],cx=[];
     allTermsAll().forEach(function(t){var n=normAr(t.a);if(!n||hay.indexOf(n)<0)return;(t.c?cx:ex).push(t.a+' = '+t.b)});
-    var out='';
+    var out='',nm=namesInSentence(ar),ng=nameGuesses(ar);
+    if(nm.length)out+='\n\nBible names in this sentence (spell them this way): '+nm.join('; ');
+    if(ng.length)out+='\n\nThese words are not normal Arabic and sound like Bible names; if the sentence fits, they were misheard: '+ng.map(function(x){return x[0]+' = '+x[1]+' ('+x[2]+')'}).join('; ');
     if(ex.length)out+='\n\nTranslate these terms exactly this way:\n'+ex.join('\n');
     if(cx.length)out+='\n\nIn church context these words usually mean the following; use it when it fits the sentence:\n'+cx.join('\n');
     return out;
@@ -665,7 +708,8 @@ textarea{min-height:120px;resize:vertical}
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
-    var item={ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf};lines.push(item);arEl.textContent=ar;render();
+    var ng=nameGuesses(ar);
+    var item={guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf};lines.push(item);arEl.textContent=ar;render();
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
@@ -1309,7 +1353,7 @@ textarea{min-height:120px;resize:vertical}
       var shownAt=[l.tLive,l.tDraft,l.t1].filter(function(x){return x&&x>=(l.tSpeak||0)});var f=shownAt.length?Math.min.apply(null,shownAt):null;
       var dFin=l.t1&&l.tCut?l.t1-l.tCut:null,dFirst=f&&l.tSpeak?f-l.tSpeak:null,dHear=l.tCut?l.t0-l.tCut:null;
       if(dFin!=null)fin.push(dFin);if(dFirst!=null)first.push(dFirst);if(dHear!=null)hear.push(dHear);if(l.basic)basic++;if(l.prayer)prayer++;
-      var shaky=typeof l.conf==='number'&&l.conf<-0.7,why=[];if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree');if(l.basic)why.push('basic backup translator');if(l.fixes)why.push('translator changed words');
+      var shaky=typeof l.conf==='number'&&l.conf<-0.7,why=[];if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree');if(l.basic)why.push('basic backup translator');if(l.fixes)why.push('translator changed words');if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
       if(why.length)unsure.push('['+mmss(l.pos)+'] #'+(i+1)+' '+why.join(', ')+'\n   heard: '+l.ar+(l.alt?'\n   phone: '+l.alt:'')+'\n   shown: '+l.en);
       rows.push('#'+(i+1)+' ['+mmss(l.pos)+']'+(shaky?' UNSURE('+l.conf.toFixed(2)+')':'')+(l.prayer?' PRAYER/BIBLE MATCH':'')+(l.basic?' BASIC BACKUP USED':'')+'\nAR: '+l.ar+(l.alt?'\nALT (phone heard): '+l.alt:'')+(l.fixes?'\nCORRECTED: '+l.fixes.join(' | '):'')+'\nEN: '+l.en+(l.draft&&l.draft!==l.en?'\nDRAFT: '+l.draft:'')+'\nfirst English '+sec(dFirst)+' after he started | heard '+sec(dHear)+' after he paused | final '+sec(dFin)+' after he paused');
     });
