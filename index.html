@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v52">
+<meta name="build" content="v53">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -171,6 +171,9 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_..."><div class="actions" style="margin-top:6px"><button id="pasteKey" type="button">Paste key</button></div><div id="keyNote" class="help"></div>
   <div class="help">One free key does two jobs: better hearing (Whisper) and AI correction of each sentence. Without it, the iPad's own recognizer and a basic translator are used. The key stays on this iPad.</div>
 
+  <label for="hearSpeed">Hearing speed</label>
+  <select id="hearSpeed"><option value="fast">Fast (Whisper turbo, about 0.3 s)</option><option value="accurate">Accurate (Whisper large, about 0.9 s)</option></select>
+  <div class="help">Fast answers about three times sooner. Switch to Accurate if rare words or names come out wrong.</div>
   <label for="engine">Hearing</label>
   <select id="engine"><option value="whisper">Whisper through Groq (recommended, needs the key)</option><option value="apple">iPad built-in recognizer</option></select>
 
@@ -305,7 +308,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent=CHURCH});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed'],DEF={hearSpeed:'fast',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -644,27 +647,36 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   }
   function coolDown(m,r){var ra=parseInt(r.headers.get('retry-after')||'20',10);if(!(ra>0))ra=20;COOL[m]=Date.now()+Math.min(ra,3600)*1000;dbg('MODEL busy, resting '+m+' '+ra+'s')}
   function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
-  async function chatCall(msgs,maxTok,temp,preferFast,deadline){ // returns {text, model}; tries other models when one is busy or gone
+  async function chatCall(msgs,maxTok,temp,preferFast,deadline,onPartial){ // returns {text, model}; tries other models when one is busy or gone
     var est=estTokens(msgs,maxTok+(preferFast?150:250)),tried={},waited=0;
     for(var k=0;k<6;k++){
       var m=pickModel(est,preferFast);
       if(!m&&deadline&&waited<2){var w=nextFree(est);if(w>0&&Date.now()+w+1500<=deadline){waited++;dbg('PACING: waiting '+(w/1000).toFixed(1)+'s for a model');await new Promise(function(r){setTimeout(r,w+300)});continue}}
       if(!m||tried[m])break;tried[m]=1;
-      var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)});
+      var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp,!!onPartial)});
       await chatProblem(r,m);
       if(r.status===429){coolDown(m,r);continue}
       if(r.status===401||r.status===403){groqBlockedUntil=Date.now()+3600000;keyRejected();throw new Error('key not accepted, check it in Settings')}
       if(r.status===404||BAD[m])continue;
       if(r.status===400&&!REASON_OK){r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)})}
       if(!r.ok){var em='';try{em=((await r.json()).error||{}).message||''}catch(e){}if(r.status>=500)continue;throw new Error(em||('HTTP '+r.status))}
-      var j=await r.json();noteUse(m,(j.usage&&j.usage.total_tokens)||est);
-      var txt=cleanLLM(j.choices[0].message.content);
+      var txt;
+      if(onPartial&&r.body&&r.headers.get('content-type')&&/text\/event-stream/.test(r.headers.get('content-type'))){var st=await readStream(r,onPartial);noteUse(m,st.tokens||est);txt=cleanLLM(st.text)}
+      else{var j=await r.json();noteUse(m,(j.usage&&j.usage.total_tokens)||est);txt=cleanLLM(j.choices[0].message.content)}
       if(txt)return {text:txt,model:m};
     }
     throw new Error('rate limit (all free models busy this minute)');
   }
-  function chatBody(model,messages,maxTok,temp){ // reasoning models need a small reasoning budget so answers come back fast
-    var b={model:model,temperature:temp,max_tokens:maxTok,messages:messages};
+  async function readStream(r,onPartial){ // Groq streams the answer as server-sent events; show the words as they arrive
+    var rd=r.body.getReader(),dec=new TextDecoder(),buf='',text='',tokens=0,last=0;
+    while(true){var ch=await rd.read();if(ch.done)break;buf+=dec.decode(ch.value,{stream:true});var parts=buf.split('\n');buf=parts.pop();
+      for(var i=0;i<parts.length;i++){var ln=parts[i].trim();if(ln.indexOf('data:')!==0)continue;var dj=ln.slice(5).trim();if(dj==='[DONE]')continue;
+        try{var o=JSON.parse(dj);var d=o.choices&&o.choices[0]&&o.choices[0].delta;if(d&&d.content)text+=d.content;if(o.usage&&o.usage.total_tokens)tokens=o.usage.total_tokens;if(o.x_groq&&o.x_groq.usage&&o.x_groq.usage.total_tokens)tokens=o.x_groq.usage.total_tokens}catch(e){}}
+      if(text.length-last>=6){last=text.length;try{onPartial(text)}catch(e){}}}
+    return {text:text,tokens:tokens};
+  }
+  function chatBody(model,messages,maxTok,temp,stream){ // reasoning models need a small reasoning budget so answers come back fast
+    var b={model:model,temperature:temp,max_tokens:maxTok,messages:messages};if(stream){b.stream=true;b.stream_options={include_usage:true}}
     if(!REASON_OK){}
     else if(/gpt-oss/.test(model)){b.reasoning_effort='low';b.include_reasoning=false;b.max_tokens=maxTok+400}
     else if(/qwen3/.test(model)){b.reasoning_effort='none';b.max_tokens=maxTok}
@@ -729,14 +741,15 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     return fetch(url,opts).then(function(r){clearTimeout(tm);return r},function(e){clearTimeout(tm);throw e});
   }
   var lastModel='';
+  function partialNew(t){var m=/"new"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(t);if(!m)return '';return m[1].replace(/\\"/g,'"').replace(/\\n/g,' ')}
   async function groq(ar,alts,prevItem,item,deadline){
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
-    var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
+    var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en); // with two lanes the previous line may still be in flight: then it is simply not revised
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+saintsToday()+(S.get('lang','mixed')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {'+(canRevise?'"previous":"...",':'')+'"new":"...","fixes":[["misheard Arabic words copied exactly from the NEW sentence","what the priest most likely said"]]}. '+(canRevise?'"previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. ':'')+'"new" is the English of the NEW sentence. "fixes" lists each misheard word or short phrase (1-3 words) in the NEW sentence that you replaced with a church word or name that sounds similar; copy the misheard words exactly as written. Only real mishearings, never style changes; [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline);
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
@@ -777,7 +790,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   async function quick(ar,deadline){
     var res=await chatCall([
         {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Output only the English.'+groqGlossary(ar,'')},
-        {role:'user',content:ar}],200,0,true,deadline);
+        {role:'user',content:ar}],200,0,true,deadline,null);
     return res.text;
   }
   function allTermsAll(){
@@ -785,7 +798,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
     return list;
   }
-  var queue=Promise.resolve(),qDepth=0,LATE_MS=9000; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
+  var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
@@ -796,8 +809,8 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
     var draftOK=useAI&&qDepth===0&&budgetLeft()>0.55&&minuteRoom(POOL[POOL.length-1]||MODELS.fast)>3500; // the quick draft doubles the token cost, so it is only made while the day's allowance is comfortable
     if(draftOK)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){});
-    qDepth++;
-    queue=queue.then(function(){
+    qDepth++;var lane=laneI++%LANES.length;
+    LANES[lane]=LANES[lane].then(function(){
       var lag=Date.now()-item.t0,dl=item.t0+LATE_MS+4000;
       if(useAI&&lag>LATE_MS){item.late=true;dbg('LATE '+(lag/1000).toFixed(1)+'s behind: using the fast translation');return quick(ar,dl).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(e){item.basic=true;basicCount++;var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)})}
       if(useAI)return groq(ar,alts,prevItem,item,item.t0+LATE_MS).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){item.basic=true;basicCount++;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
@@ -1093,7 +1106,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   async function whisper(blob){
     var fd=new FormData();
     fd.append('file',blob,'a.wav');
-    fd.append('model',MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+    fd.append('model',S.get('hearSpeed','fast')==='fast'?MODELS.asrFast:MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd},15000);
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
@@ -1188,7 +1201,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   function retranslate(item){
     dbg('JOINED fragment into previous line: '+item.ar.slice(-40));
     var idx=lines.indexOf(item),before=idx>0?lines[idx-1]:null;
-    queue=queue.then(function(){return groq(item.ar,item.alt?[item.alt]:[],null,item).then(function(en){if(en&&!AR.test(en)){item.en=en;item.revised=true;render()}}).catch(function(){})});
+    LANES[0]=LANES[0].then(function(){return groq(item.ar,item.alt?[item.alt]:[],null,item).then(function(en){if(en&&!AR.test(en)){item.en=en;item.revised=true;render()}}).catch(function(){})});
   }
   var REC={on:true,max:12*60}; // minutes of audio kept on the device, oldest dropped first
   function recPut(samples){
@@ -1237,7 +1250,16 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=8000,HARD_MS=14000,FRAME_MS=0;
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=8000,HARD_MS=14000,FRAME_MS=0,PAUSE_MS=450;
+  function minChunk(){var v=parseInt(LEARN.minChunk,10);return v>=1500&&v<=3000?v:1800}
+  function tunePause(ls){ // self-tuning: very short pieces mean the cut is too eager (raise), long waits before English mean it is too lazy (lower)
+    if(!ls||ls.length<12)return '';var w=ls.map(function(l){return words(l.ar||'').length}).sort(function(a,b){return a-b}),mw=w[w.length>>1];
+    var hear=ls.map(function(l){return l.tCut&&l.t0?l.t0-l.tCut:null}).filter(function(x){return x!=null}).sort(function(a,b){return a-b}),mh=hear.length?hear[hear.length>>1]:0;
+    var cur=minChunk(),nv=cur;
+    if(mw<5)nv=Math.min(3000,cur+200);else if(mw>14&&mh<1500)nv=Math.max(1500,cur-200);
+    if(nv!==cur){LEARN.minChunk=nv;learnSave();dbg('TUNED minimum piece '+cur+' -> '+nv+' ms (median words '+mw+')');return 'Minimum piece length tuned '+cur+' -> '+nv+' ms (median '+mw+' words per piece).'}
+    return 'Minimum piece length kept at '+cur+' ms (median '+mw+' words per piece).';
+  }
   function resample(data,rate){
     var ratio=rate/SR16,len=Math.floor(data.length/ratio),out=new Float32Array(len);
     for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(Math.floor((i+1)*ratio),data.length),sum=0,n=0;for(var j=a;j<b;j++){sum+=data[j];n++}out[i]=n?sum/n:0}
@@ -1351,7 +1373,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){if(!chunkSpeechStart)chunkSpeechStart=now;speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>1000&&sinceVoiceMs>500&&chunkMs>2200)cutChunk(false);           // natural pause
+      if(spoken>900&&sinceVoiceMs>PAUSE_MS&&chunkMs>minChunk())cutChunk(false);           // natural pause (the minimum piece length tunes itself, see tunePause)
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
@@ -1459,7 +1481,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     if(replayEl){var wasReplay=replayEl;replayEl=null;clearTimeout(replayEnd);try{wasReplay.pause();wasReplay.removeAttribute('src');wasReplay.load()}catch(e){}setTimeout(function(){try{URL.revokeObjectURL(replayUrl)}catch(e){}},1000);hearQueue.then(function(){return new Promise(function(r){setTimeout(r,3000)})}).then(function(){return queue}).then(function(){setTimeout(finishTest,1500)},function(){setTimeout(finishTest,1500)})}
     try{wake&&wake.release()}catch(e){}
     recTrim();
-    var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{rvQueue(lines);rvFlush()}catch(e){}},4000); // wait for the last sentences to finish translating
+    var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');
   }
   $('go').onclick=function(){running?stop():start()};
@@ -1517,8 +1539,9 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
       if(why.length)unsure.push('['+mmss(l.pos)+'] #'+(i+1)+' '+why.join(', ')+'\n   heard: '+l.ar+(l.alt?'\n   phone: '+l.alt:'')+'\n   shown: '+l.en);
       rows.push('#'+(i+1)+' ['+mmss(l.pos)+']'+(shaky?' UNSURE('+l.conf.toFixed(2)+')':'')+(l.prayer?' PRAYER/BIBLE MATCH':'')+(l.basic?' BASIC BACKUP USED':'')+'\nAR: '+l.ar+(l.alt?'\nALT (phone heard): '+l.alt:'')+(l.fixes?'\nCORRECTED: '+l.fixes.join(' | '):'')+'\nEN: '+l.en+(l.draft&&l.draft!==l.en?'\nDRAFT: '+l.draft:'')+'\nfirst English '+sec(dFirst)+' after he started | heard '+sec(dHear)+' after he paused | final '+sec(dFin)+' after he paused');
     });
+    var tuneNote='';try{tuneNote=tunePause(ls)}catch(e){}
     testStats={n:ls.length,first:med(first),fin:med(fin),finMax:fin.length?Math.max.apply(null,fin):null,hear:med(hear),basic:basic,prayer:prayer};
-    var sum='Lines: '+ls.length+'\nWords the translator corrected: '+fixCount+' (learned: '+testFixes.length+')'+'\nTypical time until English first appears: '+sec(testStats.first)+' after the priest starts the sentence\nTypical time until the final English: '+sec(testStats.fin)+' after he pauses (slowest '+sec(testStats.finMax)+')\nLines that needed the basic backup translator: '+basic+'\nLines matched to a prayer or Bible verse: '+prayer;
+    var sum='Lines: '+ls.length+'\nWords the translator corrected: '+fixCount+' (learned: '+testFixes.length+')'+'\nTypical time until English first appears: '+sec(testStats.first)+' after the priest starts the sentence\nTypical time until the final English: '+sec(testStats.fin)+' after he pauses (slowest '+sec(testStats.finMax)+')\nLines that needed the basic backup translator: '+basic+'\nLines matched to a prayer or Bible verse: '+prayer+(tuneNote?'\n'+tuneNote:'');
     lastReport=['LIVE TEST REPORT','file '+replayName,'build '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'date '+new Date().toLocaleString(),'',sum,'','=== LINES TO CHECK (time in the recording, what was heard, what was shown) ==='].concat(unsure.length?unsure:['none']).concat(['','=== LINES ==='],rows).concat(['','=== CORRECTIONS LEARNED IN THIS TEST (check these; delete wrong ones in Settings) ==='].concat(testFixes.length?testFixes:['none'])).concat(['','=== ALL ACTIVE CORRECTIONS ==='].concat(activeFixes().map(function(k){return k+' \u2192 '+LEARN.fix[k].to+' ('+LEARN.fix[k].n+'\u00d7)'}))).concat(['','=== DEBUG ===',dbgReport()]).join('\n');
     try{localStorage.setItem('lastReport',lastReport.slice(0,400000));localStorage.setItem('lastReportSum',sum)}catch(e){}
     showReportSum(sum);
@@ -1552,7 +1575,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
       if(j.duration)addUsage(j.duration);
       setStatus('Translating '+segs.length+' sentences…');
       segs.forEach(function(t){onFinal(t,[])});
-      queue=queue.then(function(){setStatus('Recording done. Tap ✎ to review and correct.')});
+      Promise.all(LANES).then(function(){setStatus('Recording done. Tap ✎ to review and correct.')});
     }catch(e){setStatus('Test problem: '+e.message)}
   });
   document.addEventListener('visibilitychange',function(){
