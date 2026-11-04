@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v51">
+<meta name="build" content="v52">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -759,9 +759,9 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     return {y:cy,m:cm,d:cd,name:cd+' '+COPTIC_MONTHS[cm-1]+' '+cy};
   }
   function saintsToday(){
-    var S2=window.SYNAXARIUM;if(!S2)return '';var c=copticDate(),k=('0'+c.m).slice(-2)+'-'+('0'+c.d).slice(-2),a=(S2[k]||[]).slice(0,6);
-    if(!a.length)return '';var out=a.join('؛ ');if(out.length>500)out=out.slice(0,500);
-    return '\n\nToday is '+c.name+' in the Coptic calendar. The Synaxarium commemorates today (the priest may name these saints or feasts; use their usual English names): '+out;
+    var S2=window.SYNAXARIUM;if(!S2)return '';var c=copticDate(),k=('0'+c.m).slice(-2)+'-'+('0'+c.d).slice(-2),a=(S2[k]||[]).slice(0,6),e=((window.SYNAXARIUM_EN||{})[k]||[]).slice(0,6);
+    if(!a.length&&!e.length)return '';var out=a.join('؛ ');if(out.length>450)out=out.slice(0,450);var oe=e.join('; ');if(oe.length>450)oe=oe.slice(0,450);
+    return '\n\nToday is '+c.name+' in the Coptic calendar. The Synaxarium commemorates today (the priest may name these saints or feasts):'+(out?'\nArabic: '+out:'')+(oe?'\nEnglish (use these spellings for the names): '+oe:'');
   }
   function readingTitle(){try{var o=JSON.parse(S.get('autoReading','{}'));return o.date===today()?(o.title||''):''}catch(e){return ''}}
   function updateMemo(){
