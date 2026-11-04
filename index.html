@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v42">
+<meta name="build" content="v43">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -449,7 +449,7 @@ textarea{min-height:120px;resize:vertical}
       box.appendChild(d);
     });
   }
-  var replayEl=null,replayName='',replayUrl='',replayEnd=null,curCut=0,curSpeechStart=0,curPos=null,chunkSpeechStart=0,liveFirstAt=0,lastReport='',testStats=null;
+  var replayEl=null,replayName='',replayUrl='',replayEnd=null,curConf=null,curCut=0,curSpeechStart=0,curPos=null,chunkSpeechStart=0,liveFirstAt=0,lastReport='',testStats=null;
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
@@ -665,7 +665,7 @@ textarea{min-height:120px;resize:vertical}
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
-    var item={ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||''};lines.push(item);arEl.textContent=ar;render();
+    var item={ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf};lines.push(item);arEl.textContent=ar;render();
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
@@ -902,14 +902,16 @@ textarea{min-height:120px;resize:vertical}
     return confident(j);
   }
   // Whisper reports how sure it is of each part. Unsure parts (mumbled, far away, noise) become nonsense words, so they are dropped rather than shown.
+  var lastConf=null; // how sure Whisper was of the last piece (average log-probability of the kept parts; below about -0.7 is shaky)
   function confident(j){
-    var segs=j.segments||[];if(!segs.length)return (j.text||'').trim();
-    var keep=[],dropped=[];
+    var segs=j.segments||[];lastConf=null;if(!segs.length)return (j.text||'').trim();
+    var keep=[],dropped=[],lp=[];
     segs.forEach(function(s){
       var txt=(s.text||'').trim();if(!txt)return;
       var bad=(s.no_speech_prob>0.6&&s.avg_logprob<-0.6)||s.avg_logprob<-1.1||s.compression_ratio>2.6;
-      (bad?dropped:keep).push(txt+(bad?' ('+(s.avg_logprob||0).toFixed(2)+')':''));
+      (bad?dropped:keep).push(txt+(bad?' ('+(s.avg_logprob||0).toFixed(2)+')':''));if(!bad&&typeof s.avg_logprob==='number')lp.push(s.avg_logprob);
     });
+    if(lp.length)lastConf=Math.min.apply(null,lp);
     if(dropped.length)dbg('UNSURE dropped: '+dropped.join(' | ').slice(0,120));
     return keep.join(' ').trim();
   }
@@ -1022,11 +1024,11 @@ textarea{min-height:120px;resize:vertical}
     hearPending++;var sent=Date.now();if(!hearStart)hearStart=sent;
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
     var p=hearSlot().then(function(){return whisper(blob).catch(function(e){if(/limit reached/.test(e.message)){var w=Math.max(0,whisperBlockedUntil-Date.now());if(w>0&&w<25000)return new Promise(function(x){setTimeout(x,w+200)}).then(function(){return whisper(blob)})}throw e})}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
-    hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;var alt=sr2On?sr2Text.trim():'';srAdvance(srMark);
+    hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;var alt=sr2On?sr2Text.trim():'',conf=lastConf;srAdvance(srMark);
       lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));
       if(t&&speechSec<0.9&&loud!==undefined&&loud<Math.max(0.0015,noiseFloor*2)&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=applyFixes(fixNames(cleanHeard(t)));if(!t||t===lastText)return;
       if(alt&&similarity(normAr(alt),normAr(t))>0.9)alt='';
-      lastText=t;lastResult=Date.now();heardCount++;curCut=cutAt;curSpeechStart=spokeAt;curPos=posAt;joinAndFinal(t,alt);liveEn='';liveFirstAt=0;sr2Gen++;if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
+      lastText=t;lastResult=Date.now();heardCount++;curCut=cutAt;curSpeechStart=spokeAt;curPos=posAt;curConf=conf;joinAndFinal(t,alt);liveEn='';liveFirstAt=0;sr2Gen++;if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;srAdvance(srMark);setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
@@ -1302,16 +1304,18 @@ textarea{min-height:120px;resize:vertical}
   function mmss(t){if(t==null)return '--:--';t=Math.round(t);return ('0'+Math.floor(t/60)).slice(-2)+':'+('0'+t%60).slice(-2)}
   function finishTest(){
     var ls=lines.filter(function(l){return l.t0>=testStart&&l.en});
-    var fin=[],first=[],hear=[],basic=0,prayer=0,rows=[];
+    var fin=[],first=[],hear=[],basic=0,prayer=0,rows=[],unsure=[];
     ls.forEach(function(l,i){
       var shownAt=[l.tLive,l.tDraft,l.t1].filter(function(x){return x&&x>=(l.tSpeak||0)});var f=shownAt.length?Math.min.apply(null,shownAt):null;
       var dFin=l.t1&&l.tCut?l.t1-l.tCut:null,dFirst=f&&l.tSpeak?f-l.tSpeak:null,dHear=l.tCut?l.t0-l.tCut:null;
       if(dFin!=null)fin.push(dFin);if(dFirst!=null)first.push(dFirst);if(dHear!=null)hear.push(dHear);if(l.basic)basic++;if(l.prayer)prayer++;
-      rows.push('#'+(i+1)+' ['+mmss(l.pos)+']'+(l.prayer?' PRAYER/BIBLE MATCH':'')+(l.basic?' BASIC BACKUP USED':'')+'\nAR: '+l.ar+(l.alt?'\nALT (phone heard): '+l.alt:'')+(l.fixes?'\nCORRECTED: '+l.fixes.join(' | '):'')+'\nEN: '+l.en+(l.draft&&l.draft!==l.en?'\nDRAFT: '+l.draft:'')+'\nfirst English '+sec(dFirst)+' after he started | heard '+sec(dHear)+' after he paused | final '+sec(dFin)+' after he paused');
+      var shaky=typeof l.conf==='number'&&l.conf<-0.7,why=[];if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree');if(l.basic)why.push('basic backup translator');if(l.fixes)why.push('translator changed words');
+      if(why.length)unsure.push('['+mmss(l.pos)+'] #'+(i+1)+' '+why.join(', ')+'\n   heard: '+l.ar+(l.alt?'\n   phone: '+l.alt:'')+'\n   shown: '+l.en);
+      rows.push('#'+(i+1)+' ['+mmss(l.pos)+']'+(shaky?' UNSURE('+l.conf.toFixed(2)+')':'')+(l.prayer?' PRAYER/BIBLE MATCH':'')+(l.basic?' BASIC BACKUP USED':'')+'\nAR: '+l.ar+(l.alt?'\nALT (phone heard): '+l.alt:'')+(l.fixes?'\nCORRECTED: '+l.fixes.join(' | '):'')+'\nEN: '+l.en+(l.draft&&l.draft!==l.en?'\nDRAFT: '+l.draft:'')+'\nfirst English '+sec(dFirst)+' after he started | heard '+sec(dHear)+' after he paused | final '+sec(dFin)+' after he paused');
     });
     testStats={n:ls.length,first:med(first),fin:med(fin),finMax:fin.length?Math.max.apply(null,fin):null,hear:med(hear),basic:basic,prayer:prayer};
     var sum='Lines: '+ls.length+'\nWords the translator corrected: '+fixCount+' (learned: '+testFixes.length+')'+'\nTypical time until English first appears: '+sec(testStats.first)+' after the priest starts the sentence\nTypical time until the final English: '+sec(testStats.fin)+' after he pauses (slowest '+sec(testStats.finMax)+')\nLines that needed the basic backup translator: '+basic+'\nLines matched to a prayer or Bible verse: '+prayer;
-    lastReport=['LIVE TEST REPORT','file '+replayName,'build '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'date '+new Date().toLocaleString(),'',sum,'','=== LINES ==='].concat(rows).concat(['','=== CORRECTIONS LEARNED IN THIS TEST (check these; delete wrong ones in Settings) ==='].concat(testFixes.length?testFixes:['none'])).concat(['','=== ALL ACTIVE CORRECTIONS ==='].concat(activeFixes().map(function(k){return k+' \u2192 '+LEARN.fix[k].to+' ('+LEARN.fix[k].n+'\u00d7)'}))).concat(['','=== DEBUG ===',dbgReport()]).join('\n');
+    lastReport=['LIVE TEST REPORT','file '+replayName,'build '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'date '+new Date().toLocaleString(),'',sum,'','=== LINES TO CHECK (time in the recording, what was heard, what was shown) ==='].concat(unsure.length?unsure:['none']).concat(['','=== LINES ==='],rows).concat(['','=== CORRECTIONS LEARNED IN THIS TEST (check these; delete wrong ones in Settings) ==='].concat(testFixes.length?testFixes:['none'])).concat(['','=== ALL ACTIVE CORRECTIONS ==='].concat(activeFixes().map(function(k){return k+' \u2192 '+LEARN.fix[k].to+' ('+LEARN.fix[k].n+'\u00d7)'}))).concat(['','=== DEBUG ===',dbgReport()]).join('\n');
     try{localStorage.setItem('lastReport',lastReport.slice(0,400000));localStorage.setItem('lastReportSum',sum)}catch(e){}
     showReportSum(sum);
     setStatus('Live test done. Open ✎ and press Share test report.');
