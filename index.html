@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v53">
+<meta name="build" content="v54">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1309,6 +1309,14 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
       else if(running){setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
     }finally{if(restarting&&running!==false)restarting=false}
   }
+  function resumeOrAsk(c){ // a browser can hold sound until the screen is touched: never hang silently, ask for one tap
+    return new Promise(function(done){
+      var fin=false;function ok(){if(fin)return;fin=true;showAlert('');done()}
+      try{c.resume().then(ok,function(){})}catch(e){}
+      setTimeout(function(){if(fin)return;if(c.state!=='suspended'){ok();return}dbg('AUDIO waiting for a tap');setStatus('Tap the red bar at the top to start.');showAlert('TAP HERE to start listening.',true,0,true);
+        $('alert').onclick=function(){try{c.resume().then(ok,ok)}catch(e){ok()}};},2500);
+    });
+  }
   async function startWhisper(retrying,mediaEl){
     var direct=S.get('micMode','room')==='direct';
     if(mediaEl)return startReplayAudio(mediaEl);
@@ -1319,13 +1327,13 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     try{pre.close()}catch(e){}
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
-    if(ctx.state==='suspended'){try{await ctx.resume()}catch(e){}}
+    if(ctx.state==='suspended')await resumeOrAsk(ctx);
     return wireAudio(ctx.createMediaStreamSource(stream));
   }
   // Live test: the recording goes through the very same graph the microphone uses
   async function startReplayAudio(el){
     ctx=new (window.AudioContext||window.webkitAudioContext)();
-    try{if(ctx.state==='suspended')await ctx.resume()}catch(e){}
+    if(ctx.state==='suspended')await resumeOrAsk(ctx);
     var s=ctx.createMediaElementSource(el);s.connect(ctx.destination); // so you hear it while it runs
     return wireAudio(s);
   }
