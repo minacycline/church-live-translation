@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v40">
+<meta name="build" content="v41">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -411,7 +411,7 @@ textarea{min-height:120px;resize:vertical}
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview','0'),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview',DEF.preview),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
@@ -883,19 +883,22 @@ textarea{min-height:120px;resize:vertical}
   }
   // Instant preview: the phone's own speech recognizer gives words as they are spoken (less accurate), translated at once with the fast model.
   // Whisper still produces the real line a moment later and replaces the preview.
+  var sr2Len=0,sr2Base=0; // sr2Len: results the recognizer has so far; sr2Base: results already covered by a finished Whisper line (never shown again in the preview)
+  function srAdvance(mark){if(mark>sr2Base){sr2Base=Math.min(mark,sr2Len||mark);dbg('PREVIEW cleared up to result '+sr2Base)}sr2Text='';clearTimeout(sr2Timer)}
   var sr2=null,sr2On=false,sr2Dead=false,sr2Text='',sr2At=0,sr2Busy=false,sr2Timer=null,sr2StartedAt=0,sr2Gen=0;
   function startPreviewSR(){
     if(!SR||sr2Dead||sr2On||!running||S.get('preview',DEF.preview)!=='1')return;
     try{
       sr2=new SR();sr2.lang='ar-EG';sr2.interimResults=true;sr2.continuous=!IOS;sr2.maxAlternatives=1;
       sr2.onresult=function(e){
-        var txt='';for(var i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript+' ';
-        txt=txt.trim();if(!txt)return;
+        sr2Len=e.results.length;if(sr2Base>sr2Len)sr2Base=0;
+        var txt='';for(var i=sr2Base;i<e.results.length;i++)txt+=e.results[i][0].transcript+' '; // only what was said since the last finished line
+        txt=txt.trim();if(!txt){sr2Text='';return}
         sr2Text=txt;arEl.textContent=txt;dbg('PHONE-SR '+txt.slice(-50));
         clearTimeout(sr2Timer);sr2Timer=setTimeout(previewTranslate,250);
       };
       sr2.onerror=function(e){if(e.error==='not-allowed'||e.error==='service-not-allowed'){sr2Dead=true;sr2On=false}};
-      sr2.onend=function(){sr2On=false;sr2Text='';if(running&&!sr2Dead)setTimeout(startPreviewSR,IOS?150:50)};
+      sr2.onend=function(){sr2On=false;sr2Text='';sr2Len=0;sr2Base=0;if(running&&!sr2Dead)setTimeout(startPreviewSR,IOS?150:50)};
       sr2.start();sr2On=true;sr2StartedAt=Date.now();
     }catch(e){sr2On=false}
   }
@@ -970,18 +973,18 @@ textarea{min-height:120px;resize:vertical}
     if(speechSec<0.6||samples.length<16000*0.8){dbg('CHUNK dropped (too little speech) '+(samples.length/16000).toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');return}
     if(Date.now()<whisperBlockedUntil){setStatus('Hearing paused, limit reached. Try again shortly.');if(heldChunks.length<6){heldChunks.push([samples,speechSec,loud]);if(!heldTimer)heldTimer=setTimeout(flushHeld,Math.max(500,whisperBlockedUntil-Date.now()+300))}return}
     var secs=samples.length/16000;dbg('CHUNK sent '+secs.toFixed(1)+'s speech '+speechSec.toFixed(1)+'s');if(!replayEl)recPut(samples);
-    var cutAt=Date.now(),spokeAt=chunkSpeechStart||cutAt-secs*1000,posAt=replayEl?Math.max(0,replayEl.currentTime-secs):null;
+    var srMark=sr2Len,cutAt=Date.now(),spokeAt=chunkSpeechStart||cutAt-secs*1000,posAt=replayEl?Math.max(0,replayEl.currentTime-secs):null;
     if(usedToday()+secs>num('dailyCap',240)*60){stop();setStatus('Stopped: today\'s limit of '+num('dailyCap',240)+' minutes of speech is used up.');return}
     addUsage(secs);
     var blob=wavBlob(samples);liveGen++;
     hearPending++;var sent=Date.now();if(!hearStart)hearStart=sent;
     // each piece is sent at once (up to 3 in flight) so a slow answer never delays the next piece; results are shown in order
     var p=hearSlot().then(function(){return whisper(blob).catch(function(e){if(/limit reached/.test(e.message)){var w=Math.max(0,whisperBlockedUntil-Date.now());if(w>0&&w<25000)return new Promise(function(x){setTimeout(x,w+200)}).then(function(){return whisper(blob)})}throw e})}).then(function(t){hearFree();return t},function(e){hearFree();throw e});
-    hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;
+    hearQueue=hearQueue.then(function(){return p}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;srAdvance(srMark);
       lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));
       if(t&&speechSec<0.9&&loud!==undefined&&loud<Math.max(0.0015,noiseFloor*2)&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=fixNames(cleanHeard(t));if(!t||t===lastText)return;
       lastText=t;lastResult=Date.now();heardCount++;curCut=cutAt;curSpeechStart=spokeAt;curPos=posAt;joinAndFinal(t);liveEn='';liveFirstAt=0;sr2Gen++;if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
-    }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
+    }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;srAdvance(srMark);setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
   }
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
