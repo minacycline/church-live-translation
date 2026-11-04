@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v44">
+<meta name="build" content="v45">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -160,6 +160,11 @@ textarea{min-height:120px;resize:vertical}
   <label>Learned corrections</label>
   <div class="help">When the translator fixes a word Whisper misheard, the pair is remembered here. After the same fix twice it is applied by itself and the right word is given to Whisper as vocabulary. Delete any that are wrong; a deleted one is never learned again.</div>
   <div id="fixList"></div>
+  <label for="reviewKey">Review sheet key</label>
+  <input id="reviewKey" type="password" autocomplete="off" placeholder="saved automatically when you open the setup link">
+  <div class="help">Lines the app could not fix by itself are sent to your Google Sheet. Approve or change them there and the app picks the answers up by itself.</div>
+  <div class="actions"><button id="rvNow" type="button">Send and refresh now</button></div>
+  <div id="rvNote" class="help"></div>
   <label for="reading">Today's reading, one verse per line: Arabic = English</label>
   <textarea id="reading" dir="auto" placeholder="وَكَانَ لإِنْسَانٍ ابْنَانِ = A certain man had two sons.&#10;فَقَالَ أَصْغَرُهُمَا لأَبِيهِ = And the younger of them said to his father"></textarea>
   <div class="help">Paste the Gospel or Epistle for this service. When the priest reads a verse, your English is shown instead of a translation. Clear it after the service.</div>
@@ -250,11 +255,11 @@ textarea{min-height:120px;resize:vertical}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
-  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;try{renderFixes()}catch(e){}dlg.showModal()};
+  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;try{renderFixes()}catch(e){}try{rvNote()}catch(e){}dlg.showModal()};
   $('close').onclick=function(){dlg.close()};
   function keyChanged(){var v=$('groqKey').value.trim();if(!v)return;var ok=saveKey(v);groqBlockedUntil=0;whisperBlockedUntil=0;
     $('keyNote').textContent=ok?(/^gsk_/.test(v)?'Key saved on this device ✓':'Saved, but Groq keys usually start with gsk_. Check you copied all of it.'):'Could not save the key: this device\'s storage is full or blocked (Private Browsing?).'}
@@ -287,6 +292,7 @@ textarea{min-height:120px;resize:vertical}
     function put(a,b,kind,ref,next){var w=words(a);if(!w.length)return;var id=entries.length;entries.push({a:a,b:b,k:kind,r:ref,w:w,n:next});var seen={};w.forEach(function(x){if(seen[x])return;seen[x]=1;(idx[x]=idx[x]||[]).push(id);df[x]=(df[x]||0)+1})}
     pairs('reading').forEach(function(p){put(p.a,p.b,'user')});
     pairs('prayers').forEach(function(p){put(p.a,p.b,'user')});
+    rvFixes().forEach(function(p){put(p.ar,p.fix,'user')});
     var rd=autoReadingPairs();rd.forEach(function(p){put(p[0],p[1],'reading')});
     (window.COPTIC_LITURGY||[]).forEach(function(p){put(p[0],p[1],'lit')});
     var nb=0;
@@ -709,7 +715,7 @@ textarea{min-height:120px;resize:vertical}
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
     var ng=nameGuesses(ar);
-    var item={guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf};lines.push(item);arEl.textContent=ar;render();
+    var item={rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf};lines.push(item);arEl.textContent=ar;render();
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
@@ -720,6 +726,55 @@ textarea{min-height:120px;resize:vertical}
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
+
+  // ---- review sheet: lines the app cannot fix itself go to a Google Sheet, approved answers come back ----
+  var RV_BASE='https://mini.tail99f4f6.ts.net/webhook',rvBusy=false,rvLast='';
+  try{var rkm=/[?&]rk=([^&#]+)/.exec(location.search);if(rkm){S.set('reviewKey',decodeURIComponent(rkm[1]));history.replaceState(null,'',location.pathname)}}catch(e){}
+  function rvKey(){return S.get('reviewKey','')}
+  function rvHash(t){var h=5381;for(var i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return 'a'+(h>>>0).toString(36)+t.length.toString(36)}
+  function rvJ(k){try{return JSON.parse(S.get(k,'[]'))||[]}catch(e){return []}}
+  function rvFixes(){return rvJ('reviewFix')}
+  function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved. ':'No key yet: open the setup link once. ')+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
+  function rvQueue(ls){
+    var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
+    ls.forEach(function(l){
+      if(l.rvDone||!l.en||l.fixed||l.prayer||!l.ar||!AR.test(l.ar))return;l.rvDone=true;
+      var why=[],shaky=typeof l.conf==='number'&&l.conf<-0.7;
+      if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));
+      if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree (phone heard: '+l.alt+')');
+      if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
+      if(l.fixes)why.push('translator changed words: '+l.fixes.join(' | '));
+      if(!why.length)return;
+      var key=rvHash(fixKey(l.ar));if(have[key]||fx[key]||add>=60)return;have[key]=1;add++;
+      q.push({key:key,ar:l.ar,en:l.en,pos:l.rep?mmss(l.pos):new Date(l.t0||Date.now()).toTimeString().slice(0,5),why:why.join('; ')});
+    });
+    S.set('reviewQ',JSON.stringify(q.slice(-300)));
+  }
+  async function rvPull(){
+    var k=rvKey();if(!k||!navigator.onLine)return;
+    try{var c=new AbortController();setTimeout(function(){c.abort()},20000);var r=await fetch(RV_BASE+'/church-review-approved?k='+encodeURIComponent(k),{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);var j=await r.json();
+      if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,2000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
+    }catch(e){rvLast='Sheet not reachable ('+(e.name==='AbortError'?'timeout':e.message)+'); will retry.';dbg('REVIEW pull failed: '+e.message)}
+    rvNote();
+  }
+  async function rvFlush(){
+    var k=rvKey();if(!k||rvBusy||!navigator.onLine)return;
+    var q=rvJ('reviewQ');if(!q.length){return rvPull()}
+    rvBusy=true;
+    try{var batch=q.slice(0,60),c=new AbortController();setTimeout(function(){c.abort()},25000);
+      var r=await fetch(RV_BASE+'/church-review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:k,rows:batch}),signal:c.signal});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      var sent=rvJ('reviewSent');batch.forEach(function(x){sent.push(x.key)});S.set('reviewSent',JSON.stringify(sent.slice(-2000)));
+      var done={};batch.forEach(function(x){done[x.key]=1});S.set('reviewQ',JSON.stringify(rvJ('reviewQ').filter(function(x){return !done[x.key]})));
+      rvLast='Sent '+batch.length+' line(s) at '+new Date().toTimeString().slice(0,5)+'.';dbg('REVIEW: sent '+batch.length+' lines');
+    }catch(e){rvLast='Could not send ('+(e.name==='AbortError'?'timeout':e.message)+'); kept for later.';dbg('REVIEW send failed: '+e.message)}
+    rvBusy=false;rvNote();
+    setTimeout(rvPull,4000);
+  }
+  window.addEventListener('online',function(){rvFlush()});
+  setTimeout(function(){rvNote();rvFlush()},4000);
+  setInterval(function(){if(!running)rvFlush()},600000);
+  if($('rvNow'))$('rvNow').onclick=function(){rvLast='Working...';rvNote();rvFlush()};
 
   // ---- review and correct ----
   var rdlg=$('review');
@@ -1299,7 +1354,7 @@ textarea{min-height:120px;resize:vertical}
     if(replayEl){var wasReplay=replayEl;replayEl=null;clearTimeout(replayEnd);try{wasReplay.pause();wasReplay.removeAttribute('src');wasReplay.load()}catch(e){}setTimeout(function(){try{URL.revokeObjectURL(replayUrl)}catch(e){}},1000);hearQueue.then(function(){return new Promise(function(r){setTimeout(r,3000)})}).then(function(){return queue}).then(function(){setTimeout(finishTest,1500)},function(){setTimeout(finishTest,1500)})}
     try{wake&&wake.release()}catch(e){}
     recTrim();
-    var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}},4000); // wait for the last sentences to finish translating
+    var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{rvQueue(lines);rvFlush()}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');
   }
   $('go').onclick=function(){running?stop():start()};
@@ -1362,6 +1417,7 @@ textarea{min-height:120px;resize:vertical}
     lastReport=['LIVE TEST REPORT','file '+replayName,'build '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'date '+new Date().toLocaleString(),'',sum,'','=== LINES TO CHECK (time in the recording, what was heard, what was shown) ==='].concat(unsure.length?unsure:['none']).concat(['','=== LINES ==='],rows).concat(['','=== CORRECTIONS LEARNED IN THIS TEST (check these; delete wrong ones in Settings) ==='].concat(testFixes.length?testFixes:['none'])).concat(['','=== ALL ACTIVE CORRECTIONS ==='].concat(activeFixes().map(function(k){return k+' \u2192 '+LEARN.fix[k].to+' ('+LEARN.fix[k].n+'\u00d7)'}))).concat(['','=== DEBUG ===',dbgReport()]).join('\n');
     try{localStorage.setItem('lastReport',lastReport.slice(0,400000));localStorage.setItem('lastReportSum',sum)}catch(e){}
     showReportSum(sum);
+    try{rvQueue(ls);rvFlush()}catch(e){dbg('REVIEW queue failed: '+e.message)}
     setStatus('Live test done. Open ✎ and press Share test report.');
     try{openReview()}catch(e){}
   }
