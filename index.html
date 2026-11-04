@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v56">
+<meta name="build" content="v57">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1257,13 +1257,13 @@ body.listening #sideMeter{display:block}
 
   // -- audio capture: 16 kHz samples, cut at pauses or at the quietest instant, with overlap so no word is split --
   var SR16=16000,buf=[],bufLen=0,energy=[],noiseFloor=LEARN.floor||0.004,peakLvl=0,quietAt=0,speechSum=0,speechN=0,speechSamples=0,sinceVoiceMs=0,chunkMs=0;
-  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=8000,HARD_MS=14000,FRAME_MS=0,PAUSE_MS=450;
-  function minChunk(){var v=parseInt(LEARN.minChunk,10);return v>=1500&&v<=3000?v:1800}
+  var OVERLAP=Math.round(SR16*0.3),MAXCHUNK_MS=8000,HARD_MS=14000,FRAME_MS=0,PAUSE_MS=500;
+  function minChunk(){var v=parseInt(LEARN.minChunk,10);return v>=2200&&v<=3000?v:2200}
   function tunePause(ls){ // self-tuning: very short pieces mean the cut is too eager (raise), long waits before English mean it is too lazy (lower)
     if(!ls||ls.length<12)return '';var w=ls.map(function(l){return words(l.ar||'').length}).sort(function(a,b){return a-b}),mw=w[w.length>>1];
     var hear=ls.map(function(l){return l.tCut&&l.t0?l.t0-l.tCut:null}).filter(function(x){return x!=null}).sort(function(a,b){return a-b}),mh=hear.length?hear[hear.length>>1]:0;
     var cur=minChunk(),nv=cur;
-    if(mw<5)nv=Math.min(3000,cur+200);else if(mw>14&&mh<1500)nv=Math.max(1500,cur-200);
+    if(mw<5)nv=Math.min(3000,cur+200);else if(mw>14&&mh<1500)nv=Math.max(2200,cur-200);
     if(nv!==cur){LEARN.minChunk=nv;learnSave();dbg('TUNED minimum piece '+cur+' -> '+nv+' ms (median words '+mw+')');return 'Minimum piece length tuned '+cur+' -> '+nv+' ms (median '+mw+' words per piece).'}
     return 'Minimum piece length kept at '+cur+' ms (median '+mw+' words per piece).';
   }
@@ -1388,7 +1388,7 @@ body.listening #sideMeter{display:block}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){if(!chunkSpeechStart)chunkSpeechStart=now;speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
       var spoken=speechSamples/SR16*1000;liveStep();
-      if(spoken>900&&sinceVoiceMs>PAUSE_MS&&chunkMs>minChunk())cutChunk(false);           // natural pause (the minimum piece length tunes itself, see tunePause)
+      if(spoken>1000&&sinceVoiceMs>PAUSE_MS&&chunkMs>minChunk())cutChunk(false);           // natural pause (the minimum piece length tunes itself, see tunePause)
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
       else if(chunkMs>HARD_MS){if(spoken>700)cutChunk(true);else{var keep=flatten().slice(-OVERLAP);buf=[keep];bufLen=keep.length;energy=[];chunkMs=0;speechSamples=0}} // long silence: drop it
     };
