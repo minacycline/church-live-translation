@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v48">
+<meta name="build" content="v49">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -602,11 +602,11 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
   }
   function coolDown(m,r){var ra=parseInt(r.headers.get('retry-after')||'20',10);if(!(ra>0))ra=20;COOL[m]=Date.now()+Math.min(ra,3600)*1000;dbg('MODEL busy, resting '+m+' '+ra+'s')}
   function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
-  async function chatCall(msgs,maxTok,temp,preferFast){ // returns {text, model}; tries other models when one is busy or gone
+  async function chatCall(msgs,maxTok,temp,preferFast,deadline){ // returns {text, model}; tries other models when one is busy or gone
     var est=estTokens(msgs,maxTok+(preferFast?150:250)),tried={},waited=0;
     for(var k=0;k<6;k++){
       var m=pickModel(est,preferFast);
-      if(!m&&!preferFast&&waited<2){var w=nextFree(est);if(w>0&&w<=25000){waited++;dbg('PACING: waiting '+(w/1000).toFixed(1)+'s for a model');await new Promise(function(r){setTimeout(r,w+300)});continue}}
+      if(!m&&deadline&&waited<2){var w=nextFree(est);if(w>0&&Date.now()+w+1500<=deadline){waited++;dbg('PACING: waiting '+(w/1000).toFixed(1)+'s for a model');await new Promise(function(r){setTimeout(r,w+300)});continue}}
       if(!m||tried[m])break;tried[m]=1;
       var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)});
       await chatProblem(r,m);
@@ -687,14 +687,14 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     return fetch(url,opts).then(function(r){clearTimeout(tm);return r},function(e){clearTimeout(tm);throw e});
   }
   var lastModel='';
-  async function groq(ar,alts,prevItem,item){
+  async function groq(ar,alts,prevItem,item,deadline){
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en);
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(S.get('lang','mixed')==='mixed'?SYS_MIXED:'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech was cut into pieces at pauses, so a piece may start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only: {'+(canRevise?'"previous":"...",':'')+'"new":"...","fixes":[["misheard Arabic words copied exactly from the NEW sentence","what the priest most likely said"]]}. '+(canRevise?'"previous" is the English of the PREVIOUS sentence: return it unchanged unless the new sentence shows it was misheard or cut, in which case give the corrected English. ':'')+'"new" is the English of the NEW sentence. "fixes" lists each misheard word or short phrase (1-3 words) in the NEW sentence that you replaced with a church word or name that sounds similar; copy the misheard words exactly as written. Only real mishearings, never style changes; [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false);
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
@@ -718,10 +718,10 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     .then(function(res){var s=res&&res.text;if(s&&s.length<600){sermonMemo=s;dbg('MEMO '+s.slice(0,120))}})
     .catch(function(){}).then(function(){memoBusy=false});
   }
-  async function quick(ar){
+  async function quick(ar,deadline){
     var res=await chatCall([
         {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Output only the English.'+groqGlossary(ar,'')},
-        {role:'user',content:ar}],200,0,true);
+        {role:'user',content:ar}],200,0,true,deadline);
     return res.text;
   }
   function allTermsAll(){
@@ -729,7 +729,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
     return list;
   }
-  var queue=Promise.resolve();
+  var queue=Promise.resolve(),qDepth=0,LATE_MS=9000; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
@@ -738,13 +738,16 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
-    var draftOK=useAI&&budgetLeft()>0.55&&minuteRoom(POOL[POOL.length-1]||MODELS.fast)>3500; // the quick draft doubles the token cost, so it is only made while the day's allowance is comfortable
+    var draftOK=useAI&&qDepth===0&&budgetLeft()>0.55&&minuteRoom(POOL[POOL.length-1]||MODELS.fast)>3500; // the quick draft doubles the token cost, so it is only made while the day's allowance is comfortable
     if(draftOK)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){});
+    qDepth++;
     queue=queue.then(function(){
-      if(useAI)return groq(ar,alts,prevItem,item).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){item.basic=true;basicCount++;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
+      var lag=Date.now()-item.t0,dl=item.t0+LATE_MS+4000;
+      if(useAI&&lag>LATE_MS){item.late=true;dbg('LATE '+(lag/1000).toFixed(1)+'s behind: using the fast translation');return quick(ar,dl).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(e){item.basic=true;basicCount++;var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)})}
+      if(useAI)return groq(ar,alts,prevItem,item,item.t0+LATE_MS).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){item.basic=true;basicCount++;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
-      .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
+      .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)}).then(function(){qDepth=Math.max(0,qDepth-1)});
   }
 
   // ---- viewer mode: the main screen only shows captions and the text size; settings need a press-and-hold (and a PIN if one is set) ----
