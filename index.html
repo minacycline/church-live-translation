@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v54">
+<meta name="build" content="v55">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -130,7 +130,12 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 .rv .saved{color:#2f6b4a}
 </style>
 <style>
-#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}</style>
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+body.listening #sideMeter{display:block}
+#sideMeter i{position:absolute;left:0;right:0;bottom:0;height:0;background:#b9b2a2;transition:height .08s linear}
+#sideMeter.voice i{background:#2f9e5b}
+#en{padding-right:30px}
+</style>
 </head>
 <body>
 <div id="alert"></div>
@@ -154,6 +159,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 
 <footer>
   <button id="go">Start</button>
+  <div id="sideMeter" title="Sound level: rises and turns green when it hears the priest"><i></i></div>
   <span id="meter" title="Microphone level; green when the priest's voice is detected"><i></i></span>
   <span id="status">Ready</span>
   <button id="rst" type="button" aria-label="Restart">↻</button>
@@ -1275,7 +1281,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
   function meterTick(rms,voice,now){
     if(now-meterAt<90)return;meterAt=now;meterEl=meterEl||$('meter');if(!meterEl)return;
     var db=20*Math.log10(Math.max(rms,1e-5)),pct=Math.max(0,Math.min(100,Math.round((db+52)/44*100))); // -52 dB (silence) to -8 dB (very loud)
-    meterEl.firstChild.style.width=pct+'%';meterEl.classList.toggle('voice',!!voice);
+    meterEl.firstChild.style.width=pct+'%';meterEl.classList.toggle('voice',!!voice);var sm=$('sideMeter');if(sm){sm.firstChild.style.height=pct+'%';sm.classList.toggle('voice',!!voice);document.body.classList.add('listening')}
   }
   function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
   function cutChunk(atQuietest){
@@ -1476,7 +1482,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
     try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
   }
   function stop(){
-    running=false;ui();if($('meter')){$('meter').firstChild.style.width='0';$('meter').classList.remove('voice')}clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
+    running=false;ui();if($('meter')){$('meter').firstChild.style.width='0';$('meter').classList.remove('voice')}if($('sideMeter')){$('sideMeter').firstChild.style.height='0';$('sideMeter').classList.remove('voice');document.body.classList.remove('listening')}clearTimeout(maxTimer);clearTimeout(restartTimer);clearInterval(watchdog);clearInterval(idleTimer);
     try{rec&&rec.stop()}catch(e){}
     if(proc&&speechSamples/SR16>0.7&&usedToday()<num('dailyCap',240)*60){try{cutChunk(false)}catch(e){}}
     buf=[];bufLen=0;energy=[];speechSamples=0;
