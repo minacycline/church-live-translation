@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v46">
+<meta name="build" content="v47">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -267,7 +267,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
-  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min.';$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;try{renderFixes()}catch(e){}try{rvNote()}catch(e){}dlg.showModal()};
+  $('gear').onclick=function(){FIELDS.forEach(function(k){$(k).value=S.get(k,DEF[k]||'')});$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min. Translator allowance left today: '+Math.round(budgetLeft()*100)+'%'+(basicCount?'. Basic backup used '+basicCount+' time(s) this session.':'.');$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;try{renderFixes()}catch(e){}try{rvNote()}catch(e){}dlg.showModal()};
   $('close').onclick=function(){dlg.close()};
   function keyChanged(){var v=$('groqKey').value.trim();if(!v)return;var ok=saveKey(v);groqBlockedUntil=0;whisperBlockedUntil=0;
     $('keyNote').textContent=ok?(/^gsk_/.test(v)?'Key saved on this device ✓':'Saved, but Groq keys usually start with gsk_. Check you copied all of it.'):'Could not save the key: this device\'s storage is full or blocked (Private Browsing?).'}
@@ -465,7 +465,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     });
   }
   var replayEl=null,replayName='',replayUrl='',replayEnd=null,curConf=null,curCut=0,curSpeechStart=0,curPos=null,chunkSpeechStart=0,liveFirstAt=0,lastReport='',testStats=null;
-  function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>400)DBG.shift()}
+  function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>3000)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
       'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper'),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview',DEF.preview),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,fixes:Object.keys(LEARN.fix||{}).length,active:activeFixes().length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
@@ -569,13 +569,13 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
       MODELS.chat=pick(ids,PREF_CHAT,MODELS.chat);MODELS.fast=pick(ids,PREF_FAST,MODELS.fast);
       MODELS.asr=pick(ids,PREF_ASR,MODELS.asr);MODELS.asrFast=ids.indexOf('whisper-large-v3-turbo')>=0?'whisper-large-v3-turbo':MODELS.asr;MODELS.ready=true;
       dbg('MODELS chat='+MODELS.chat+' fast='+MODELS.fast+' asr='+MODELS.asr+' ('+ids.length+' available)');
-      POOL=POOL_ORDER.filter(function(x){return ids.indexOf(x)>=0&&!BAD[x]});if(!POOL.length)POOL=[MODELS.chat,MODELS.fast];dbg('POOL '+POOL.join(', '));
+      POOL=POOL_ORDER.filter(function(x){return ids.indexOf(x)>=0&&!BAD[x]});ids.forEach(function(x){if(/^qwen\/qwen3/.test(x)&&!BAD[x]&&POOL.indexOf(x)<0)POOL.splice(Math.min(1,POOL.length),0,x)});if(!POOL.length)POOL=[MODELS.chat,MODELS.fast];dbg('POOL '+POOL.join(', '));
       LEARN.models={chat:MODELS.chat,fast:MODELS.fast,asr:MODELS.asr,asrFast:MODELS.asrFast};LEARN.pool=POOL;learnSave();
     }catch(e){dbg('MODELS list error '+e.message)}
   }
   // Free plan: each chat model has its own allowance (about 30 requests and 8,000 tokens a minute, 1,000 requests and 200,000 tokens a day).
   // Spread the work across every suitable model the key can use, so a long service never runs one dry.
-  var POOL_ORDER=['openai/gpt-oss-120b','qwen/qwen3.6-27b','moonshotai/kimi-k2-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','llama-3.3-70b-versatile','openai/gpt-oss-20b','meta-llama/llama-4-scout-17b-16e-instruct','llama-3.1-8b-instant'];
+  var POOL_ORDER=['openai/gpt-oss-120b','qwen/qwen3.8-27b','qwen/qwen3.6-27b','moonshotai/kimi-k2-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','llama-3.3-70b-versatile','openai/gpt-oss-20b','meta-llama/llama-4-scout-17b-16e-instruct','llama-3.1-8b-instant'];
   var POOL=['openai/gpt-oss-120b','openai/gpt-oss-20b'],USE={},COOL={};
   var TPM_SAFE=6500,RPM_SAFE=26,TPD_SAFE=185000,RPD_SAFE=950;
   function useOf(m){var u=USE[m];if(!u){u=USE[m]={min:[],day:{d:today(),tok:0,req:0}};try{var sv=JSON.parse(localStorage.getItem('use_'+m)||'null');if(sv&&sv.d===today())u.day=sv}catch(e){}}if(u.day.d!==today())u.day={d:today(),tok:0,req:0};var cut=Date.now()-60000;while(u.min.length&&u.min[0][0]<cut)u.min.shift();return u}
@@ -585,6 +585,16 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     return tok+est<TPM_SAFE&&u.min.length<RPM_SAFE&&u.day.tok+est<TPD_SAFE&&u.day.req<RPD_SAFE;
   }
   function noteUse(m,tokens){var u=useOf(m);u.min.push([Date.now(),tokens]);u.day.tok+=tokens;u.day.req++;try{localStorage.setItem('use_'+m,JSON.stringify(u.day))}catch(e){}}
+  function budgetLeft(){var tot=0,left=0;POOL.forEach(function(m){if(BAD[m])return;var u=useOf(m);tot+=TPD_SAFE;left+=Math.max(0,TPD_SAFE-u.day.tok)});return tot?left/tot:1}
+  function minuteRoom(m){var u=useOf(m),tok=0;u.min.forEach(function(x){tok+=x[1]});return TPM_SAFE-tok}
+  function nextFree(est){ // ms until some model can take a request of this size, or Infinity
+    var best=Infinity,now=Date.now();
+    POOL.forEach(function(m){if(BAD[m])return;var u=useOf(m);if(u.day.tok+est>=TPD_SAFE||u.day.req>=RPD_SAFE)return;var t=0;if(COOL[m]&&now<COOL[m])t=COOL[m]-now;
+      var tok=0;u.min.forEach(function(x){tok+=x[1]});var need=tok+est-TPM_SAFE,i=0;while((need>0||u.min.length-i>=RPM_SAFE)&&i<u.min.length){need-=u.min[i][1];t=Math.max(t,u.min[i][0]+60000-now);i++}
+      if(t<best)best=t});
+    return best;
+  }
+  var basicCount=0;
   function pickModel(est,preferFast){
     var order=preferFast?POOL.slice().reverse():POOL;
     for(var i=0;i<order.length;i++)if(canUse(order[i],est))return order[i];
@@ -593,9 +603,10 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
   function coolDown(m,r){var ra=parseInt(r.headers.get('retry-after')||'20',10);if(!(ra>0))ra=20;COOL[m]=Date.now()+Math.min(ra,3600)*1000;dbg('MODEL busy, resting '+m+' '+ra+'s')}
   function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
   async function chatCall(msgs,maxTok,temp,preferFast){ // returns {text, model}; tries other models when one is busy or gone
-    var est=estTokens(msgs,maxTok+(preferFast?150:250)),tried={};
-    for(var k=0;k<4;k++){
+    var est=estTokens(msgs,maxTok+(preferFast?150:250)),tried={},waited=0;
+    for(var k=0;k<6;k++){
       var m=pickModel(est,preferFast);
+      if(!m&&!preferFast&&waited<2){var w=nextFree(est);if(w>0&&w<=25000){waited++;dbg('PACING: waiting '+(w/1000).toFixed(1)+'s for a model');await new Promise(function(r){setTimeout(r,w+300)});continue}}
       if(!m||tried[m])break;tried[m]=1;
       var r=await fetchR('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+S.get('groqKey','')},body:chatBody(m,msgs,maxTok,temp)});
       await chatProblem(r,m);
@@ -727,9 +738,10 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     var p=matchPrayer(ar);
     if(p){item.en=p.b+(p.ref?' ('+p.ref+')':'');item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil,prevItem=lines[lines.length-2];
-    if(useAI)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){}); // fast first draft, replaced by the careful version
+    var draftOK=useAI&&budgetLeft()>0.55&&minuteRoom(POOL[POOL.length-1]||MODELS.fast)>3500; // the quick draft doubles the token cost, so it is only made while the day's allowance is comfortable
+    if(draftOK)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){});
     queue=queue.then(function(){
-      if(useAI)return groq(ar,alts,prevItem,item).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){item.basic=true;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
+      if(useAI)return groq(ar,alts,prevItem,item).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){item.basic=true;basicCount++;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
@@ -1257,7 +1269,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     clearInterval(audioWatch);var lastF=-1,stuck=0;
     audioWatch=setInterval(function(){
       if(!running)return;
-      var tn=Date.now();if(tn-(window.__modelsAt||tn)>20*60000){window.__modelsAt=tn;loadModels()}
+      var tn=Date.now();if(tn-(window.__modelsAt||0)>20*60000){window.__modelsAt=tn;loadModels()}
       if(!wake||wake.released){try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(function(w){wake=w}).catch(function(){})}catch(e){}}
       if(audioFrames===lastF&&sr2On){sr2Dead=true;stopPreviewSR();setStatus('Instant preview is off on this device (it blocked the microphone).')}
       if(replayEl){lastF=audioFrames;return}
@@ -1351,6 +1363,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
     setTimeout(function(){rejectedOnce=false;if(typeof LOCKED!=='undefined'&&LOCKED){try{if(running)stop()}catch(e){}askPassword()}},300);
   }
   async function start(){
+    if(S.get('groqKey','')&&(!window.__modelsAt||Date.now()-window.__modelsAt>20*60000)){window.__modelsAt=Date.now();loadModels().catch(function(){})}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){var bk=await KEYDB.get('groqKey');if(bk){S.set('groqKey',bk);dbg('key restored from backup copy')}}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')&&LOCKED){askPassword();return}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){
@@ -1490,6 +1503,7 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
   if(!SR&&!S.get('groqKey',''))setStatus('Add a Groq key in Settings, or open this page in Safari.');
   (function(){var sc=document.createElement('script');sc.src='bible.js';sc.async=true;sc.onload=function(){LIB=null;setTimeout(function(){try{getLib()}catch(e){}},300)};document.head.appendChild(sc)})();
   loadReadings();
+  window.__churchTest={loadModels:loadModels,chatCall:chatCall,pool:function(){return POOL.slice()},noteUse:noteUse,budgetLeft:budgetLeft,nextFree:nextFree,dbg:function(){return DBG.slice()},caps:function(){return {TPD_SAFE:TPD_SAFE}}}; // for the offline test harness only
 })();
 </script>
 </body>
