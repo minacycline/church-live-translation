@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v45">
+<meta name="build" content="v46">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -85,6 +85,9 @@ textarea{min-height:120px;resize:vertical}
 .rv button.primary{background:var(--gold);color:#2a0e10;font-weight:600}
 .rv .saved{color:var(--green);font-size:14px}
 #testfile{font-size:15px}
+body:not(.admin) #gear,body:not(.admin) #reviewBtn,body:not(.admin) #clear,body:not(.admin) #rst{display:none}
+body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#fsDown,#fsUp{font-weight:700}
 @media (prefers-reduced-motion:reduce){#en p{transition:none}}
 #alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}</style>
 </head>
@@ -94,6 +97,8 @@ textarea{min-height:120px;resize:vertical}
   <div class="titlerow">
     <span class="dot" id="dot"></span>
     <div id="title" contenteditable="true" spellcheck="false" aria-label="Title, tap to edit">Live Translation</div>
+    <button class="icon" id="fsDown" aria-label="Smaller text">A−</button>
+    <button class="icon" id="fsUp" aria-label="Bigger text">A+</button>
     <button class="icon" id="reviewBtn" aria-label="Review and correct">✎</button>
     <button class="icon" id="clear" aria-label="Clear captions">⌫</button>
     <button class="icon" id="gear" aria-label="Settings">⚙</button>
@@ -102,7 +107,7 @@ textarea{min-height:120px;resize:vertical}
 </header>
 
 <main>
-  <div id="en"><div class="empty">Tap the title to change it. Press Start when the priest begins.</div></div>
+  <div id="en"><div class="empty">Press Start when the priest begins.</div></div>
   <div id="ar"></div>
 </main>
 
@@ -160,6 +165,9 @@ textarea{min-height:120px;resize:vertical}
   <label>Learned corrections</label>
   <div class="help">When the translator fixes a word Whisper misheard, the pair is remembered here. After the same fix twice it is applied by itself and the right word is given to Whisper as vocabulary. Delete any that are wrong; a deleted one is never learned again.</div>
   <div id="fixList"></div>
+  <label for="adminPin">Admin PIN (optional)</label>
+  <input id="adminPin" type="password" inputmode="numeric" autocomplete="off" placeholder="leave empty for no PIN">
+  <div class="help">The main screen only shows captions, Start/Stop and the text size buttons. To reach settings, press and hold the title for 2 seconds (add the PIN if you set one). Settings lock again after 10 minutes or when Start is pressed.</div>
   <label for="reviewKey">Review sheet key</label>
   <input id="reviewKey" type="password" autocomplete="off" placeholder="saved automatically when you open the setup link">
   <div class="help">Lines the app could not fix by itself are sent to your Google Sheet. Approve or change them there and the app picks the answers up by itself.</div>
@@ -255,7 +263,7 @@ textarea{min-height:120px;resize:vertical}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -387,7 +395,7 @@ textarea{min-height:120px;resize:vertical}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
   function render(){
     var shown=lines.slice(-MAXL);
-    if(!lines.length){enEl.innerHTML=running?'':'<div class="empty">Tap the title to change it. Press Start when the priest begins.</div>';shownIds=[];return}
+    if(!lines.length){enEl.innerHTML=running?'':'<div class="empty">Press Start when the priest begins.</div>';shownIds=[];return}
     shown.forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
     var keep={};shown.forEach(function(l){keep[l.id]=1});
     Array.prototype.slice.call(enEl.children).forEach(function(el){
@@ -726,6 +734,31 @@ textarea{min-height:120px;resize:vertical}
     }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)});
   }
+
+  // ---- viewer mode: the main screen only shows captions and the text size; settings need a press-and-hold (and a PIN if one is set) ----
+  var adminUntil=0,adminTimer=null;
+  function setAdmin(on){
+    adminUntil=on?Date.now()+600000:0;document.body.classList.toggle('admin',!!on);
+    var t=$('title');if(t)t.setAttribute('contenteditable',on?'true':'false');
+    clearInterval(adminTimer);if(on)adminTimer=setInterval(function(){if(Date.now()>adminUntil){var open=false;try{open=$('settings').open||$('review').open}catch(e){}if(!open)setAdmin(false)}},15000);
+  }
+  function askAdmin(){
+    var pin=S.get('adminPin','');
+    if(pin){var v=window.prompt('Admin PIN');if(v===null)return;if(String(v).trim()!==pin){alert('Wrong PIN.');return}}
+    setAdmin(true);
+  }
+  (function(){
+    var t=$('title'),h=null;
+    function down(e){if(document.body.classList.contains('admin'))return;clearTimeout(h);h=setTimeout(function(){h=null;askAdmin()},2000)}
+    function up(){clearTimeout(h);h=null}
+    ['pointerdown','touchstart','mousedown'].forEach(function(n){t.addEventListener(n,down,{passive:true})});
+    ['pointerup','pointercancel','pointerleave','touchend','touchmove','mouseup','mouseleave'].forEach(function(n){t.addEventListener(n,up,{passive:true})});
+    t.addEventListener('contextmenu',function(e){if(!document.body.classList.contains('admin'))e.preventDefault()});
+    if(/[?&]admin=1/.test(location.search))askAdmin();else setAdmin(false);
+    function bump(d){var v=Math.max(28,Math.min(90,(parseInt(S.get('size','46'),10)||46)+d));S.set('size',String(v));applyView()}
+    $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
+    $('go').addEventListener('click',function(){if(document.body.classList.contains('admin')&&!(($('settings')||{}).open))setAdmin(false)});
+  })();
 
   // ---- review sheet: lines the app cannot fix itself go to a Google Sheet, approved answers come back ----
   var RV_BASE='https://mini.tail99f4f6.ts.net/webhook',rvBusy=false,rvLast='';
