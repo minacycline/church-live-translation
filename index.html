@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v50">
+<meta name="build" content="v51">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2a0e10">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f7f4ee">
 <meta name="apple-mobile-web-app-title" content="Translation">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <title>Live Translation</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Uncial+Antiqua&family=Lora:ital,wght@0,500;0,600;1,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
 /* Palette: icon ground oxblood, parchment text, gold leaf, aged gold for quiet lines */
 :root{--bg:#2a0e10;--bg2:#1c090a;--fg:#f3e6c8;--dim:#b89d72;--gold:#d8ad55;--gold2:#8a6a34;--panel:#3a1618;--line:#5a2c2c;--red:#b5322f;--green:#9fc78f;--fs:46px}
@@ -89,6 +89,47 @@ body:not(.admin) #gear,body:not(.admin) #reviewBtn,body:not(.admin) #clear,body:
 body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #fsDown,#fsUp{font-weight:700}
 @media (prefers-reduced-motion:reduce){#en p{transition:none}}
+</style>
+<style>
+/* ---- v51 light theme (Option C): cream background, dark text, one burgundy accent, Atkinson Hyperlegible for reading at a distance ---- */
+:root{--bg:#f7f4ee;--bg2:#efeae0;--fg:#16171a;--dim:#6e6a63;--gold:#7a1e2c;--gold2:#a8a39b;--panel:#ffffff;--line:#e3ddd2;--red:#2b2b2e;--green:#2f6b4a;--mid:#6e6a63;--old:#a8a39b}
+html,body{background:var(--bg);color:var(--fg);font-family:"Atkinson Hyperlegible",-apple-system,"Segoe UI",system-ui,sans-serif}
+body{background:var(--bg)}
+header{padding:20px 0 0}
+.titlerow{gap:12px}
+#title{text-align:left;font-family:inherit;font-size:clamp(15px,1.6vw,18px);font-weight:700;color:#6a5f55;letter-spacing:.01em;text-shadow:none;padding:4px 0}
+#title:focus{background:var(--bg2);padding:4px 10px}
+.rule{display:none}
+.icon{background:#fff;color:#3a3a3d;border:1px solid var(--line);border-radius:22px;min-width:52px;width:auto;padding:0 12px;height:44px;font-size:17px}
+.icon:focus-visible,#go:focus-visible{outline:2px solid var(--gold)}
+#fsDown,#fsUp{font-weight:700}
+#en{font-weight:700;line-height:1.22;gap:.55em;letter-spacing:-.005em}
+#en p.old{color:var(--old);font-weight:700}
+#en p.old:nth-last-of-type(2){color:var(--mid)}
+#en p.fixed{color:var(--fg)}
+#en p.pending,#en .interim{color:var(--dim);font-weight:400}
+#ar{color:#8a8379;font-family:inherit}
+.empty{color:var(--dim);font-style:normal}
+#go{background:var(--gold);color:#fff;font-weight:700;font-size:18px;padding:14px 30px}
+#go.stop{background:#2b2b2e;color:#fff}
+#status{color:#6a5f55;font-style:normal}
+#meter{border:1px solid var(--line);background:#fff;opacity:1}
+#meter i{background:var(--gold2);opacity:.8}
+#meter.voice i{background:#2f8f5b}
+.dot{background:var(--gold2)}.dot.on{background:#2f8f5b}
+#rst{border-color:var(--line);color:var(--dim)}
+#rstDlg{background:#fff;color:var(--fg);border-color:var(--line)}
+#rstDlg button{border-color:var(--line);color:var(--fg)}
+#rstDlg button.yes{background:var(--gold);border-color:var(--gold);color:#fff}
+dialog,#review{background:#fff;color:var(--fg);border:1px solid var(--line);font-family:"Atkinson Hyperlegible",-apple-system,system-ui,sans-serif}
+dialog::backdrop{background:rgba(22,23,26,.35)}
+dialog h2,#review h2{font-family:inherit;color:var(--fg);font-weight:700}
+input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--line)}
+.actions button,.rv button.primary{background:var(--gold);color:#fff}
+.actions .ghost,.rv button{background:var(--bg2);color:var(--fg)}
+.rv .saved{color:#2f6b4a}
+</style>
+<style>
 #alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}</style>
 </head>
 <body>
@@ -257,11 +298,12 @@ body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-
   var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
   // ---- title and settings ----
-  var title=$('title');
-  title.textContent=S.get('title','Live Translation');
-  title.addEventListener('input',function(){S.set('title',title.textContent.trim()||'Live Translation')});
+  var CHURCH='St. George Coptic Orthodox Church · Norristown, PA',title=$('title');
+  (function(){var t0=S.get('title','');if(!t0||t0==='Live Translation')S.set('title',CHURCH)})();
+  title.textContent=S.get('title',CHURCH);
+  title.addEventListener('input',function(){S.set('title',title.textContent.trim()||CHURCH)});
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
-  title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent='Live Translation'});
+  title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent=CHURCH});
 
   var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin'],DEF={preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
