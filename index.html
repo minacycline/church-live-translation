@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v55">
+<meta name="build" content="v56">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -314,7 +314,8 @@ body.listening #sideMeter{display:block}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent=CHURCH});
 
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed'],DEF={hearSpeed:'fast',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed'],DEF={hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'120',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -1112,7 +1113,7 @@ body.listening #sideMeter{display:block}
   async function whisper(blob){
     var fd=new FormData();
     fd.append('file',blob,'a.wav');
-    fd.append('model',S.get('hearSpeed','fast')==='fast'?MODELS.asrFast:MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
+    fd.append('model',S.get('hearSpeed','accurate')==='fast'?MODELS.asrFast:MODELS.asr);if(S.get('lang','mixed')!=='mixed')fd.append('language','ar');fd.append('temperature','0');fd.append('response_format','verbose_json');
     var pr=whisperPrompt();if(pr)fd.append('prompt',pr);
     var r=await fetchR('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+S.get('groqKey','')},body:fd},15000);
     if(r.status===429){var ra=parseInt(r.headers.get('retry-after')||'20',10);var wait=ra>120?Math.min(ra,3600):Math.min(Math.max(ra,5),60);whisperBlockedUntil=Date.now()+wait*1000;throw new Error('hearing limit reached, waiting '+wait+' s')}
