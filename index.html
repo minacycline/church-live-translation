@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v61">
+<meta name="build" content="v62">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -318,7 +318,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Red with "LISTENING" on the main device, green with "TRANSLATING" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Red on the main device (it says LISTENING while it waits and TRANSLATING while it hears and translates), green with "TRANSLATING" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
@@ -886,7 +886,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     return out.join(' ');
   }
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. Output only the English of the NEW sentence.';
+  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -1155,7 +1155,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   async function quick(ar,deadline){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. Output only the English.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true,deadline,null);
     return res.text;
   }
@@ -1211,6 +1211,9 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     function bump(d){var v=Math.max(28,Math.min(90,(parseInt(S.get('size','46'),10)||46)+d));S.set('size',String(v));applyView()}
     $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
 
+
+  // v62: the red tag on the main device says TRANSLATING while speech is being heard or translated, LISTENING while it waits
+  setInterval(function(){try{var tg=$('liveTag');if(!tg||typeof running==='undefined'||!running)return;var now=Date.now(),busy=(now-lastSpeechAt<4000)||(typeof hearPending!=='undefined'&&hearPending>0)||(now-(typeof lastResult!=='undefined'?lastResult:0)<5000);var w=busy?'TRANSLATING':'LISTENING';if(tg.textContent!==w)tg.textContent=w}catch(e){}},500);
   // v59: full screen for the projector
   (function(){
     var b=$('fsBtn'),de=document.documentElement,idleT=0;
@@ -1860,7 +1863,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var wDone=0;p.then(function(){wDone=Date.now()},function(){});
     hearQueue=hearQueue.then(function(){return p}).then(function(t){var wms=(wDone||Date.now())-sent;return cmp?cmp.then(function(c){curCo=c;if(!c)return t;curCo.wms=wms;if(c.t)dbg('COMPARE '+(normAr(c.t)!==normAr(t||'')?'DIFFERENT':'same')+' | Whisper '+wms+' ms, Cohere '+c.ms+' ms: '+c.t.slice(0,50));return t}):(curCo=null,t)}).then(function(t){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;var alt=sr2On?sr2Text.trim():'',conf=CONF.has(blob)?CONF.get(blob):null;srAdvance(srMark);
       lastHearMs=Date.now()-sent;dbg('WHISPER '+(lastHearMs/1000).toFixed(1)+'s: '+(t||'').slice(0,70));
-      if(t&&speechSec<0.9&&loud!==undefined&&loud<Math.max(0.0015,noiseFloor*2)&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=applyFixes(fixNames(cleanHeard(t,speechSec>=2&&typeof conf==='number'&&conf>-0.5)));if(!t||t===lastText)return;
+      if(t&&speechSec<0.9&&loud!==undefined&&loud<Math.max(0.0015,noiseFloor*2)&&!looksLiturgical(t)){var nk=normAr(t);LEARN.seen=LEARN.seen||{};LEARN.seen[nk]=(LEARN.seen[nk]||0)+1;if(LEARN.seen[nk]>=3){LEARN.junk=LEARN.junk||[];if(LEARN.junk.indexOf(nk)<0&&LEARN.junk.length<60){LEARN.junk.push(nk);dbg('LEARNED made-up phrase to ignore: '+t.slice(0,40))}}var ks=Object.keys(LEARN.seen);if(ks.length>80)delete LEARN.seen[ks[0]];learnSave()}t=applyFixes(fixNames(cleanHeard(t,speechSec>=2&&typeof conf==='number'&&conf>-0.5)));if(!t)return;if(t===lastText&&!(speechSec>=1.2&&(loud===undefined||loud>=Math.max(0.0015,noiseFloor*2))))return; // an identical piece is dropped only when it is quiet or very short (a loop on silence); a real repeat is shown
       if(alt&&similarity(normAr(alt),normAr(t))>0.9)alt='';
       lastText=t;lastResult=Date.now();heardCount++;curCut=cutAt;curSpeechStart=spokeAt;curPos=posAt;curConf=conf;joinAndFinal(t,alt);liveEn='';liveFirstAt=0;sr2Gen++;if(running)setStatus('Listening. Heard '+heardCount+' pieces, last took '+(lastHearMs/1000).toFixed(1)+' s, '+Math.round(usedToday()/60)+' min today');
     }).catch(function(e){hearPending=Math.max(0,hearPending-1);if(!hearPending)hearStart=0;srAdvance(srMark);setStatus('Hearing problem: '+(e.name==='AbortError'?'slow connection, skipped one piece':e.message))});
