@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v64">
+<meta name="build" content="v65">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -54,7 +54,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex
 #rstDlg::backdrop{background:rgba(0,0,0,.6)}
 #rstDlg button{font-size:17px;padding:10px 18px;margin:8px 6px 0;border-radius:10px;border:1px solid var(--gold2);background:transparent;color:var(--fg)}
 #rstDlg button.yes{background:var(--red);border-color:var(--red)}
-footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
+footer{display:flex;align-items:center;gap:14px;padding:10px 0 24px}
 body.fs header,body.fs footer{transition:opacity .4s}body.fs.idle header,body.fs.idle footer{opacity:0;pointer-events:none}body.fs.idle{cursor:none}
 
 #go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
@@ -151,6 +151,7 @@ main{justify-content:flex-start}
 #en p.cur{font-size:1.75em;letter-spacing:-.01em;color:var(--fg)}
 #en p.next,#en .interim{font-size:.87em;line-height:1.2;font-weight:400;font-style:normal;color:var(--dim);opacity:1}
 #en p.prev{font-size:.58em;line-height:1.3;font-weight:400;color:var(--dim);margin-bottom:auto;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#en p.prev{margin-bottom:0}#en p.prev.pl{margin-bottom:auto}#en p.p2{opacity:.72}#en p.p3{opacity:.5}#en p.interim.cur{font-size:1.75em;line-height:1.14;font-weight:700;color:var(--fg);letter-spacing:-.01em}
 #en p .draft{opacity:1}
 #en>p:last-child{margin-bottom:auto}
 #en>p:first-child:not(.prev){margin-top:auto}
@@ -169,6 +170,7 @@ main{justify-content:flex-start}
 #go{white-space:nowrap}
 /* the main device shows a red frame and a small tag while it is listening, so nobody mistakes it for a screen */
 body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
+#betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
 /* a screen shows a green frame and "TRANSLATING" while captions are arriving from the main device */
@@ -210,12 +212,13 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
 #status{color:var(--dim)}
 .dot.on{background:var(--green)}
 /* a phone held sideways is very short: the Ready screen tightens so nothing touches the Start button */
-@media (max-height:520px){header{padding-top:8px}main{padding:8px 0 4px}footer{padding:6px 0 10px}.ready{gap:7px}.ready h1{font-size:clamp(24px,8vh,38px)}.rolebadge{font-size:11px;padding:3px 10px}.chks{flex-direction:row;flex-wrap:wrap;gap:6px 22px}.chk{font-size:16px;gap:9px}.chk span{width:11px;height:11px}.follow input{font-size:15px;padding:6px 8px}#watchBtn{min-height:40px;padding:6px 12px;font-size:15px}.sharecode{font-size:13px}.ready .hint{font-size:13px}#chkReady{min-height:44px;padding:6px 16px;font-size:16px}#go:not(.stop){font-size:22px;padding:.5em 1.6em;border-radius:14px}}
+@media (max-height:520px){header{padding-top:8px}main{padding:8px 0 4px}footer{padding:6px 0 20px}.ready{gap:7px}.ready h1{font-size:clamp(24px,8vh,38px)}.rolebadge{font-size:11px;padding:3px 10px}.chks{flex-direction:row;flex-wrap:wrap;gap:6px 22px}.chk{font-size:16px;gap:9px}.chk span{width:11px;height:11px}.follow input{font-size:15px;padding:6px 8px}#watchBtn{min-height:40px;padding:6px 12px;font-size:15px}.sharecode{font-size:13px}.ready .hint{font-size:13px}#chkReady{min-height:44px;padding:6px 16px;font-size:16px}#go:not(.stop){font-size:22px;padding:.5em 1.6em;border-radius:14px}}
 </style>
 </head>
 <body>
 <div id="alert"></div>
 <div id="liveTag" aria-hidden="true">LISTENING</div>
+<div id="betaNote" aria-hidden="true">Beta test: translations may not be correct.</div>
 <div id="viewTag" aria-hidden="true">TRANSLATING</div>
 <header>
   <div class="titlerow">
@@ -318,7 +321,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Red on the main device (it says LISTENING while it waits and TRANSLATING while it hears and translates), green with "TRANSLATING" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Red with "LISTENING" on the main device, green with "TRANSLATING" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
@@ -628,7 +631,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   function cleanEn(t){if(!t)return t;try{hideBuild();var r=String(t).replace(HIDE.en,'…');if(HIDE.ar.test(r)){HIDE.ar.lastIndex=0;r=r.replace(HIDE.ar,'$1…')}HIDE.ar.lastIndex=0;return r.replace(/…(?:\s*…)+/g,'…')}catch(e){return t}}
   function cleanAr(t){if(!t)return t;try{hideBuild();HIDE.ar.lastIndex=0;var r=String(t).replace(HIDE.ar,'$1…');HIDE.ar.lastIndex=0;return r.replace(HIDE.en,'…')}catch(e){return t}}
-  var MAXL=4,shownIds=[];
+  var MAXL=4,shownIds=[],BIGHOLD='',BIGLIVE='';
   var DOTS='<span class="dots" aria-label="listening"><i></i><i></i><i></i></span>';
   function lineHtml(l){return l.en?esc(cleanEn(l.en))+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(cleanEn(l.draft))+'</span>':DOTS}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
@@ -684,12 +687,18 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(!lines.length){shownIds=[];if(SHARE){SHARE.rows=[];shareQueue()}
       if(!running){enEl.innerHTML=readyHtml();return}
       enEl.innerHTML='';var f0=(typeof liveEn!=='undefined'&&liveEn)?liveEn:'';
-      if(f0||dotsOn){var p0=document.createElement('p');p0.className='interim next';if(f0)p0.textContent=cleanEn(f0);else p0.innerHTML=DOTS;enEl.appendChild(p0)} // before the first sentence is finished: the running English, or the listening dots
+      BIGLIVE=f0?cleanEn(f0):'';if(f0||dotsOn){var p0=document.createElement('p');p0.className=f0?'interim cur live':'interim next';if(f0)p0.textContent=cleanEn(f0);else p0.innerHTML=DOTS;enEl.appendChild(p0)} // before the first sentence is finished: the running English, or the listening dots
       return}
-    // one sentence at a time: the newest finished sentence is the big one, the one before it sits small at the top, anything still being translated follows in grey
-    var ci=-1;for(var q=lines.length-1;q>=0;q--){if(lines[q].en){ci=q;break}}
-    var from=ci<0?Math.max(0,lines.length-2):Math.max(0,ci-1),shown=lines.slice(from),cs=ci-from;
-    if(shown.length>MAXL){shown=shown.slice(0,cs+1).concat(shown.slice(-(MAXL-cs-1)))}
+    // v65: the big line is the sentence being said right now (the live English while he speaks, then the finished sentence); the three sentences before it sit small above it, fading with age; nothing sits below it
+    var hasT=function(l){return !!(l.en||l.draft)};
+    var liveNow=(typeof liveEn!=='undefined'&&liveEn)?cleanEn(liveEn):'';
+    var lastL=lines[lines.length-1],bigLine=null,bigLive='';
+    if(liveNow){bigLive=liveNow;BIGHOLD=liveNow}
+    else if(lastL&&!hasT(lastL)&&BIGHOLD){bigLive=BIGHOLD} // the sentence just ended and is still being translated: keep what was on screen
+    else{BIGHOLD='';for(var q=lines.length-1;q>=0;q--){if(hasT(lines[q])){bigLine=lines[q];break}}}
+    var upto=bigLine?lines.indexOf(bigLine):lines.length;
+    var prevs=lines.slice(0,upto).filter(hasT).slice(-3);
+    var shown=prevs.concat(bigLine?[bigLine]:[]);
     shown.forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
     var keep={};shown.forEach(function(l){keep[l.id]=1});
     Array.prototype.slice.call(enEl.children).forEach(function(el){
@@ -699,13 +708,15 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     shown.forEach(function(l,i){
       var el=document.getElementById(l.id);
       if(!el){el=document.createElement('p');el.id=l.id;el.className='in';enEl.appendChild(el);requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
-      el.innerHTML=lineHtml(l);el.className=(el.classList.contains('in')?'in ':'')+(l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(cs<0||i>cs?'next':i===cs?'cur':'prev');
+      var isBig=bigLine&&l===bigLine,age=prevs.length-i;
+      el.innerHTML=lineHtml(l);el.className=(el.classList.contains('in')?'in ':'')+(l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(isBig?'cur':'prev p'+age+(age===1?' pl':''));
       enEl.appendChild(el);
     });
-    if(typeof liveEn!=='undefined'&&liveEn){var li=document.createElement('p');li.className='interim next';li.textContent=cleanEn(liveEn);enEl.appendChild(li)}
-    else if(dotsOn&&!shown.some(function(l){return !l.en&&!l.draft})){var dl=document.createElement('p');dl.className='interim next';dl.innerHTML=DOTS;enEl.appendChild(dl)} // he is speaking and no words are ready yet: the screen shows it is listening
+    if(bigLive){var li=document.createElement('p');li.className='interim cur live';li.textContent=bigLive;enEl.appendChild(li)}
+    else if(!bigLine&&dotsOn){var dl=document.createElement('p');dl.className='interim next';dl.innerHTML=DOTS;enEl.appendChild(dl)} // nothing to show yet and he is speaking: the screen shows it is listening
+    BIGLIVE=bigLive;
     lagShow();
-    SHARE.rows=shown.map(function(l,i){return {r:cs<0||i>cs?'next':i===cs?'cur':'prev',t:cleanEn(l.en||''),d:l.en?'':cleanEn(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
+    SHARE.rows=shown.map(function(l,i){return {r:(bigLine&&l===bigLine)?'cur':'prev',t:cleanEn(l.en||''),d:l.en?'':cleanEn(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
     fit();setTimeout(fit,520);
     if(txId)txSave(false);
   }
@@ -730,7 +741,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function peerId(code){return 'church-captions-'+String(code).toLowerCase()}
   function shareSnap(){
     if(!running)return {v:1,idle:1,title:S.get('title',CHURCH)};
-    return {v:1,title:S.get('title',CHURCH),lines:SHARE.rows||[],live:cleanEn((typeof liveEn!=='undefined'&&liveEn)||''),dots:dotsOn?1:0,st:String(($('status')||{}).textContent||'').slice(0,160),lag:String(($('lag')||{}).textContent||'').slice(0,200)};
+    return {v:1,title:S.get('title',CHURCH),lines:SHARE.rows||[],live:BIGLIVE||'',dots:(!BIGLIVE&&!(SHARE.rows&&SHARE.rows.length)&&dotsOn)?1:0,st:String(($('status')||{}).textContent||'').slice(0,160),lag:String(($('lag')||{}).textContent||'').slice(0,200)};
   }
   function shareSendNow(force){var s=JSON.stringify(shareSnap());if(!force&&s===SHARE.last)return;SHARE.last=s;SHARE.conns.forEach(function(c){try{if(c.open)c.send(s)}catch(e){}})}
   function shareQueue(){if(!SHARE.peer||SHARE.timer)return;SHARE.timer=setTimeout(function(){SHARE.timer=null;shareSendNow(false)},150)}
@@ -781,15 +792,16 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(typeof d!=='string'||d===VIEW.last||d.length>20000)return;var o;try{o=JSON.parse(d)}catch(e){return}if(!o||o.v!==1)return;VIEW.last=d;
     if(o.title)title.textContent=String(o.title).slice(0,120);
     if(o.idle){viewMsg('Connected. Captions will appear here when the main device starts.');VIEW.last=d;return}
-    document.body.classList.add('livecap');enEl.innerHTML='';var pend=false;
+    document.body.classList.add('livecap');enEl.innerHTML='';var pend=false;VIEW.pi=0;
     (Array.isArray(o.lines)?o.lines:[]).slice(0,6).forEach(function(l){
       var p=document.createElement('p'),t=cleanEn(String(l.t||'').slice(0,700)),dr=cleanEn(String(l.d||'').slice(0,700));
-      p.className=(l.r==='cur'?'cur':l.r==='prev'?'prev':'next')+(t||dr?'':' pending')+(l.f?' fixed':'');
+      var nPrev=(Array.isArray(o.lines)?o.lines:[]).filter(function(x){return x.r==='prev'}).length;if(l.r==='prev'){VIEW.pi=(VIEW.pi||0)+1}
+      p.className=(l.r==='cur'?'cur':l.r==='prev'?'prev p'+Math.max(1,nPrev-VIEW.pi+1)+(VIEW.pi===nPrev?' pl':''):'next')+(t||dr?'':' pending')+(l.f?' fixed':'');
       if(t){p.textContent=t;if(l.ref){var r=document.createElement('span');r.className='ref';r.textContent=String(l.ref).slice(0,60);p.appendChild(document.createTextNode(' '));p.appendChild(r)}}
       else if(dr){var sp=document.createElement('span');sp.className='draft';sp.textContent=dr;p.appendChild(sp)}
       else{p.innerHTML=DOTS;pend=true}
       enEl.appendChild(p)});
-    if(o.live){var li=document.createElement('p');li.className='interim next';li.textContent=cleanEn(String(o.live).slice(0,700));enEl.appendChild(li)}
+    if(o.live){var li=document.createElement('p');li.className='interim cur live';li.textContent=cleanEn(String(o.live).slice(0,700));enEl.appendChild(li)}
     else if(o.dots&&!pend){var dl=document.createElement('p');dl.className='interim next';dl.innerHTML=DOTS;enEl.appendChild(dl)}
     $('status').textContent='Following '+VIEW.code+'. '+String(o.st||'').slice(0,160);var lg=$('lag');if(lg)lg.textContent=String(o.lag||'').slice(0,200);
     fit();
@@ -1217,8 +1229,6 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
 
 
-  // v62: the red tag on the main device says TRANSLATING while speech is being heard or translated, LISTENING while it waits
-  setInterval(function(){try{var tg=$('liveTag');if(!tg||typeof running==='undefined'||!running)return;var now=Date.now(),busy=(now-lastSpeechAt<4000)||(typeof hearPending!=='undefined'&&hearPending>0)||(now-(typeof lastResult!=='undefined'?lastResult:0)<5000);var w=busy?'TRANSLATING':'LISTENING';if(tg.textContent!==w)tg.textContent=w}catch(e){}},500);
   // v59: full screen for the projector
   (function(){
     var b=$('fsBtn'),de=document.documentElement,idleT=0;
