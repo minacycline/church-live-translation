@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v58">
+<meta name="build" content="v59">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -55,6 +55,8 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex
 #rstDlg button{font-size:17px;padding:10px 18px;margin:8px 6px 0;border-radius:10px;border:1px solid var(--gold2);background:transparent;color:var(--fg)}
 #rstDlg button.yes{background:var(--red);border-color:var(--red)}
 footer{display:flex;align-items:center;gap:14px;padding:10px 0 16px}
+body.fs header,body.fs footer{transition:opacity .4s}body.fs.idle header,body.fs.idle footer{opacity:0;pointer-events:none}body.fs.idle{cursor:none}
+
 #go{background:var(--gold);color:#2a0e10;font-weight:600;font-size:19px;padding:14px 32px;border-radius:999px}
 #go.stop{background:var(--red);color:var(--fg)}
 #status{color:var(--dim);font-size:15px;min-width:0;font-style:italic}
@@ -179,7 +181,7 @@ body.viewing.livecap:not(.noframe) #viewTag{display:block}
 .linkbtn{background:none;border:0;padding:6px 0;color:var(--dim);text-decoration:underline;font-size:clamp(14px,1.5vw,17px)}
 body.screenrole #meter,body.screenrole #sideMeter{display:none}
 #watchBtn{min-height:48px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:clamp(16px,1.7vw,19px)}
-.sharecode{font-size:clamp(15px,1.6vw,19px);color:var(--dim)}.sharecode b{color:var(--fg);letter-spacing:.14em}
+.sharecode{font-size:clamp(15px,1.6vw,19px);color:var(--dim)}.sharecode.big{font-size:clamp(16px,1.9vw,22px);max-width:34em;line-height:1.45}.sharecode.big b{font-size:1.5em}.sharecode b{color:var(--fg);letter-spacing:.14em}
 body.viewing:not(.admin) #status,body.viewing:not(.admin) #meter{visibility:hidden}
 body.viewing #meter,body.viewing #sideMeter{display:none}
 /* settings in two levels: a short everyday part anyone at the church can use, and the owner's part behind a PIN */
@@ -220,6 +222,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     <div id="title" contenteditable="true" spellcheck="false" aria-label="Title, tap to edit">Live Translation</div>
     <button class="icon" id="fsDown" aria-label="Smaller text">A−</button>
     <button class="icon" id="fsUp" aria-label="Bigger text">A+</button>
+    <button class="icon" id="fsBtn" aria-label="Full screen">⛶</button>
     <button class="icon" id="reviewBtn" aria-label="Review and correct">✎</button>
     <button class="icon" id="clear" aria-label="Clear captions">⌫</button>
     <button class="icon" id="gear" aria-label="Settings">⚙</button>
@@ -431,9 +434,10 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
   title.addEventListener('blur',function(){if(!title.textContent.trim())title.textContent=CHURCH});
 
+  try{if(!S.get('shareMig58','')){if(S.get('share','1')==='0')S.set('share','1');S.set('shareMig58','1')}}catch(e){}
   try{if(!S.get('maxMig58','')){if(S.get('maxMin','120')==='120')S.set('maxMin','240');S.set('maxMig58','1')}}catch(e){} // v58: the automatic stop moves from 2 hours to 4
   try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','share','room','role','watchCode','frame'],DEF={frame:'1',role:'main',share:'0',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','share','room','role','watchCode','frame'],DEF={frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.body.classList.toggle('noframe',S.get('frame','1')==='0');document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -629,7 +633,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     rows+=(S.get('autoRead','1')==='1'?row(rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"):'');
     var note=READYCHK.busy?'Checking: say a few words near the microphone…':READYCHK.at?'Checked at '+new Date(READYCHK.at).toTimeString().slice(0,5)+'.':'Press Check before the service to test the microphone, the hearing and the translator.';
     if(isScreen())return '<div class="empty ready"><div class="rolebadge scr">Screen only</div><h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
-    return '<div class="empty ready"><div class="rolebadge">Main device</div><h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','0')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':'<div class="sharecode">Screens follow this device with the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>'):'<div class="follow"><span class="sharecode">Only a screen? Type the main device\'s code:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div>')+'<div class="hint">'+note+' The gear at the top opens the settings.</div></div>';
+    return '<div class="empty ready"><div class="rolebadge">Main device</div><h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':'<div class="sharecode big">This device listens. To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>'):'')+'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div><div class="hint">'+note+' The gear at the top opens the settings.</div></div>';
   }
   // ---- check before the service: opens the microphone for a few seconds and asks each outside service for a real answer ----
   var READYCHK={at:0,rows:[],busy:false};
@@ -723,7 +727,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function shareSendNow(force){var s=JSON.stringify(shareSnap());if(!force&&s===SHARE.last)return;SHARE.last=s;SHARE.conns.forEach(function(c){try{if(c.open)c.send(s)}catch(e){}})}
   function shareQueue(){if(!SHARE.peer||SHARE.timer)return;SHARE.timer=setTimeout(function(){SHARE.timer=null;shareSendNow(false)},150)}
   function shareStart(){
-    if(SHARE.peer||S.get('share','0')!=='1'||typeof Peer==='undefined'||VIEW.on||isScreen())return;
+    if(SHARE.peer||S.get('share','1')!=='1'||typeof Peer==='undefined'||VIEW.on||isScreen())return;
     var p;try{p=new Peer(peerId(roomCode()),peerOpts())}catch(e){dbg('SHARE could not start: '+e.message);return}
     SHARE.peer=p;
     p.on('open',function(){SHARE.err='';SHARE.up=true;dbg('SHARE ready for other screens');readyRefresh()});
@@ -1203,6 +1207,23 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(/[?&]admin=1/.test(location.search))askAdmin();else setAdmin(false);
     function bump(d){var v=Math.max(28,Math.min(90,(parseInt(S.get('size','46'),10)||46)+d));S.set('size',String(v));applyView()}
     $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
+
+  // v59: full screen for the projector
+  (function(){
+    var b=$('fsBtn'),de=document.documentElement,idleT=0;
+    var can=!!(de.requestFullscreen||de.webkitRequestFullscreen);
+    var standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+    if(standalone){b.style.display='none';return}
+    function isFs(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+    function wake(){document.body.classList.remove('idle');clearTimeout(idleT);if(isFs())idleT=setTimeout(function(){document.body.classList.add('idle')},4000)}
+    function sync(){var f=isFs();document.body.classList.toggle('fs',f);b.textContent=f?'✕':'⛶';b.setAttribute('aria-label',f?'Exit full screen':'Full screen');wake();try{fit()}catch(e){}}
+    b.onclick=function(){
+      if(!can){alert('On iPhone: tap Share, then Add to Home Screen, then open Live Translation from its icon. It opens with no browser bar.');return}
+      try{if(isFs()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{var r=(de.requestFullscreen||de.webkitRequestFullscreen).call(de,{navigationUI:'hide'});if(r&&r.catch)r.catch(function(){})}}catch(e){}
+    };
+    document.addEventListener('fullscreenchange',sync);document.addEventListener('webkitfullscreenchange',sync);
+    ['mousemove','pointerdown','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,wake,{passive:true})});
+  })();
     $('go').addEventListener('click',function(){if(document.body.classList.contains('admin')&&!(($('settings')||{}).open))setAdmin(false)});
   })();
 
