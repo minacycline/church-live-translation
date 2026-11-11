@@ -292,6 +292,10 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   <textarea id="terms" dir="auto" placeholder="Abuna = Father&#10;Pope Tawadros the Second = Pope Tawadros II&#10;ثيئوتوكوس = Theotokos"></textarea>
   <div class="help">Applied to every caption. Left side can be Arabic (matched before translating) or English (fixed after translating).</div>
 
+  <label for="hideWords">Extra words to hide from every screen, separated by commas</label>
+  <input id="hideWords" type="text" dir="auto" autocomplete="off" placeholder="a word, another word">
+  <div class="help">A built-in list of crude and offensive words is always hidden, on this device and on every screen it feeds. A hidden word shows as "…". Add anything else you never want shown.</div>
+
   <label for="preview">Instant preview while speaking</label>
   <select id="preview"><option value="0">Off (recommended)</option><option value="1">On (experimental: phone's own recognizer, can interfere with the microphone)</option></select>
   <div class="help">Uses the iPhone/iPad speech recognizer for a rough line within a second, then Whisper replaces it. Experimental: on some phones it takes the microphone away from the app.</div>
@@ -429,7 +433,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
 
   try{if(!S.get('maxMig58','')){if(S.get('maxMin','120')==='120')S.set('maxMin','240');S.set('maxMig58','1')}}catch(e){} // v58: the automatic stop moves from 2 hours to 4
   try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','share','room','role','watchCode','frame'],DEF={frame:'1',role:'main',share:'0',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','share','room','role','watchCode','frame'],DEF={frame:'1',role:'main',share:'0',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.body.classList.toggle('noframe',S.get('frame','1')==='0');document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -455,7 +459,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       var gate=document.createElement('div');gate.id='ownerGate';gate.innerHTML='<button type="button" id="ownerBtn">Owner settings</button><div class="help">Keys, hearing engine, church terms, limits and tests. For the person who set the app up.</div>';
       var warn=document.createElement('div');warn.className='help warn';warn.id='ownerWarn';owner.appendChild(warn);
       var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
-      sec(owner,'Words and corrections',['terms','builtin','Learned corrections','prayers','reviewKey']);
+      sec(owner,'Words and corrections',['terms','hideWords','builtin','Learned corrections','prayers','reviewKey']);
       sec(owner,'Other screens',['role','watchCode','frame','share','room']);
       sec(owner,'Limits',['row']);
       sec(owner,'Tests and reports',['testlive','testfile']);
@@ -601,9 +605,22 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   // ---- captions ----
   var lines=[],enEl=$('en'),arEl=$('ar');
   function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  // ---- language filter: nothing crude reaches a screen. Whole words only, so Bible words such as Shittim wood, the cock crowed, hell, or a donkey are never touched ----
+  var HIDE={key:null,en:null,ar:null};
+  var HIDE_EN=['(?:mother|dip)?fuck\\w*','(?:bull|horse|dip|holy)?shit(?:s|ty|ting|head|heads|hole|holes|storm)?','bitch(?:es|y|ing)?','bastards?','cunts?','(?:ass|arse)-?holes?','(?:dumb|smart)-?ass(?:es)?','whores?','sluts?','piss(?:ed|es|ing)?(?:\\s+off)?','crap(?:py|s)?','douch(?:e|es|ebags?)','god ?-?damn(?:ed|\\s+it)?','damn (?:it|you)','wank(?:er|ers|ing)?','twats?','dick-?heads?','nigg(?:er|ers|a|as|az)','fag(?:got|gots|s)?','retard(?:s|ed)?','wtf','stfu','omfg'];
+  var HIDE_AR=['كس ?[اأإ]مك','كسمك','شرموط(?:ة|ه)?','شراميط','متناك(?:ة|ه)?','منيوك','منيك','ولاد ال?قحبة','ولاد ال?قحبه','قحبة','قحبه','قحاب','طيز'];
+  function hideBuild(){
+    var raw=String(S.get('hideWords','')),k=raw;if(HIDE.key===k)return;HIDE.key=k;
+    var en=HIDE_EN.slice(),ar=HIDE_AR.slice();
+    raw.split(/[,\n;،]+/).forEach(function(w){w=w.trim();if(!w||w.length>40)return;var e=w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+');if(/[\u0600-\u06FF]/.test(w))ar.push(e);else en.push(e)});
+    HIDE.en=new RegExp('\\b(?:'+en.join('|')+')\\b','gi');
+    HIDE.ar=new RegExp('(^|[^\\u0600-\\u06FF])(?:[وفلب])?(?:'+ar.join('|')+')(?![\\u0600-\\u06FF])','g');
+  }
+  function cleanEn(t){if(!t)return t;try{hideBuild();var r=String(t).replace(HIDE.en,'…');if(HIDE.ar.test(r)){HIDE.ar.lastIndex=0;r=r.replace(HIDE.ar,'$1…')}HIDE.ar.lastIndex=0;return r.replace(/…(?:\s*…)+/g,'…')}catch(e){return t}}
+  function cleanAr(t){if(!t)return t;try{hideBuild();HIDE.ar.lastIndex=0;var r=String(t).replace(HIDE.ar,'$1…');HIDE.ar.lastIndex=0;return r.replace(HIDE.en,'…')}catch(e){return t}}
   var MAXL=4,shownIds=[];
   var DOTS='<span class="dots" aria-label="listening"><i></i><i></i><i></i></span>';
-  function lineHtml(l){return l.en?esc(l.en)+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(l.draft)+'</span>':DOTS}
+  function lineHtml(l){return l.en?esc(cleanEn(l.en))+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(cleanEn(l.draft))+'</span>':DOTS}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
   function readyHtml(){ // the screen before Start: one title, plain checks, nothing else
     function row(ok,t){return '<div class="chk'+(ok?'':' no')+'"><span></span>'+esc(t)+'</div>'}
@@ -656,7 +673,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(!lines.length){shownIds=[];if(SHARE){SHARE.rows=[];shareQueue()}
       if(!running){enEl.innerHTML=readyHtml();return}
       enEl.innerHTML='';var f0=(typeof liveEn!=='undefined'&&liveEn)?liveEn:'';
-      if(f0||dotsOn){var p0=document.createElement('p');p0.className='interim next';if(f0)p0.textContent=f0;else p0.innerHTML=DOTS;enEl.appendChild(p0)} // before the first sentence is finished: the running English, or the listening dots
+      if(f0||dotsOn){var p0=document.createElement('p');p0.className='interim next';if(f0)p0.textContent=cleanEn(f0);else p0.innerHTML=DOTS;enEl.appendChild(p0)} // before the first sentence is finished: the running English, or the listening dots
       return}
     // one sentence at a time: the newest finished sentence is the big one, the one before it sits small at the top, anything still being translated follows in grey
     var ci=-1;for(var q=lines.length-1;q>=0;q--){if(lines[q].en){ci=q;break}}
@@ -674,10 +691,10 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       el.innerHTML=lineHtml(l);el.className=(el.classList.contains('in')?'in ':'')+(l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(cs<0||i>cs?'next':i===cs?'cur':'prev');
       enEl.appendChild(el);
     });
-    if(typeof liveEn!=='undefined'&&liveEn){var li=document.createElement('p');li.className='interim next';li.textContent=liveEn;enEl.appendChild(li)}
+    if(typeof liveEn!=='undefined'&&liveEn){var li=document.createElement('p');li.className='interim next';li.textContent=cleanEn(liveEn);enEl.appendChild(li)}
     else if(dotsOn&&!shown.some(function(l){return !l.en&&!l.draft})){var dl=document.createElement('p');dl.className='interim next';dl.innerHTML=DOTS;enEl.appendChild(dl)} // he is speaking and no words are ready yet: the screen shows it is listening
     lagShow();
-    SHARE.rows=shown.map(function(l,i){return {r:cs<0||i>cs?'next':i===cs?'cur':'prev',t:l.en||'',d:l.en?'':(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
+    SHARE.rows=shown.map(function(l,i){return {r:cs<0||i>cs?'next':i===cs?'cur':'prev',t:cleanEn(l.en||''),d:l.en?'':cleanEn(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
     fit();setTimeout(fit,520);
     if(txId)txSave(false);
   }
@@ -701,7 +718,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function peerId(code){return 'church-captions-'+String(code).toLowerCase()}
   function shareSnap(){
     if(!running)return {v:1,idle:1,title:S.get('title',CHURCH)};
-    return {v:1,title:S.get('title',CHURCH),lines:SHARE.rows||[],live:(typeof liveEn!=='undefined'&&liveEn)||'',dots:dotsOn?1:0,st:String(($('status')||{}).textContent||'').slice(0,160),lag:String(($('lag')||{}).textContent||'').slice(0,200)};
+    return {v:1,title:S.get('title',CHURCH),lines:SHARE.rows||[],live:cleanEn((typeof liveEn!=='undefined'&&liveEn)||''),dots:dotsOn?1:0,st:String(($('status')||{}).textContent||'').slice(0,160),lag:String(($('lag')||{}).textContent||'').slice(0,200)};
   }
   function shareSendNow(force){var s=JSON.stringify(shareSnap());if(!force&&s===SHARE.last)return;SHARE.last=s;SHARE.conns.forEach(function(c){try{if(c.open)c.send(s)}catch(e){}})}
   function shareQueue(){if(!SHARE.peer||SHARE.timer)return;SHARE.timer=setTimeout(function(){SHARE.timer=null;shareSendNow(false)},150)}
@@ -754,13 +771,13 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(o.idle){viewMsg('Connected. Captions will appear here when the main device starts.');VIEW.last=d;return}
     document.body.classList.add('livecap');enEl.innerHTML='';var pend=false;
     (Array.isArray(o.lines)?o.lines:[]).slice(0,6).forEach(function(l){
-      var p=document.createElement('p'),t=String(l.t||'').slice(0,700),dr=String(l.d||'').slice(0,700);
+      var p=document.createElement('p'),t=cleanEn(String(l.t||'').slice(0,700)),dr=cleanEn(String(l.d||'').slice(0,700));
       p.className=(l.r==='cur'?'cur':l.r==='prev'?'prev':'next')+(t||dr?'':' pending')+(l.f?' fixed':'');
       if(t){p.textContent=t;if(l.ref){var r=document.createElement('span');r.className='ref';r.textContent=String(l.ref).slice(0,60);p.appendChild(document.createTextNode(' '));p.appendChild(r)}}
       else if(dr){var sp=document.createElement('span');sp.className='draft';sp.textContent=dr;p.appendChild(sp)}
       else{p.innerHTML=DOTS;pend=true}
       enEl.appendChild(p)});
-    if(o.live){var li=document.createElement('p');li.className='interim next';li.textContent=String(o.live).slice(0,700);enEl.appendChild(li)}
+    if(o.live){var li=document.createElement('p');li.className='interim next';li.textContent=cleanEn(String(o.live).slice(0,700));enEl.appendChild(li)}
     else if(o.dots&&!pend){var dl=document.createElement('p');dl.className='interim next';dl.innerHTML=DOTS;enEl.appendChild(dl)}
     $('status').textContent='Following '+VIEW.code+'. '+String(o.st||'').slice(0,160);var lg=$('lag');if(lg)lg.textContent=String(o.lag||'').slice(0,200);
     fit();
@@ -862,7 +879,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     return out.join(' ');
   }
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Output only the English of the NEW sentence.';
+  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -923,7 +940,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     allTermsAll().forEach(function(t){var n=normAr(t.a);if(!n||hay.indexOf(n)<0)return;var re=GLRE[n]||(GLRE[n]=new RegExp('(^| )(?:و|ف|ب|ل|ك)?(?:ال|لل)?'+escRe(n)+'( |$)'));if(!re.test(hay))return;(t.c?cx:ex).push(t.a+' = '+t.b)});
     var out='',nm=namesInSentence(ar),ng=nameGuesses(ar);
     if(nm.length)out+='\n\nBible names in this sentence (spell them this way): '+nm.join('; ');
-    if(ng.length)out+='\n\nThese words are not normal Arabic and sound like Bible names; if the sentence fits, they were misheard: '+ng.map(function(x){return x[0]+' = '+x[1]+' ('+x[2]+')'}).join('; ');
+    if(ng.length)out+='\n\nThese words are not normal Arabic and sound like Bible names; they were almost certainly misheard as these names, so use the name unless the sentence clearly means something else: '+ng.map(function(x){return x[0]+' = '+x[1]+' ('+x[2]+')'}).join('; ');
     if(ex.length)out+='\n\nTranslate these terms exactly this way:\n'+ex.join('\n');
     if(cx.length)out+='\n\nIn church context these words usually mean the following; use it when it fits the sentence:\n'+cx.join('\n');
     try{out+=fewShots(ar)}catch(e){}
@@ -1131,7 +1148,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   async function quick(ar,deadline){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Output only the English.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. Output only the English.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true,deadline,null);
     return res.text;
   }
@@ -1143,9 +1160,9 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
-    if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=ar;render();return}
+    if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=cleanAr(ar);render();return}
     var ng=nameGuesses(ar);
-    var item={rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=ar;render();
+    var item={rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=cleanAr(ar);render();
     if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
     var p=matchPrayer(ar);
     if(p){item.en=p.b;item.ref=p.ref||'';item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
@@ -1445,7 +1462,8 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     EVERYDAY.split(' ').forEach(function(w){var n=normAr(w);if(n.length>=5)o[n]=1});
     REALW=o;REALKEY=STATKEY;return o;
   }
-  function fixNames(txt){
+  function fixNames(txt){return hardNames(fixNames0(txt))}
+  function fixNames0(txt){
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
     txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يس[يى]?ر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ').replace(/(أثناسيوس)\s+رسولي?(?=\s|$|[.,،!؟?])/g,'$1 الرسولي');
     txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');
@@ -1465,6 +1483,29 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       if(best&&bd<=allow&&bd>0){var keepPre=pre&&bd===editDist(n.slice(pre.length),best[0])?w.slice(0,pre.length):'';return keepPre+best[1]}
       return w;
     }).join('');
+  }
+  // ---- a name Whisper spelled wrongly is put right before translating: only a word that is not a real Arabic word, one sound-alike letter away from one clear name in the church list
+  // (Timothy written تيموساوس). Single capitalised names only, never a title or a common word, so ordinary words are never touched.
+  var HARDN=null,NOTNAME=/^(?:Pelagian|Arian|Nestorian|Apollinarian|Melkites|Jacobites|Euchologion|Anaphora|Alleluia|Paremhat|Parmouti)$/;
+  function hardNameList(){if(HARDN)return HARDN;var out=[];(window.COPTIC_TERMS||[]).forEach(function(t){var a=String(t[0]||''),e=String(t[1]||'');if(/\s/.test(a)||!/^(?:St\. )?[A-Z][a-z]+(?: [A-Z][a-z]+)?$/.test(e))return;if(NOTNAME.test(e))return;var n=normAr(a);if(n.length<6||/^ال/.test(n))return;out.push({a:a,n:n,e:e})});return HARDN=out}
+  function hardNames(txt){
+    try{
+      if(!txt||!/[؀-ۿ]/.test(txt))return txt;
+      var bw=bibleWords(),ix=nameIdx(),list=hardNameList();if(!bw||!list.length)return txt;
+      var litw=LITWORDS||(LITWORDS=(function(){var w={};(window.COPTIC_LITURGY||[]).forEach(function(p){normAr(p[0]).split(' ').forEach(function(x){w[x]=1})});(window.COPTIC_TERMS||[]).forEach(function(t){normAr(t[0]).split(' ').forEach(function(x){w[x]=1})});return w})());
+      var real=realWords();
+      function known(n){return !!(bw[n]||litw[n]||ix.map[n]||real[n]||COMMONDIALECT.indexOf(n)>=0)}
+      function same1(a,b){return a===b||(a==='ت'&&b==='ط')||(a==='ط'&&b==='ت')}
+      return txt.split(/(\s+)/).map(function(w){
+        var m=/^([^.,،!؟?:;]*)([.,،!؟?:;]*)$/.exec(w);if(!m)return w;var body=m[1],tail=m[2],n=normAr(body);
+        if(n.length<6||known(n))return w;
+        var pre='',core=n;if(/^[وبلفك]/.test(n)&&n.length>6){if(known(n.slice(1)))return w;pre=body.charAt(0);core=n.slice(1)}
+        var best=null,second=9;
+        list.forEach(function(c){if(Math.abs(c.n.length-core.length)>1||!same1(c.n[0],core[0]))return;var d=wdist(core,c.n);if(!best||d<best.d){second=best?best.d:9;best={d:d,c:c}}else if(d<second)second=d});
+        if(best&&best.d>0&&best.d<=1&&second-best.d>=0.5){dbg('NAME FIXED '+body+' -> '+best.c.a+' ('+best.c.e+')');return pre+best.c.a+tail}
+        return w;
+      }).join('');
+    }catch(e){return txt}
   }
   function wavBlob(samples){
     var pk=0,k;for(k=0;k<samples.length;k+=7){var a0=Math.abs(samples[k]);if(a0>pk)pk=a0}
@@ -1526,7 +1567,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
         continue}
       if(k.is_final){if(tr)SX.en+=tx;else{SX.ar+=tx;if(!SX.at)SX.at=sentStart()}}else{if(tr)SX.nfEn+=tx;else{SX.nfAr+=tx;if(!SX.at&&tx.trim())SX.at=sentStart()}}}
     var ar=(SX.ar+SX.nfAr).replace(/\s+/g,' ').trim(),en=(SX.en+SX.nfEn).replace(/\s+/g,' ').trim(),fa=SX.ar.replace(/\s+/g,' ').trim();
-    if(ar){lastSpeechAt=Date.now();arEl.textContent=ar}
+    if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
     if(fa&&(end||(nw>=7&&/[.!?؟]\s*$/.test(fa)&&!SX.nfAr.trim())||nw>=26)){ // a finished thought: at his pause, at the end of a sentence, or when it is getting long
       DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';dgFinal(fa,sx);SX.tail=lastSxItem;return}
@@ -1579,8 +1620,8 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       var all=DG.seg.join(' '),nw=all?all.split(/\s+/).length:0;
       // a finished thought goes to the translator at a pause, at sentence punctuation, or when it is getting long: never one endless line
       if(all&&(m.speech_final||(nw>=7&&/[.!?؟]\s*$/.test(all))||nw>=26)){DG.seg=[];dgFinal(all)}
-      else if(all)arEl.textContent=all;
-    }else if(t){DG.interim=t;var cur=(DG.seg.join(' ')+' '+t).trim();arEl.textContent=cur;dgPreview(cur)}
+      else if(all)arEl.textContent=cleanAr(all);
+    }else if(t){DG.interim=t;var cur=(DG.seg.join(' ')+' '+t).trim();arEl.textContent=cleanAr(cur);dgPreview(cur)}
   }
   var lastSxItem=null,curSx='',uttStart=0,lastVoiceAt=0,lastSentEnd=0;
   var curSxOn=false;
@@ -1681,7 +1722,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
         sr2Len=e.results.length;if(sr2Base>sr2Len)sr2Base=0;
         var txt='';for(var i=sr2Base;i<e.results.length;i++)txt+=e.results[i][0].transcript+' '; // only what was said since the last finished line
         txt=txt.trim();if(!txt){sr2Text='';return}
-        sr2Text=txt;arEl.textContent=txt;dbg('PHONE-SR '+txt.slice(-50));
+        sr2Text=txt;arEl.textContent=cleanAr(txt);dbg('PHONE-SR '+txt.slice(-50));
         clearTimeout(sr2Timer);sr2Timer=setTimeout(previewTranslate,250);
       };
       sr2.onerror=function(e){if(e.error==='not-allowed'||e.error==='service-not-allowed'){sr2Dead=true;sr2On=false}};
@@ -1708,7 +1749,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     interimBusy=true;interimAt=now;var gen=liveGen,blob=wavBlob(flatten().slice());
     whisperLive(blob).then(function(t){
       t=fixNames(cleanHeard(t));if(!t||gen!==liveGen||!running)return;
-      arEl.textContent=t;
+      arEl.textContent=cleanAr(t);
       var p=matchPrayer(t);if(p){if(!liveFirstAt)liveFirstAt=Date.now();liveEn=p.b;render();return}
       return quick(t).then(function(d){if(gen!==liveGen||!running||!d||/^\s*(""|\[.*\])\s*$/.test(d))return;if(!liveFirstAt)liveFirstAt=Date.now();liveEn=d;render()});
     }).catch(function(){}).then(function(){interimBusy=false});
@@ -1979,7 +2020,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
         var res=e.results[i],t=res[0].transcript.trim();
         if(res.isFinal){var alts=[];for(var k=1;k<res.length;k++){var a=(res[k].transcript||'').trim();if(a&&a!==t)alts.push(a)}onFinal(t,alts)}else interim+=t+' ';
       }
-      if(interim.trim())arEl.textContent=interim.trim();
+      if(interim.trim())arEl.textContent=cleanAr(interim.trim());
     };
     r.onerror=function(e){
       if(e.error==='not-allowed'||e.error==='service-not-allowed'){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return}
