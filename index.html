@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v59">
+<meta name="build" content="v60">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -176,6 +176,7 @@ body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0
 #viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.viewing.livecap:not(.noframe) #viewTag{display:block}
 .rolebadge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--fg);border-radius:999px;padding:6px 14px}
+.pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px}.pick button{flex:1 1 200px;min-height:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;padding:9px 14px;border:1.5px solid var(--fg);border-radius:12px;background:#fff;color:var(--fg);font-size:15px}.pick button span{font-size:12px;color:var(--dim);font-weight:400;line-height:1.3}.linkbtn{background:none;border:none;color:var(--dim);text-decoration:underline;font-size:inherit;padding:4px}
 .rolebadge.scr{background:#fff;color:var(--fg);border:2px solid var(--fg)}
 .sharecode.warnc{color:#b45309;font-weight:700}
 .linkbtn{background:none;border:0;padding:6px 0;color:var(--dim);text-decoration:underline;font-size:clamp(14px,1.5vw,17px)}
@@ -632,8 +633,9 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var rows=READYCHK.rows.length?READYCHK.rows.map(function(x){return row(x[0],x[1])}).join(''):row(on,on?'Internet connected':'No internet connection')+row(key,key?'Translation key saved on this device':'Password needed: it is asked when you press Start');
     rows+=(S.get('autoRead','1')==='1'?row(rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"):'');
     var note=READYCHK.busy?'Checking: say a few words near the microphone…':READYCHK.at?'Checked at '+new Date(READYCHK.at).toTimeString().slice(0,5)+'.':'Press Check before the service to test the microphone, the hearing and the translator.';
+    if(!roleChosen())return '<div class="empty ready"><h1>Live Translation</h1><div class="sharecode big">What is this device for?</div><div class="pick"><button type="button" id="pickMain"><b>Main device</b><span>Listens and makes the captions. Only one.</span></button><button type="button" id="pickScreen"><b>Screen only</b><span>Does not listen. Shows the captions.</span></button></div></div>';
     if(isScreen())return '<div class="empty ready"><div class="rolebadge scr">Screen only</div><h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
-    return '<div class="empty ready"><div class="rolebadge">Main device</div><h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':'<div class="sharecode big">This device listens. To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>'):'')+'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div><div class="hint">'+note+' The gear at the top opens the settings.</div></div>';
+    return '<div class="empty ready"><div class="rolebadge">Main device</div><h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':'<div class="sharecode big">This device listens. To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>'):'')+'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div><div class="hint">'+note+' The gear at the top opens the settings.</div><div class="hint"><button type="button" id="toScreen" class="linkbtn">Make this device a screen only</button></div></div>';
   }
   // ---- check before the service: opens the microphone for a few seconds and asks each outside service for a real answer ----
   var READYCHK={at:0,rows:[],busy:false};
@@ -668,7 +670,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     }catch(e){rows.push([false,'The check could not finish: '+(e.message||e.name)])}
     READYCHK={at:Date.now(),rows:rows,busy:false};dbg('READY CHECK '+rows.map(function(r){return (r[0]?'ok ':'FAIL ')+r[1]}).join(' | '));readyRefresh();
   }
-  enEl.addEventListener('click',function(e){var t=e.target;if(t&&t.id==='chkReady')runReadyCheck();if(t&&t.id==='watchBtn'){var wc=enEl.querySelector('#watchCodeBox');viewStart(wc?wc.value:'')}if(t&&t.id==='makeMain')makeMain()});
+  enEl.addEventListener('click',function(e){var t=e.target;if(t&&t.id==='chkReady')runReadyCheck();if(t&&t.id==='watchBtn'){var wc=enEl.querySelector('#watchCodeBox');viewStart(wc?wc.value:'')}if(t&&t.id==='makeMain')makeMain();var pb=t&&t.closest&&t.closest('#pickMain,#pickScreen,#toScreen');if(pb){S.set('role',pb.id==='pickMain'?'main':'screen');roleApply();readyRefresh()}});
   enEl.addEventListener('input',function(e){var t=e.target;if(t&&t.id==='watchCodeBox')VIEW.typed=t.value});
   enEl.addEventListener('keydown',function(e){var t=e.target;if(t&&t.id==='watchCodeBox'&&e.key==='Enter')viewStart(t.value)});
   function readyRefresh(){try{if(!running&&!lines.length)render()}catch(e){}}
@@ -705,6 +707,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   // ---- other screens: one device listens, the others follow its captions. Only text travels; nothing is recorded or stored on the way ----
   var SHARE={peer:null,conns:[],rows:[],last:'',timer:null},VIEW={on:false,peer:null,conn:null,code:'',timer:null,last:'',got:0,typed:''};
   function isScreen(){return S.get('role','main')==='screen'}
+  function roleChosen(){return S.get('role','')==='main'||S.get('role','')==='screen'}
   function goText(){return (VIEW&&VIEW.on)?'Stop following':(typeof running!=='undefined'&&running)?'Stop':(isScreen()?'Follow':'Start')}
   function validCode(c){return /^[A-Z0-9]{6}$/.test(String(c||''))}
   function roleApply(){ // after the role or the codes change: one main device listens, screens follow
@@ -727,7 +730,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function shareSendNow(force){var s=JSON.stringify(shareSnap());if(!force&&s===SHARE.last)return;SHARE.last=s;SHARE.conns.forEach(function(c){try{if(c.open)c.send(s)}catch(e){}})}
   function shareQueue(){if(!SHARE.peer||SHARE.timer)return;SHARE.timer=setTimeout(function(){SHARE.timer=null;shareSendNow(false)},150)}
   function shareStart(){
-    if(SHARE.peer||S.get('share','1')!=='1'||typeof Peer==='undefined'||VIEW.on||isScreen())return;
+    if(SHARE.peer||S.get('share','1')!=='1'||typeof Peer==='undefined'||VIEW.on||isScreen()||!roleChosen())return;
     var p;try{p=new Peer(peerId(roomCode()),peerOpts())}catch(e){dbg('SHARE could not start: '+e.message);return}
     SHARE.peer=p;
     p.on('open',function(){SHARE.err='';SHARE.up=true;dbg('SHARE ready for other screens');readyRefresh()});
@@ -2095,6 +2098,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     setTimeout(function(){rejectedOnce=false;if(typeof LOCKED!=='undefined'&&LOCKED){try{if(running)stop()}catch(e){}askPassword()}},300);
   }
   async function start(){
+    if(!roleChosen()){readyRefresh();return} // pick Main or Screen first
     if(isScreen()){viewStart(S.get('watchCode',''));return} // a screen never listens
     if(S.get('groqKey','')&&(!window.__modelsAt||Date.now()-window.__modelsAt>20*60000)){window.__modelsAt=Date.now();loadModels().catch(function(){})}
     if(S.get('engine','whisper')==='whisper'&&!S.get('groqKey','')){var bk=await KEYDB.get('groqKey');if(bk){S.set('groqKey',bk);dbg('key restored from backup copy')}}
