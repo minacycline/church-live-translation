@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v62">
+<meta name="build" content="v63">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -420,6 +420,8 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     }).then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v);KEYSRC='restored from backup'}}).catch(function(){});
   }
   else KEYDB.get('groqKey').then(function(v){var cur=S.get('groqKey','');if(cur&&v!==cur)KEYDB.put('groqKey',cur)});
+  function keyBackup(){['sonioxKey','deepgramKey','cohereKey'].forEach(function(k){try{var cur=S.get(k,'');if(cur)KEYDB.put(k,cur);else KEYDB.get(k).then(function(v){if(v&&!S.get(k,''))S.set(k,v)})}catch(e){}})} // v63: a second copy of the other hearing keys, so they are pasted once and kept
+  keyBackup();
   try{if(!localStorage.getItem('langMig38')){localStorage.setItem('lang','mixed');localStorage.setItem('langMig38','1')}}catch(e){} // v38: English words by the speaker are shown as said
   var LAUNCHES=0,STANDALONE=false;
   try{LAUNCHES=(parseInt(localStorage.getItem('launches')||'0',10)||0)+1;localStorage.setItem('launches',String(LAUNCHES))}catch(e){}
@@ -486,7 +488,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   ['sonioxKey','deepgramKey','cohereKey','hearEngine'].forEach(function(k){var el=$(k);if(!el)return;var sv=function(){S.set(k,String(el.value).trim())};el.addEventListener('input',sv);el.addEventListener('change',sv);el.addEventListener('blur',sv)}); // saved as they are typed, like the Groq key, so "Check everything" tests what is in the boxes
   $('groqKey').addEventListener('input',keyChanged);$('groqKey').addEventListener('change',keyChanged);$('groqKey').addEventListener('blur',keyChanged);
   dlg.addEventListener('close',function(){var v=$('groqKey').value.trim();if(v&&v!==S.get('groqKey',''))saveKey(v)}); // closing the settings any way keeps a newly pasted key
-  $('save').onclick=function(){var lim=dlg.classList.contains('basic');FIELDS.forEach(function(k){if(lim&&!BASICF[k])return;if(k==='groqKey'){var kv=String($(k).value).trim();if(kv)saveKey(kv);return}S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;applyView();dlg.close();try{if(!lim){var rc=String(S.get('room','')).toUpperCase().replace(/[^A-Z0-9]/g,'');S.set('room',rc);roomCode();S.set('watchCode',String(S.get('watchCode','')).toUpperCase().replace(/[^A-Z0-9]/g,''));shareStop();roleApply()}readyRefresh()}catch(e){}LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running&&!isScreen()){stop();start()}};
+  $('save').onclick=function(){var lim=dlg.classList.contains('basic');FIELDS.forEach(function(k){if(lim&&!BASICF[k])return;if(k==='groqKey'){var kv=String($(k).value).trim();if(kv)saveKey(kv);return}S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;keyBackup();applyView();dlg.close();try{if(!lim){var rc=String(S.get('room','')).toUpperCase().replace(/[^A-Z0-9]/g,'');S.set('room',rc);roomCode();S.set('watchCode',String(S.get('watchCode','')).toUpperCase().replace(/[^A-Z0-9]/g,''));shareStop();roleApply()}readyRefresh()}catch(e){}LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running&&!isScreen()){stop();start()}};
   $('clear').onclick=function(){lines=[];enEl.innerHTML='';render()};
 
   function pairs(key){
