@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v66">
+<meta name="build" content="v67">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -170,6 +170,7 @@ main{justify-content:flex-start}
 #go{white-space:nowrap}
 /* the main device shows a red frame and a small tag while it is listening, so nobody mistakes it for a screen */
 body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
+.rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
@@ -635,6 +636,11 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   var DOTS='<span class="dots" aria-label="listening"><i></i><i></i><i></i></span>';
   function lineHtml(l){return l.en?esc(cleanEn(l.en))+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(cleanEn(l.draft))+'</span>':DOTS}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
+  function micMsg(e){var n=e&&e.name;
+    if(n==='NotFoundError'||n==='OverconstrainedError'||n==='DevicesNotFoundError')return 'No microphone found on this device. Plug one in, or set this device to Screen only.';
+    if(n==='NotReadableError'||n==='TrackStartError'||n==='AbortError')return 'The microphone is busy or unavailable. Close other apps or tabs using it, then try again.';
+    return 'Microphone blocked. Click the icon at the left of the address bar and set Microphone to Allow (on iPhone: Settings > Safari > Microphone), then reload.'}
+  function rolePick(){var m=S.get('role','')==='main';return '<div class="rolepick" role="group" aria-label="What this device does"><button type="button" id="pickMain"'+(m?' class="on" aria-pressed="true"':' aria-pressed="false"')+'><b>Main</b><span>listens</span></button><button type="button" id="pickScreen"'+(m?' aria-pressed="false"':' class="on" aria-pressed="true"')+'><b>Screen only</b><span>shows captions</span></button></div>'}
   function readyHtml(){ // the screen before Start: one title, plain checks, nothing else
     function row(ok,t){return '<div class="chk'+(ok?'':' no')+'"><span></span>'+esc(t)+'</div>'}
     var key=!!S.get('groqKey',''),rd=0,on=navigator.onLine!==false;try{rd=autoReadingPairs().length}catch(e){}
@@ -642,14 +648,14 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     rows+=(S.get('autoRead','1')==='1'?row(rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"):'');
     var note=READYCHK.busy?'Checking: say a few words near the microphone…':READYCHK.at?'Checked at '+new Date(READYCHK.at).toTimeString().slice(0,5)+'.':'Press Check before the service to test the microphone, the hearing and the translator.';
     if(!roleChosen())return '<div class="empty ready"><h1>Live Translation</h1><div class="sharecode big">What is this device for?</div><div class="pick"><button type="button" id="pickMain"><b>Main device</b><span>Listens and makes the captions. Only one.</span></button><button type="button" id="pickScreen"><b>Screen only</b><span>Does not listen. Shows the captions.</span></button></div></div>';
-    if(isScreen())return '<div class="empty ready"><div class="rolebadge scr">Screen only</div><h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
-    return '<div class="empty ready"><div class="rolebadge">Main device</div><h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':(SHARE.show?'<div class="sharecode big">To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+' <button type="button" id="hideCode" class="linkbtn">Hide</button></div>':'<div class="sharecode"><button type="button" id="showCode" class="linkbtn">Show code for other screens</button>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>')):'')+'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div><div class="hint">'+note+' The gear at the top opens the settings.</div><div class="hint"><button type="button" id="toScreen" class="linkbtn">Make this device a screen only</button></div></div>';
+    if(isScreen())return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
+    return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':(SHARE.show?'<div class="sharecode big">To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+' <button type="button" id="hideCode" class="linkbtn">Hide</button></div>':'<div class="sharecode"><button type="button" id="showCode" class="linkbtn">Show code for other screens</button>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>')):'')+'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div><div class="hint">'+note+' The gear at the top opens the settings.</div></div>';
   }
   // ---- check before the service: opens the microphone for a few seconds and asks each outside service for a real answer ----
   var READYCHK={at:0,rows:[],busy:false};
   async function micTest(){
     var st=null,c=null;
-    try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}})}catch(e){return [false,'Microphone not allowed. Allow it in the browser or in Settings, then check again']}
+    try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}})}catch(e){return [false,micMsg(e)+' Then check again.']}
     try{
       c=new (window.AudioContext||window.webkitAudioContext)();try{if(c.state==='suspended')c.resume()}catch(e){}
       for(var w=0;w<8&&c.state!=='running';w++)await new Promise(function(r){setTimeout(r,100)});
@@ -757,7 +763,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     });
     p.on('disconnected',function(){if(SHARE.peer===p)setTimeout(function(){try{if(SHARE.peer===p&&!p.destroyed)p.reconnect()}catch(e){}},3000)});
     p.on('error',function(e){var t=e&&e.type;dbg('SHARE problem: '+t);
-      if(t==='unavailable-id'){SHARE.err='Another device is already the main device with this code. Only one can be. Make the other one a screen, or change this code under Owner settings, Other screens.';problemText=SHARE.err;problemAt=Date.now();SHARE.peer=null;try{p.destroy()}catch(x){}readyRefresh()}
+      if(t==='unavailable-id'){SHARE.err='Another device is already the Main for this code, and only one can be. On the device that should only show captions, tap Screen only at the top of its start screen. If this device should be the Main, do that on the other one first.';problemText=SHARE.err;problemAt=Date.now();SHARE.peer=null;try{p.destroy()}catch(x){}readyRefresh()}
       else if(t==='network'||t==='server-error'||t==='socket-error'||t==='socket-closed'){if(SHARE.peer===p){SHARE.peer=null;try{p.destroy()}catch(x){}setTimeout(shareStart,8000)}}});
   }
   function shareStop(){var p=SHARE.peer;SHARE.peer=null;SHARE.conns=[];SHARE.last='';SHARE.up=false;SHARE.err='';try{p&&p.destroy()}catch(e){}}
@@ -1960,7 +1966,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var pre=new (window.AudioContext||window.webkitAudioContext)(); // created inside the tap so iOS allows sound; recreated after the mic is open so the rate matches
     try{if(pre.state==='suspended')pre.resume()}catch(e){}
     try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:!direct,noiseSuppression:!direct,autoGainControl:!direct,channelCount:1}})}
-    catch(e){try{pre.close()}catch(e2){}if(retrying){dbg('mic open failed on retry: '+(e&&e.name));return false}running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return false}
+    catch(e){try{pre.close()}catch(e2){}if(retrying){dbg('mic open failed on retry: '+(e&&e.name));return false}running=false;ui();setStatus(micMsg(e));return false}
     try{pre.close()}catch(e){}
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
@@ -2065,7 +2071,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       if(interim.trim())arEl.textContent=cleanAr(interim.trim());
     };
     r.onerror=function(e){
-      if(e.error==='not-allowed'||e.error==='service-not-allowed'){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return}
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){running=false;ui();setStatus(micMsg({name:'NotAllowedError'}));return}
       if(e.error==='network')setStatus('No connection for speech recognition.');
     };
     r.onend=function(){if(running){clearTimeout(restartTimer);restartTimer=setTimeout(function(){if(running){try{rec.start()}catch(e){}}},IOS?250:50)}};
@@ -2073,7 +2079,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   async function startApple(){
     if(!SR){running=false;ui();setStatus('This iPad browser has no speech recognition. Use Safari, or add a Groq key.');return false}
-    try{var s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(function(t){t.stop()})}catch(e){running=false;ui();setStatus('Microphone not allowed. Check Settings > Safari > Microphone.');return false}
+    try{var s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(function(t){t.stop()})}catch(e){running=false;ui();setStatus(micMsg(e));return false}
     rec=rec||makeRec();
     try{rec.start()}catch(e){}
     watchdog=setInterval(function(){if(running&&Date.now()-lastResult>25000){try{rec.stop()}catch(e){}lastResult=Date.now()}},5000);
