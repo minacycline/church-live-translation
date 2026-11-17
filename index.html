@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v71">
+<meta name="build" content="v72">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -87,7 +87,8 @@ textarea{min-height:120px;resize:vertical}
 .rv button.primary{background:var(--gold);color:#2a0e10;font-weight:600}
 .rv .saved{color:var(--green);font-size:14px}
 #testfile{font-size:15px}
-body:not(.admin) #reviewBtn,body:not(.admin) #clear,body:not(.admin) #rst{display:none}
+body:not(.admin) #reviewBtn,body:not(.admin) #clear{display:none}
+#pause{display:none;font-weight:700;font-size:18px;padding:12px 26px;border-radius:999px;border:2px solid #2b2b2e;background:#fff;color:#2b2b2e;flex:none;white-space:nowrap}body.running #pause{display:inline-block}body.paused #pause{background:#2b2b2e;color:#fff}
 body.running:not(.admin) #gear{display:none}
 body:not(.admin) #title{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #fsDown,#fsUp{font-weight:700}
@@ -242,11 +243,12 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
 
 <footer>
   <button id="go">Start</button>
+  <button id="pause" type="button">Pause</button>
   <div id="sideMeter" title="Sound level: rises and turns green when it hears the speaker"><i></i></div>
   <span id="meter" title="Microphone level; green when the speaker's voice is detected"><i></i></span>
   <span id="status">Ready</span>
   <span id="lag"></span>
-  <button id="rst" type="button" aria-label="Restart">↻</button>
+  <button id="rst" type="button" aria-label="Restart">↻ Restart</button>
 </footer>
 <dialog id="pwDlg"><div style="font-size:19px">Password</div><div class="help" style="margin-top:6px">Type the password to unlock the app.</div><input id="pwIn" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;margin-top:8px"><div id="pwMsg" class="help" style="margin-top:6px"></div><button id="pwGo" class="yes" type="button">Unlock</button></dialog>
 <dialog id="rstDlg"><div style="font-size:19px">Restart the app?</div><div class="help" style="margin-top:6px">Listening stops and the screen clears. Your settings and saved services are kept.</div><button id="rstNo" type="button">Cancel</button><button id="rstYes" class="yes" type="button">Restart</button></dialog>
@@ -1423,6 +1425,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function num(k,d){var v=parseInt(S.get(k,d),10);return isFinite(v)&&v>0?v:d}
 
   // ---- speech: Whisper through Groq, or the iPad's own recognizer ----
+  var paused=false; // v72: Pause keeps the microphone or the shared tab open but sends nothing; Resume carries on without asking again
   var running=false,rec=null,wake=null,maxTimer=null,restartTimer=null,lastResult=0,watchdog=null;
   var ctx=null,stream=null,proc=null,src=null,lastText='',whisperBlockedUntil=0,lastSpeechAt=0,idleTimer=null;
   // Silero voice detector, fed straight from our own audio samples (no second microphone source: Safari dislikes that)
@@ -1454,7 +1457,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       vadBusy=false;vadPump();
     }).catch(function(){vadBusy=false;vadOk=false});
   }
-  function ui(){try{shareQueue()}catch(e){}document.body.classList.toggle('running',!!running);$('go').textContent=goText();$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running);if(!running){$('dot').classList.remove('warn');$('dot').classList.remove('voice')}}
+  function ui(){try{shareQueue()}catch(e){}if(!running)paused=false;document.body.classList.toggle('running',!!running);document.body.classList.toggle('paused',!!(running&&paused));try{$('pause').textContent=paused?'Resume':'Pause'}catch(e){}$('go').textContent=goText();$('go').classList.toggle('stop',running);$('dot').classList.toggle('on',running);if(!running){$('dot').classList.remove('warn');$('dot').classList.remove('voice')}}
   function useWhisper(){return S.get('engine','whisper')==='whisper'&&!!S.get('groqKey','')}
 
   // -- Whisper hints: a few terms, then today's notes, then the last thing heard (Whisper keeps the END of the prompt) --
@@ -1601,7 +1604,19 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   // While the line is up the pieces-and-Whisper path rests; if the line drops, Whisper takes over at once and the line is retried in the background.
   var DG={ws:null,live:false,seg:[],segAt:0,interim:'',tries:0,timer:null,sent:0,lastTr:0,trBusy:false,gen:0,keep:null,opened:0};
   function streamEngine(){var e=hearEngine();return e==='deepgram'||e==='soniox'?e:''}
-  function dgWanted(){return running&&!!streamEngine()}
+  function dgWanted(){return running&&!paused&&!!streamEngine()}
+  function pauseListening(){
+    if(!running||paused)return;paused=true;dbg('PAUSED');
+    try{var sa=SX.ar.replace(/\s+/g,' ').trim();if(sa){var se=SX.en.replace(/\s+/g,' ').trim();SX.ar='';SX.en='';dgFinal(sa,se)}}catch(e){} // the sentence he was in the middle of is finished first
+    try{if(!DG.live&&speechSamples/SR16>0.7)cutChunk(false)}catch(e){}
+    try{dgClose()}catch(e){}try{rec&&rec.stop()}catch(e){}
+    liveEn='';ui();render();setStatus('Paused. Press Resume to carry on.');
+  }
+  function resumeListening(){
+    if(!running||!paused)return;paused=false;dbg('RESUMED');lastSpeechAt=Date.now();lastResult=Date.now();
+    try{if(useWhisper()&&streamEngine())dgOpen()}catch(e){}try{if(rec&&!useWhisper())rec.start()}catch(e){}
+    ui();setStatus('Listening');
+  }
   var SXCUT=0; // 0 full opening message; 1 fewer terms; 2 no context; 3 no built-in English; 4 the previous model
   var SX={ar:'',en:'',nfAr:'',nfEn:'',at:0,shown:0}; // Soniox sends small word pieces: finished ones are added once, unfinished ones are replaced by every message
   function sxStart(){ // what Soniox is told before the sound starts: the language, the kind of talk, the church words, and how certain terms must be translated
@@ -2054,6 +2069,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     proc.onaudioprocess=function(e){
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
+      if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now)}catch(x){}return}
       // voice = clearly louder than the quiet moments, and not tiny next to the loudest recent speech
       // the noise floor only learns from quiet moments and never rises while someone is talking (a long sentence must not become "noise")
       peakLvl=Math.max(rms,peakLvl*0.98);
@@ -2095,7 +2111,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       if(e.error==='not-allowed'||e.error==='service-not-allowed'){running=false;ui();setStatus(micMsg({name:'NotAllowedError'}));return}
       if(e.error==='network')setStatus('No connection for speech recognition.');
     };
-    r.onend=function(){if(running){clearTimeout(restartTimer);restartTimer=setTimeout(function(){if(running){try{rec.start()}catch(e){}}},IOS?250:50)}};
+    r.onend=function(){if(running&&!paused){clearTimeout(restartTimer);restartTimer=setTimeout(function(){if(running){try{rec.start()}catch(e){}}},IOS?250:50)}};
     return r;
   }
   async function startApple(){
@@ -2163,7 +2179,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
       var ref=useWhisper()?lastSpeechAt:lastResult;
-      if(running&&Date.now()-ref>num('idleMin',10)*60000){stop();setStatus('Stopped: nothing was heard for '+num('idleMin',10)+' minutes.')}
+      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){stop();setStatus('Stopped: nothing was heard for '+num('idleMin',10)+' minutes.')}
     },15000);
     var mins=parseInt(S.get('maxMin','240'),10)||240;
     maxTimer=setTimeout(function(){stop();setStatus('Stopped automatically after '+mins+' minutes.')},mins*60000);
@@ -2187,6 +2203,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');
   }
+  $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}running?stop():start()};
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
   $('rstNo').onclick=function(){$('rstDlg').close()};
