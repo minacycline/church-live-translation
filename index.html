@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v69">
+<meta name="build" content="v70">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -471,7 +471,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       var warn=document.createElement('div');warn.className='help warn';warn.id='ownerWarn';owner.appendChild(warn);
       var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
       sec(owner,'Words and corrections',['terms','hideWords','builtin','Learned corrections','prayers','reviewKey']);
-      sec(owner,'Other screens',['role','watchCode','frame','share','room']);
+      if(MULTI)sec(owner,'Other screens',['role','watchCode','frame','share','room']);
       sec(owner,'Limits',['row']);
       sec(owner,'Tests and reports',['testlive','testfile']);
       sec(owner,'Access',['adminPin']);
@@ -640,7 +640,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(n==='NotFoundError'||n==='OverconstrainedError'||n==='DevicesNotFoundError')return 'No microphone found on this device. Plug one in, or set this device to Screen only.';
     if(n==='NotReadableError'||n==='TrackStartError'||n==='AbortError')return 'The microphone is busy or unavailable. Close other apps or tabs using it, then try again.';
     return 'Microphone blocked. Click the icon at the left of the address bar and set Microphone to Allow (on iPhone: Settings > Safari > Microphone), then reload.'}
-  function rolePick(){var m=S.get('role','')==='main';return '<div class="rolepick" role="group" aria-label="What this device does"><button type="button" id="pickMain"'+(m?' class="on" aria-pressed="true"':' aria-pressed="false"')+'><b>Main</b><span>listens</span></button><button type="button" id="pickScreen"'+(m?' aria-pressed="false"':' class="on" aria-pressed="true"')+'><b>Screen only</b><span>shows captions</span></button></div>'}
+  function rolePick(){if(!MULTI)return '';var m=S.get('role','')==='main';return '<div class="rolepick" role="group" aria-label="What this device does"><button type="button" id="pickMain"'+(m?' class="on" aria-pressed="true"':' aria-pressed="false"')+'><b>Main</b><span>listens</span></button><button type="button" id="pickScreen"'+(m?' aria-pressed="false"':' class="on" aria-pressed="true"')+'><b>Screen only</b><span>shows captions</span></button></div>'}
   function readyHtml(){ // the screen before Start: one title, plain checks, nothing else
     function row(ok,t){return '<div class="chk'+(ok?'':' no')+'"><span></span>'+esc(t)+'</div>'}
     var key=!!S.get('groqKey',''),rd=0,on=navigator.onLine!==false;try{rd=autoReadingPairs().length}catch(e){}
@@ -728,8 +728,9 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   // ---- other screens: one device listens, the others follow its captions. Only text travels; nothing is recorded or stored on the way ----
   var SHARE={peer:null,conns:[],rows:[],last:'',timer:null},VIEW={on:false,peer:null,conn:null,code:'',timer:null,last:'',got:0,typed:''};
-  function isScreen(){return S.get('role','main')==='screen'}
-  function roleChosen(){return S.get('role','')==='main'||S.get('role','')==='screen'}
+  var MULTI=false; // v70: other screens (phones following a code) are paused; one main screen only. Set to true to bring them back
+  function isScreen(){return MULTI&&S.get('role','main')==='screen'}
+  function roleChosen(){return !MULTI||S.get('role','')==='main'||S.get('role','')==='screen'}
   function goText(){return (VIEW&&VIEW.on)?'Stop following':(typeof running!=='undefined'&&running)?'Stop':(isScreen()?'Follow':'Start')}
   function validCode(c){return /^[A-Z0-9]{6}$/.test(String(c||''))}
   function roleApply(){ // after the role or the codes change: one main device listens, screens follow
@@ -752,6 +753,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   function shareSendNow(force){var s=JSON.stringify(shareSnap());if(!force&&s===SHARE.last)return;SHARE.last=s;SHARE.conns.forEach(function(c){try{if(c.open)c.send(s)}catch(e){}})}
   function shareQueue(){if(!SHARE.peer||SHARE.timer)return;SHARE.timer=setTimeout(function(){SHARE.timer=null;shareSendNow(false)},150)}
   function shareStart(){
+    if(!MULTI)return;
     if(SHARE.peer||S.get('share','1')!=='1'||typeof Peer==='undefined'||VIEW.on||isScreen()||!roleChosen())return;
     var p;try{p=new Peer(peerId(roomCode()),peerOpts())}catch(e){dbg('SHARE could not start: '+e.message);return}
     SHARE.peer=p;
@@ -2286,7 +2288,14 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       Promise.all(LANES).then(function(){setStatus('Recording done. Tap ✎ to review and correct.')});
     }catch(e){setStatus('Test problem: '+e.message)}
   });
+  // v70: minimizing Chrome or switching tabs must not stop listening. Nothing here stops it; the log notes each change so a test can prove it,
+  // and a held lock asks Chrome not to freeze the page while it listens
+  var keepLock=null;
+  function holdLock(){if(keepLock||!navigator.locks)return;keepLock=new Promise(function(free){window.__freeLock=free});try{navigator.locks.request('church-listening',function(){return keepLock}).catch(function(){})}catch(e){}}
+  function freeLock(){if(window.__freeLock){window.__freeLock();window.__freeLock=null}keepLock=null}
+  setInterval(function(){if(running)holdLock();else if(keepLock)freeLock()},2000);
   document.addEventListener('visibilitychange',function(){
+    if(running)dbg(document.hidden?'PAGE hidden (minimized or another tab): still listening':'PAGE visible again');
     if(document.hidden&&running){if(rec){try{rec.stop()}catch(e){}}}
     else if(running){if(rec&&!useWhisper()){try{rec.start()}catch(e){}};if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){wake=w}).catch(function(){})}
   });
