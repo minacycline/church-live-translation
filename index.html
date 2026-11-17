@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v67">
+<meta name="build" content="v68">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -909,7 +909,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     return out.join(' ');
   }
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
-  var SYS='You translate a live Coptic Orthodox sermon, spoken in Egyptian Arabic, into natural English for a screen. The Arabic comes from speech recognition and often has misheard words: if a word makes no sense in a church, it was probably a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Render quoted Scripture in NKJV wording. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
+  var SYS='You translate a live Coptic Orthodox church service, spoken in Egyptian Arabic, into natural English for a screen. Most of it is a sermon, but the speaker also makes ordinary announcements (tickets, the festival, building repairs, money, dates, schedules): translate those plainly in everyday words and do not turn them into religious language. The Arabic comes from speech recognition and can have misheard words. Only when the sentence is about faith, Scripture, saints or prayer and a word makes no sense there, treat it as a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). In an announcement or an everyday sentence, keep the plain meaning of the words. Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Meaning comes before polish. Keep every negation exactly (مش, ما...ش, لا, لم, لن, ولا, عمره ما): never turn "did not" into "did" or the reverse. Keep every number, amount of money, currency, date, day, time and percentage exactly as said, and whether money was collected, owed, promised or spent. Keep every name as said, never swap one person for another, and keep a title (Abouna, Anba, Pope, Saint) with the name it was said with; بابا can mean Dad or the Pope, so decide from the sentence. If the speaker corrects himself ("Friday, sorry, Saturday"), keep the correction. Keep repetition he uses for emphasis. In a story or quotation keep clear who is speaking: words said by a person in a story must not read as advice from the speaker himself. Do not add anything that was not said: no extra details, explanation, theology or verse. Scripture: when the speaker is clearly quoting a verse word for word, render it in NKJV wording; when he paraphrases, retells or only alludes to a passage, translate what he actually said and do not complete the verse. Never add a chapter and verse reference he did not say. If part of the sentence is garbled and you cannot tell what was said, leave that part out rather than invent a plausible sentence. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -1138,7 +1138,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name, never style changes; [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
@@ -1178,7 +1178,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   }
   async function quick(ar,deadline){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox sermon from Egyptian Arabic to natural English for a screen. The Arabic may contain misheard religious words: pick the church word it most likely was. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox church service (a sermon, sometimes ordinary announcements) from Egyptian Arabic to natural English for a screen. If the piece is about faith and a word makes no sense, it may be a misheard religious word: pick the church word it most likely was; in an announcement keep the plain everyday meaning. Keep every negation, number, amount of money, date, time and name exactly as said. Do not add anything that was not said and do not complete a verse he only paraphrased; leave out a garbled part rather than guess. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true,deadline,null);
     return res.text;
   }
@@ -1193,6 +1193,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false};lines.push(it);arEl.textContent=cleanAr(ar);render();return}
     var ng=nameGuesses(ar);
     var item={rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=cleanAr(ar);render();
+    if(curUnsure&&curUnsure.length){var un=curUnsure.filter(function(w){return ar.indexOf(w)>=0});if(un.length)item.unsure=un}
     if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
     var p=matchPrayer(ar);
     if(p){item.en=p.b;item.ref=p.ref||'';item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
@@ -1601,6 +1602,12 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     if(SXCUT<3)cfg.translation={type:'one_way',target_language:'en'};
     return cfg;
   }
+  var UNSURE_AT=0.5; // v68: a word the live hearing scored below this is treated as unclear (a starting value, not yet tuned on church recordings)
+  function sxUnsure(tk){ // the small pieces are joined back into words; a word is as sure as its least sure piece
+    var out=[],w='',c=1,push=function(){var x=w.trim();if(x&&c<UNSURE_AT&&AR.test(x)&&out.indexOf(x)<0)out.push(x);w='';c=1};
+    (tk||[]).forEach(function(k){var t=String(k[0]||'');if(/^\s/.test(t))push();w+=t;if(typeof k[1]==='number'&&k[1]<c)c=k[1];if(/\s$/.test(t))push()});push();
+    return out.slice(0,6);
+  }
   function sxMessage(m,ws){
     if(m.error_code){dbg('STREAM Soniox refused: '+m.error_code+' '+(m.error_type||'')+' '+String(m.error_message||'').slice(0,90));if(m.error_code===401||m.error_code===402||m.error_code===403){DG.tries=Math.max(DG.tries,4);problemText='Soniox: '+String(m.error_message||m.error_type||m.error_code).slice(0,120);problemAt=Date.now()}
       else if(m.error_code===400&&SXCUT<4){SXCUT++;DG.tries=0;dbg('STREAM Soniox did not accept the opening message: trying a simpler one (step '+SXCUT+')')}
@@ -1613,12 +1620,12 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       if(tr&&SX.tail&&!SX.ar&&!SX.nfAr){ // late English for the sentence that was just closed
         if(k.is_final){var it=SX.tail;it.sx=((it.sx||'')+tx).replace(/\s+/g,' ').replace(/^ /,'');if(!it.en){it.draft=it.sx;if(!it.tDraft)it.tDraft=Date.now();tailR=true}else if(it.viaStream){it.en=it.sx;tailR=true}}
         continue}
-      if(k.is_final){if(tr)SX.en+=tx;else{SX.ar+=tx;if(!SX.at)SX.at=sentStart()}}else{if(tr)SX.nfEn+=tx;else{SX.nfAr+=tx;if(!SX.at&&tx.trim())SX.at=sentStart()}}}
+      if(k.is_final){if(tr)SX.en+=tx;else{SX.ar+=tx;(SX.tk=SX.tk||[]).push([tx,k.confidence]);if(!SX.at)SX.at=sentStart()}}else{if(tr)SX.nfEn+=tx;else{SX.nfAr+=tx;if(!SX.at&&tx.trim())SX.at=sentStart()}}}
     var ar=(SX.ar+SX.nfAr).replace(/\s+/g,' ').trim(),en=(SX.en+SX.nfEn).replace(/\s+/g,' ').trim(),fa=SX.ar.replace(/\s+/g,' ').trim();
     if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
     if(fa&&(end||(nw>=7&&/[.!?؟]\s*$/.test(fa)&&!SX.nfAr.trim())||nw>=26)){ // a finished thought: at his pause, at the end of a sentence, or when it is getting long
-      DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';dgFinal(fa,sx);SX.tail=lastSxItem;return}
+      DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=lastSxItem;return}
     if(tailR)render();
     if(en&&Date.now()-SX.shown>180){SX.shown=Date.now();if(!liveFirstAt)liveFirstAt=Date.now();if(liveEn!==en){liveEn=en;render()}}
     if(m.finished)dbg('STREAM Soniox finished the stream');
@@ -1671,7 +1678,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       else if(all)arEl.textContent=cleanAr(all);
     }else if(t){DG.interim=t;var cur=(DG.seg.join(' ')+' '+t).trim();arEl.textContent=cleanAr(cur);dgPreview(cur)}
   }
-  var lastSxItem=null,curSx='',uttStart=0,lastVoiceAt=0,lastSentEnd=0;
+  var lastSxItem=null,curSx='',curUnsure=null,uttStart=0,lastVoiceAt=0,lastSentEnd=0;
   var curSxOn=false;
   function sentStart(){var t=Math.max(uttStart||0,lastSentEnd||0);return t&&Date.now()-t<30000?t:Date.now()}
   function dgFinal(text,sx){
@@ -2219,7 +2226,7 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
       var shownAt=[l.tLive,l.tDraft,l.t1].filter(function(x){return x&&x>=(l.tSpeak||0)});var f=shownAt.length?Math.min.apply(null,shownAt):null;
       var dFin=l.t1&&l.tCut?l.t1-l.tCut:null,dFirst=f&&l.tSpeak?f-l.tSpeak:null,dHear=l.tCut?l.t0-l.tCut:null;
       if(dFin!=null)fin.push(dFin);if(dFirst!=null)first.push(dFirst);if(dHear!=null)hear.push(dHear);if(l.basic)basic++;if(l.prayer)prayer++;
-      var shaky=typeof l.conf==='number'&&l.conf<-0.7,why=[];if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree');if(l.basic)why.push('basic backup translator');if(l.fixes)why.push('translator changed words');if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
+      var shaky=typeof l.conf==='number'&&l.conf<-0.7,why=[];if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));if(l.unsure)why.push('unclear words: '+l.unsure.join(' '));if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree');if(l.basic)why.push('basic backup translator');if(l.fixes)why.push('translator changed words');if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
       if(why.length)unsure.push('['+mmss(l.pos)+'] #'+(i+1)+' '+why.join(', ')+'\n   heard: '+l.ar+(l.alt?'\n   phone: '+l.alt:'')+'\n   shown: '+l.en);
       rows.push('#'+(i+1)+' ['+mmss(l.pos)+']'+(shaky?' UNSURE('+l.conf.toFixed(2)+')':'')+(l.prayer?' PRAYER/BIBLE MATCH':'')+(l.basic?' BASIC BACKUP USED':'')+'\nAR: '+l.ar+(l.alt?'\nALT (phone heard): '+l.alt:'')+(l.co?'\nCOHERE HEARD: '+(l.co.t||'(nothing'+(l.co.err?': '+l.co.err:'')+')'):'')+(l.fixes?'\nCORRECTED: '+l.fixes.join(' | '):'')+'\nEN: '+l.en+(l.ref?' ('+l.ref+')':'')+(l.draft&&l.draft!==l.en?'\nDRAFT: '+l.draft:'')+'\nfirst English '+sec(dFirst)+' after he started | heard '+sec(dHear)+' after he paused | final '+sec(dFin)+' after he paused');
     });
