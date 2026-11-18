@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v106">
+<meta name="build" content="v109">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1482,7 +1482,7 @@ body.running #en p .draft{opacity:1}
   }
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
   function waitAhead(item){return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
-    if(!running||w>=6||el>7000||(el>1200&&Date.now()-lastSpeechAt>2500)){res(a);return}setTimeout(chk,250)})()})}
+    if(!running||w>=6||el>4000||(el>1200&&Date.now()-lastSpeechAt>1200)){res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
@@ -1573,10 +1573,11 @@ body.running #en p .draft{opacity:1}
   var RV_BASE='https://mini.tail99f4f6.ts.net/webhook',rvBusy=false,rvLast='';
   try{var rkm=/[?&]rk=([^&#]+)/.exec(location.search);if(rkm){S.set('reviewKey',decodeURIComponent(rkm[1]));history.replaceState(null,'',location.pathname)}}catch(e){}
   function rvKey(){return S.get('reviewKey','')}
+  var RV_NOKEY='The review sheet key is not on the church server yet: sign in once on the admin link on the phone that has the key.'; // v107: any device sends review lines through the church server, which holds the key
   function rvHash(t){var h=5381;for(var i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return 'a'+(h>>>0).toString(36)+t.length.toString(36)}
   function rvJ(k){try{return JSON.parse(S.get(k,'[]'))||[]}catch(e){return []}}
   function rvFixes(){return rvJ('reviewFix')}
-  function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved. ':'No key yet: open the setup link once. ')+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
+  function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved on this device. ':(CFG.hasRv?'Using the key kept on the church server. ':'No key on this device. '))+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
   function rvQueue(ls){
     var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0,over=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
     ls.forEach(function(l){
@@ -1595,18 +1596,22 @@ body.running #en p .draft{opacity:1}
     S.set('reviewQ',JSON.stringify(q.slice(-3000)));
   }
   async function rvPull(){
-    var k=rvKey();if(!k||!navigator.onLine)return;
-    try{var c=new AbortController();setTimeout(function(){c.abort()},20000);var r=await fetch(RV_BASE+'/church-review-approved?k='+encodeURIComponent(k),{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);var j=await r.json();
+    var k=rvKey();if(!navigator.onLine)return;
+    try{var c=new AbortController();setTimeout(function(){c.abort()},20000);var r=await fetch(k?RV_BASE+'/church-review-approved?k='+encodeURIComponent(k):CFG_URL+'/review-approved',{signal:c.signal,cache:'no-store'});
+      if(!k&&r.status===409){rvLast=RV_NOKEY;rvNote();return} /* v107: no key on this device and none on the server yet */
+      if(!r.ok)throw new Error('HTTP '+r.status);var j=await r.json();
       if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,20000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
     }catch(e){rvLast='Sheet not reachable ('+(e.name==='AbortError'?'timeout':e.message)+'); will retry.';dbg('REVIEW pull failed: '+e.message)}
     rvNote();
   }
   async function rvFlush(){
-    var k=rvKey();if(!k||rvBusy||!navigator.onLine)return;
+    var k=rvKey();if(rvBusy||!navigator.onLine)return;
     var q=rvJ('reviewQ');if(!q.length){return rvPull()}
     rvBusy=true;
     try{var batch=q.slice(0,60),c=new AbortController();setTimeout(function(){c.abort()},25000);
-      var r=await fetch(RV_BASE+'/church-review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:k,rows:batch}),signal:c.signal});
+      var r=k?await fetch(RV_BASE+'/church-review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:k,rows:batch}),signal:c.signal})
+             :await fetch(CFG_URL+'/review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:batch}),signal:c.signal});
+      if(!k&&r.status===409){rvLast=RV_NOKEY+' '+q.length+' line(s) are kept on this device until then.';dbg('REVIEW: no key on the server yet, '+q.length+' line(s) kept');rvBusy=false;rvNote();return}
       if(!r.ok)throw new Error('HTTP '+r.status);
       var sent=rvJ('reviewSent');batch.forEach(function(x){sent.push(x.key)});S.set('reviewSent',JSON.stringify(sent.slice(-2000)));
       var done={};batch.forEach(function(x){done[x.key]=1});S.set('reviewQ',JSON.stringify(rvJ('reviewQ').filter(function(x){return !done[x.key]})));
@@ -2609,7 +2614,7 @@ body.running #en p .draft{opacity:1}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
-    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;setTimeout(function(){reportSend(rb,rr,snap)},6000)}catch(e){}
+    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;repSafe(rb,rr,snap,'Stop was pressed but the page closed before the report was sent');setTimeout(function(){try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else start()};
@@ -2666,6 +2671,21 @@ body.running #en p .draft{opacity:1}
       })})};
     return step().catch(function(){}).then(function(){qBusy=false;repStat()});
   }
+  // v109: safety copy. A report used to exist only after Stop plus 6 seconds, so a page closed, reloaded or put away without Stop lost the whole session.
+  // While a session runs, a copy of the report is kept on this device every 30 seconds and whenever the page is hidden. The next time the app opens it goes to the waiting list like any report.
+  function repSafe(began,test,snap,why){
+    if(!CLAUDE_PROXY||!began)return;
+    try{var o=reportBuild(began,test,snap);o.sentLate=why+' (safety copy kept '+new Date().toISOString()+')';o.log+='\n0.0s REPORT safety copy: '+why;
+      var body=reportFit(o);
+      try{localStorage.setItem('pendingReport',body)}catch(e){ // the small store is full: keep the newest part of the log and say so
+        o.log='0.0s LOG dropped: the start of this log was left out so the safety copy fits on this device\n'+o.log.slice(-150000);o.logShortened=true;
+        try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e2){o.sentencesLeftOut=(o.sentencesLeftOut||0)+(o.text||[]).length;o.text=[];o.log=o.log.slice(-20000);try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e3){}}}
+    }catch(e){}
+  }
+  function repSafeNow(){if(sessionBegan&&running)repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
+  setInterval(repSafeNow,30000);
+  window.addEventListener('pagehide',repSafeNow);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)repSafeNow()});
   function reportSend(began,test,snap){
     if(!CLAUDE_PROXY||!began)return; // v103: every session is reported, short ones too (the sheet marks them as short)
     var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
@@ -2867,7 +2887,7 @@ body.running #en p .draft{opacity:1}
     if(CFG.busy)return Promise.resolve();CFG.busy=true;
     return cfgFetch('/settings?ns='+CFG_NS).then(function(x){
       CFG.busy=false;if(x.s!==200||typeof x.j.rev!=='number')return;
-      CFG.seen=x.j.rev;CFG.at=x.j.at||'';cfgApply(x.j.values,x.j.rev);cfgState();
+      CFG.seen=x.j.rev;CFG.at=x.j.at||'';CFG.hasRv=!!x.j.hasReviewKey;cfgApply(x.j.values,x.j.rev);cfgState();
     },function(){CFG.busy=false});
   }
   function cfgPush(){
@@ -2917,7 +2937,14 @@ body.running #en p .draft{opacity:1}
   function admEnter(){
     setAdmin(true);adminUntil=Date.now()+3e11; // the admin link stays unlocked: the passcode is the lock
     document.body.classList.add('adminok');
-    cfgPull().then(function(){if(S.get('cfgDirty','')==='1')cfgSend()});
+    cfgPull().then(function(){if(S.get('cfgDirty','')==='1')cfgSend();rvGive()});
+  }
+  function rvGive(){ // the review sheet key on this admin device goes to the church server once, so every other device works without it
+    var k=rvKey(),tk=cfgTok();if(!ADMINVIEW||!k||!tk||CFG.hasRv||typeof CFG.seen!=='number')return;
+    cfgFetch('/secret',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({reviewKey:k})}).then(function(x){
+      if(x.s===200&&x.j.ok){CFG.hasRv=true;dbg('REVIEW: key handed to the church server');cfgNote('Review sheet key saved on the server: every device can now send review lines \u2713');try{rvNote()}catch(e){}}
+      else dbg('REVIEW: key not handed over (answer '+x.s+')');
+    },function(){dbg('REVIEW: key not handed over (no connection)')});
   }
   function admSignOut(){S.set('adminTok','');try{dlg.close()}catch(e){}setAdmin(false);document.body.classList.remove('adminok');admGate()}
   (function(){
