@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v102">
+<meta name="build" content="v103">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -579,6 +579,7 @@ body.running #en p .draft{opacity:1}
         if(el.tagName==='LABEL'||el.classList.contains('row')){var key=el.tagName==='LABEL'?(el.getAttribute('for')||el.textContent.trim()):'row';cur=blocks[key]={els:[el]};order.push(key)}
         else if(cur)cur.els.push(el);
       });
+      try{var dc=$('dailyCap');if(dc&&dc.parentNode)dc.parentNode.style.display='none'}catch(e){}
       var GONEF={groqKey:1,hearSpeed:1,hearEngine:1,cohereKey:1,deepgramKey:1,translator:1,engine:1,email:1,testfile:1}; // v98: settings of the removed services stay hidden
       function sec(parent,title,keys,open){var d=document.createElement(parent.id==='basicArea'?'div':'details');
         if(d.tagName==='DETAILS'){d.className='sec';if(open)d.open=true;var sm=document.createElement('summary');sm.textContent=title;d.appendChild(sm)}else{var h=document.createElement('h3');h.textContent=title;d.appendChild(h)}
@@ -1101,6 +1102,7 @@ body.running #en p .draft{opacity:1}
     if(typeof running!=='undefined'&&running&&PROBLEM_RE.test(t)&&!/^Listening/.test(t)){problemText=t;problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');return}
     if(/^Listening/.test(t)&&typeof running!=='undefined'&&running){var dd=$('dot');if(dd&&Date.now()-problemAt>8000){dd.classList.remove('warn');problemText=''}}
     $('status').textContent=t;
+    try{if(!(typeof running!=='undefined'&&running)&&t&&t!=='Stopped'&&(PROBLEM_RE.test(t)||/^Stopped.{3,}/.test(t)))showAlert(t+'\n(tap to hide)',false,0,true)}catch(e){}
   }
   var problemAt=0;
 
@@ -1258,7 +1260,7 @@ body.running #en p .draft{opacity:1}
   }
   function alertClear(key){try{var al=$('alert');if(al&&al.style.display!=='none'&&al.dataset.k===key){showAlert('');al.dataset.k=''}delete downAt[key]}catch(e){}}
   // v99: the church server stops the day at its limit; the app then stops listening and says so, instead of retrying all day
-  var limitTold=false;
+  var limitTold=false,MISSED=[]; // MISSED: sentences that were heard but never reached the screen; they go in the report
   function limitHit(m){if(limitTold)return;limitTold=true;dbg('DAILY LIMIT '+m);serviceDown('limit','DAILY LIMIT REACHED: '+String(m||'the church server reached its limit for today').replace(/^Daily limit reached:\s*/i,'').slice(0,160));setTimeout(function(){try{if(running)stop()}catch(e){}try{showAlert(problemText+'\n(tap to hide)',false,0,true)}catch(e){}},300)}
   function aiOK(){return NO_BACKUP?(claudeReady()&&Date.now()>claudeBlockedUntil):(!!S.get('groqKey','')&&Date.now()>groqBlockedUntil)}
   var CLAUDE_MODEL='claude-haiku-5-5',claudeBlockedUntil=0,claudeUse={req:0,inTok:0,outTok:0};
@@ -1283,6 +1285,7 @@ body.running #en p .draft{opacity:1}
     var ownKey=S.get('claudeKey','');
     var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
     if(!r.ok){var em='',et='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||'';et=(ej.error&&ej.error.type)||''}catch(e){}
+      if(et==='rate_limit')dbg('RATE LIMIT the church server refused a request: too many in one minute');
       if(et==='daily_limit'){claudeBlockedUntil=Date.now()+3600000;limitHit(em);var le=new Error('Claude is stopped (daily limit)');le.kind='credit';throw le}
       var credit=/credit|balance|billing|payment/i.test(em)||r.status===402,keyBad=r.status===401||r.status===403||/key is not set/i.test(em);
       if(credit||keyBad){claudeBlockedUntil=Date.now()+(NO_BACKUP?20000:600000);
@@ -1498,10 +1501,11 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}
         if(nx&&nx.en&&!nx.q&&en.length>3&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=nx.en.slice(en.trim().length).trim();dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
+        dbg('SENTENCE not translated ('+String(e&&e.message||e).slice(0,120)+')');try{MISSED.push({ar:String(ar).slice(0,4000),why:String(e&&e.message||e).slice(0,160)})}catch(x){}
         if(e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
         serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
       .then(function(){qDepth=Math.max(0,qDepth-1)});
@@ -1574,7 +1578,7 @@ body.running #en p .draft{opacity:1}
   function rvFixes(){return rvJ('reviewFix')}
   function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved. ':'No key yet: open the setup link once. ')+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
   function rvQueue(ls){
-    var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
+    var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0,over=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
     ls.forEach(function(l){
       if(l.rvDone||!l.en||l.fixed||l.prayer||!l.ar||!AR.test(l.ar))return;l.rvDone=true;
       var why=[],shaky=typeof l.conf==='number'&&l.conf<-0.7;
@@ -1583,15 +1587,17 @@ body.running #en p .draft{opacity:1}
       if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
       if(l.fixes)why.push('translator changed words: '+l.fixes.join(' | '));
       if(!why.length)return;
-      var key=rvHash(fixKey(l.ar));if(have[key]||fx[key]||add>=60)return;have[key]=1;add++;
+      var key=rvHash(fixKey(l.ar));if(have[key]||fx[key])return;if(add>=500){over++;return}have[key]=1;add++;
       q.push({key:key,ar:l.ar,en:l.en,pos:l.rep?mmss(l.pos):new Date(l.t0||Date.now()).toTimeString().slice(0,5),why:why.join('; ')});
     });
-    S.set('reviewQ',JSON.stringify(q.slice(-300)));
+    if(over)dbg('REVIEW more flagged lines than one session may add: '+over+' were not put on the Corrections list');
+    if(q.length>3000)dbg('REVIEW list is full: '+(q.length-3000)+' of the oldest waiting lines were let go');
+    S.set('reviewQ',JSON.stringify(q.slice(-3000)));
   }
   async function rvPull(){
     var k=rvKey();if(!k||!navigator.onLine)return;
     try{var c=new AbortController();setTimeout(function(){c.abort()},20000);var r=await fetch(RV_BASE+'/church-review-approved?k='+encodeURIComponent(k),{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);var j=await r.json();
-      if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,2000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
+      if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,20000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
     }catch(e){rvLast='Sheet not reachable ('+(e.name==='AbortError'?'timeout':e.message)+'); will retry.';dbg('REVIEW pull failed: '+e.message)}
     rvNote();
   }
@@ -2460,7 +2466,7 @@ body.running #en p .draft{opacity:1}
       lastF=audioFrames;
     },1500);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
-    proc.onaudioprocess=function(e){
+    proc.onaudioprocess=function(e){if(!ctx)return; // v103: a late sound frame after the microphone closed is ignored
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
       if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now)}catch(x){}return}
@@ -2569,7 +2575,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
@@ -2579,10 +2585,10 @@ body.running #en p .draft{opacity:1}
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
       var ref=useWhisper()?lastSpeechAt:lastResult;
-      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){stop();setStatus('Stopped: nothing was heard for '+num('idleMin',10)+' minutes.')}
+      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){autoStop('Nothing was heard for '+num('idleMin',10)+' minutes, so listening stopped.')}
     },15000);
     var mins=parseInt(S.get('maxMin','240'),10)||240;
-    maxTimer=setTimeout(function(){stop();setStatus('Stopped automatically after '+mins+' minutes.')},mins*60000);
+    maxTimer=setTimeout(function(){autoStop('Listening stopped by itself after '+mins+' minutes.')},mins*60000);
     try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
   }
   function stop(){
@@ -2602,7 +2608,7 @@ body.running #en p .draft{opacity:1}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
-    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||'');setTimeout(function(){reportSend(rb,rr)},6000)}catch(e){}
+    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;setTimeout(function(){reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}running?stop():start()};
@@ -2611,19 +2617,20 @@ body.running #en p .draft{opacity:1}
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
   // v99 service report: when listening stops, a summary and the full debug log go to the church server (kept 90 days), so problems can be studied later.
   var sessionBegan=0;
-  function reportBuild(began,test){
-    var log=DBG.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
-    var ls=lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
+  function reportBuild(began,test,snap){
+    snap=snap||{log:DBG,lines:lines,missed:MISSED,drop:DBGDROP,use:claudeUse};
+    var log=snap.log.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
+    var ls=snap.lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
       device:navigator.userAgent,sentences:ls.length,
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
       drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,300)}),
-      translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:claudeUse.req,inTokens:claudeUse.inTok,outTokens:claudeUse.outTok},
-      logLinesDropped:DBGDROP,logShortened:false,sentencesLeftOut:0,
+      translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:snap.use.req,inTokens:snap.use.inTok,outTokens:snap.use.outTok},missed:(snap.missed||[]).slice(),
+      logLinesDropped:snap.drop,logShortened:false,sentencesLeftOut:0,
       text:ls.map(function(l){return {ar:String(l.ar||'').slice(0,4000),en:String(l.en||'').slice(0,4000),s:(l.t0&&l.t1)?Math.round((l.t1-l.t0)/100)/10:null}}),log:log.join('\n')};
   }
   // v101: a report is never cut quietly. If it is too large for the server, the middle of the debug log goes first, then the oldest sentences, and the report says exactly what was left out.
-  var REPORT_MAX=850000;
+  var REPORT_MAX=3500000; // v103: the server now takes 4 MB (it was 0.9 MB)
   function reportFit(o){
     var body=JSON.stringify(o);if(body.length<=REPORT_MAX)return body;
     var over=body.length-REPORT_MAX+2000,L=o.log||'';
@@ -2653,9 +2660,9 @@ body.running #en p .draft{opacity:1}
       })})};
     return step().catch(function(){}).then(function(){qBusy=false;repStat()});
   }
-  function reportSend(began,test){
-    if(!CLAUDE_PROXY||!began||Date.now()-began<60000)return; // under a minute is not a service
-    var body;try{body=reportFit(reportBuild(began,test))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
+  function reportSend(began,test,snap){
+    if(!CLAUDE_PROXY||!began)return; // v103: every session is reported, short ones too (the sheet marks them as short)
+    var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
     qAdd(body).then(function(){return qFlush()}); // always through the waiting list: it leaves the list only when the server confirms it
   }
   // what is waiting, and where: shown as an orange dot on the start screen (only when something is waiting) and in the owner's settings
@@ -2684,6 +2691,8 @@ body.running #en p .draft{opacity:1}
   // v100: a mark is kept while listening; if the page comes back without Stop having been pressed (a reload, a crash), it offers one tap to carry on
   setInterval(function(){try{if(running&&!replayEl&&!isScreen())localStorage.setItem('liveAt',String(Date.now()))}catch(e){}},10000);
   setTimeout(function(){try{var la=+localStorage.getItem('liveAt')||0;localStorage.removeItem('liveAt');if(la&&Date.now()-la<180000&&!running&&roleChosen()&&!isScreen()){dbg('RELOAD in the middle of listening: asking for a tap');askTap(function(){if(!running)start()},'The app restarted. Tap to carry on.')}}catch(e){}},1200);
+  // v103: when the app stops listening by itself, it says why on the whole screen and one tap starts it again
+  function autoStop(why){dbg('AUTO STOP '+why);try{stop()}catch(e){}setTimeout(function(){askTap(function(){if(!running)start()},why+' Tap to start again.')},500)}
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
@@ -2706,7 +2715,7 @@ body.running #en p .draft{opacity:1}
     var el=document.createElement('audio');el.preload='auto';el.playsInline=true;el.setAttribute('playsinline','');
     replayUrl=URL.createObjectURL(f);el.src=replayUrl;replayName=f.name||'recording';
     lines=[];enEl.innerHTML='';liveEn='';heardCount=0;lastText='';sermonMemo='';memoCount=0;testFixes=[];fixCount=0;
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();MISSED=[];dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
     replayEl=el;testStart=Date.now();
     var ok=await startWhisper(false,el);
     if(!ok){replayEl=null;running=false;ui();setStatus('Live test could not start');return}
