@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v75">
+<meta name="build" content="v76">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -238,6 +238,12 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
 </header>
 
 <style>
+#go:not(.stop){font-size:22px;padding:15px 34px 15px 28px;border-radius:999px;background:#1f7a4d;color:#fff;display:inline-flex;align-items:center;gap:12px;margin-left:auto;order:9;border:0;cursor:pointer;transition:background .15s}
+#go:not(.stop)::before{content:'';flex:none;border-left:15px solid #fff;border-top:9px solid transparent;border-bottom:9px solid transparent}
+#go:not(.stop):hover{background:#18643f}
+#go:not(.stop):active{transform:scale(.98)}
+#go.stop{display:inline-flex;align-items:center;gap:10px;border-radius:999px;padding:12px 26px}
+#go.stop::before{content:'';flex:none;width:13px;height:13px;border-radius:2px;background:#fff}
 body.running{background:#101014}
 body.running #title,body.running #status,body.running #lag{color:#8d8d92}
 body.running .icon{background:#1c1c22;color:#f4f4f2;border-color:#33333a}
