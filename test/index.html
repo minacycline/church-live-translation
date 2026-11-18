@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v108">
+<meta name="build" content="v109">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2616,7 +2616,7 @@ body.running #en p .draft{opacity:1}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
-    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;setTimeout(function(){reportSend(rb,rr,snap)},6000)}catch(e){}
+    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;repSafe(rb,rr,snap,'Stop was pressed but the page closed before the report was sent');setTimeout(function(){try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else start()};
@@ -2673,6 +2673,21 @@ body.running #en p .draft{opacity:1}
       })})};
     return step().catch(function(){}).then(function(){qBusy=false;repStat()});
   }
+  // v109: safety copy. A report used to exist only after Stop plus 6 seconds, so a page closed, reloaded or put away without Stop lost the whole session.
+  // While a session runs, a copy of the report is kept on this device every 30 seconds and whenever the page is hidden. The next time the app opens it goes to the waiting list like any report.
+  function repSafe(began,test,snap,why){
+    if(!CLAUDE_PROXY||!began)return;
+    try{var o=reportBuild(began,test,snap);o.sentLate=why+' (safety copy kept '+new Date().toISOString()+')';o.log+='\n0.0s REPORT safety copy: '+why;
+      var body=reportFit(o);
+      try{localStorage.setItem('pendingReport',body)}catch(e){ // the small store is full: keep the newest part of the log and say so
+        o.log='0.0s LOG dropped: the start of this log was left out so the safety copy fits on this device\n'+o.log.slice(-150000);o.logShortened=true;
+        try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e2){o.sentencesLeftOut=(o.sentencesLeftOut||0)+(o.text||[]).length;o.text=[];o.log=o.log.slice(-20000);try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e3){}}}
+    }catch(e){}
+  }
+  function repSafeNow(){if(sessionBegan&&running)repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
+  setInterval(repSafeNow,30000);
+  window.addEventListener('pagehide',repSafeNow);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)repSafeNow()});
   function reportSend(began,test,snap){
     if(!CLAUDE_PROXY||!began)return; // v103: every session is reported, short ones too (the sheet marks them as short)
     var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
