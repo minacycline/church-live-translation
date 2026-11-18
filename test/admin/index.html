@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v101">
+<meta name="build" content="v102">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -230,7 +230,7 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 #readyDots button:focus-visible{outline:2px solid var(--fg)}
 #dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:normal;width:max-content;max-width:min(78vw,340px);z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 
-/* v101: user view and admin view */
+/* v102: user view and admin view */
 body.userview #ownerGate,body.adminview #ownerGate,#ownerWarn{display:none!important}
 body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:none!important}
 #cfgState{margin:0 0 12px;font-weight:600}
@@ -517,7 +517,7 @@ body.running #en p .draft{opacity:1}
 (function(){
   var $=function(id){return document.getElementById(id)};
   var S={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-  var ADMINVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')==='admin'; // v101: the admin link; every other link is the user view
+  var ADMINVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')==='admin'; // v102: the admin link; every other link is the user view
   var KEYDB={
     open:function(){return new Promise(function(res,rej){try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}catch(e){rej(e)}})},
     put:function(k,v){return KEYDB.open().then(function(db){return new Promise(function(res){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=function(){res(true)};tx.onerror=function(){res(false)}})}).catch(function(){return false})},
@@ -569,7 +569,7 @@ body.running #en p .draft{opacity:1}
   applyView();
   var dlg=$('settings');
   var BASICF={size:1,showAr:1,micMode:1,noise:1,lang:1,autoRead:1,notes:1,reading:1}; // the everyday settings: nothing here can break the app or cost money
-  if(!ADMINVIEW)BASICF={size:1}; // v101: the shared link only changes the text size
+  if(!ADMINVIEW)BASICF={size:1}; // v102: the shared link only changes the text size
   (function(){
     try{
       var kids=[].slice.call(dlg.children),blocks={},order=[],cur=null,tail=null;
@@ -768,7 +768,7 @@ body.running #en p .draft{opacity:1}
     var key=NO_BACKUP?sxHaveKey():!!S.get('groqKey',''),rd=0,on=navigator.onLine!==false;try{rd=autoReadingPairs().length}catch(e){}
     var rows=READYCHK.rows.length?READYCHK.rows.map(function(x){return row(x[0],x[1])}).join(''):row(on,on?'Internet connected':'No internet connection')+row(key,key?(NO_BACKUP?(CLAUDE_PROXY?'Hearing and translating ready (church server)':'Hearing key saved on this device'):'Translation key saved on this device'):(NO_BACKUP?'No Soniox key on this device':'Password needed: it is asked when you press Start'));
     rows+=(S.get('autoRead','1')==='1'?row(rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"):'');
-    readyDots([[on,on?'Internet connected':'No internet connection'],[key,key?(NO_BACKUP?(CLAUDE_PROXY?'Hearing and translating ready (church server)':'Hearing key saved on this device'):'Translation key saved on this device'):(NO_BACKUP?'No Soniox key on this device':'Password needed: it is asked when you press Start')],[rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"],[MICDOT.ok,MICDOT.busy?'Testing the microphone: say a few words…':MICDOT.msg]]);
+    readyDots([[on,on?'Internet connected':'No internet connection'],[key,key?(NO_BACKUP?(CLAUDE_PROXY?'Hearing and translating ready (church server)':'Hearing key saved on this device'):'Translation key saved on this device'):(NO_BACKUP?'No Soniox key on this device':'Password needed: it is asked when you press Start')],[rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"],[MICDOT.ok,MICDOT.busy?'Testing the microphone: say a few words…':MICDOT.msg]].concat(typeof repDotText==='function'&&repDotText()?[[false,repDotText()]]:[]));
     var note=READYCHK.busy?'Checking: say a few words near the microphone…':READYCHK.at?'Checked at '+new Date(READYCHK.at).toTimeString().slice(0,5)+'.':'Press Check before the service to test the microphone, the hearing and the translator.';
     if(!roleChosen())return '<div class="empty ready"><h1>Live Translation</h1><div class="sharecode big">What is this device for?</div><div class="pick"><button type="button" id="pickMain"><b>Main device</b><span>Listens and makes the captions. Only one.</span></button><button type="button" id="pickScreen"><b>Screen only</b><span>Does not listen. Shows the captions.</span></button></div></div>';
     if(isScreen())return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
@@ -1089,7 +1089,7 @@ body.running #en p .draft{opacity:1}
     });
   }
   var curCo=null,replayEl=null,replayName='',replayUrl='',replayEnd=null,curConf=null,curCut=0,curSpeechStart=0,curPos=null,chunkSpeechStart=0,liveFirstAt=0,lastReport='',testStats=null;
-  function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>3000)DBG.shift()}
+  var DBGDROP=0;function dbg(m){if(!DBG.length)DBGDROP=0;var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>20000){DBG.shift();DBGDROP++}} // v101: 20,000 lines (it was 3,000); lines pushed out are counted and reported
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
       'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper')+' | hearing '+hearEngine(),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview',DEF.preview),'memo '+sermonMemo.slice(0,200),'usage today '+(claudeUse.req?'claude-haiku '+claudeUse.req+'req/'+Math.round((claudeUse.inTok+claudeUse.outTok)/1000)+'k this session, ':'')+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,fixes:Object.keys(LEARN.fix||{}).length,active:activeFixes().length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
@@ -1536,12 +1536,12 @@ body.running #en p .draft{opacity:1}
   }
   (function(){
     var t=$('title'),h=null;
-    function down(e){return; /* v101: the settings are reached from the admin link, not by holding the title */ if(document.body.classList.contains('admin'))return;clearTimeout(h);h=setTimeout(function(){h=null;askAdmin()},2000)}
+    function down(e){return; /* v102: the settings are reached from the admin link, not by holding the title */ if(document.body.classList.contains('admin'))return;clearTimeout(h);h=setTimeout(function(){h=null;askAdmin()},2000)}
     function up(){clearTimeout(h);h=null}
     ['pointerdown','touchstart','mousedown'].forEach(function(n){t.addEventListener(n,down,{passive:true})});
     ['pointerup','pointercancel','pointerleave','touchend','touchmove','mouseup','mouseleave'].forEach(function(n){t.addEventListener(n,up,{passive:true})});
     t.addEventListener('contextmenu',function(e){if(!document.body.classList.contains('admin'))e.preventDefault()});
-    setAdmin(false); // v101: ?admin=1 no longer opens anything
+    setAdmin(false); // v102: ?admin=1 no longer opens anything
     function bump(d){var v=Math.max(28,Math.min(90,(parseInt(S.get('size','46'),10)||46)+d));S.set('size',String(v));applyView()}
     $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
 
@@ -1979,21 +1979,22 @@ body.running #en p .draft{opacity:1}
   setInterval(function(){
     if(!HOLD.drain.length)return;var ws=DG.ws;if(!ws||ws.readyState!==1||!DG.live)return;
     var sent=0;while(HOLD.drain.length&&sent<SR16*0.5&&ws.bufferedAmount<48000){var f=HOLD.drain.shift();HOLD.dn-=f.length;sent+=f.length;dgSend(ws,f)}
-    if(!HOLD.drain.length){HOLD.dn=0;holdNote('');dbg('HOLD caught up: all the kept sound has been sent')}
+    if(!HOLD.drain.length){HOLD.dn=0;holdNote('');holdLostSay();dbg('HOLD caught up: all the kept sound has been sent')}
   },100);
   function holdStart(){
     if(HOLD.on||!running||paused)return;
     var q=[],n=0;HOLD.ring.forEach(function(r){var st=r[0],b=r[1];if(st+b.length<=HOLD.finN)return;var from=Math.max(0,HOLD.finN-st),f=new Float32Array(b.length-from);for(var i=from;i<b.length;i++)f[i-from]=b[i]/32768;q.push(f);n+=f.length});
     HOLD.drain.forEach(function(f){q.push(f);n+=f.length});HOLD.drain=[];HOLD.dn=0; // kept sound that had not gone up yet stays in line
-    while(n>SR16*HOLD_SEC&&q.length>1){n-=q[0].length;q.shift()}
+    while(n>SR16*HOLD_SEC&&q.length>1){n-=q[0].length;HOLD.lostN=(HOLD.lostN||0)+q[0].length;q.shift()}
     HOLD.on=true;HOLD.told=false;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;holdNote('WEAK WI-FI \u00b7 RECONNECTING');
     dbg('HOLD line lost: keeping the sound ('+(n/SR16).toFixed(1)+' s not yet heard)');
     problemText='The connection dropped: the sound is being kept and is sent when it returns';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');
   }
-  function holdPush(f){HOLD.q.push(f);HOLD.n+=f.length;while(HOLD.n>SR16*HOLD_SEC&&HOLD.q.length>1){HOLD.n-=HOLD.q[0].length;HOLD.q.shift()}}
+  function holdPush(f){HOLD.q.push(f);HOLD.n+=f.length;while(HOLD.n>SR16*HOLD_SEC&&HOLD.q.length>1){HOLD.n-=HOLD.q[0].length;HOLD.lostN=(HOLD.lostN||0)+HOLD.q[0].length;HOLD.q.shift()}}
+  function holdLostSay(){if(HOLD.lostN>0){dbg('HOLD dropped '+(HOLD.lostN/SR16).toFixed(1)+' s of speech: the connection was away longer than the '+HOLD_SEC+' s the app can keep');HOLD.lostN=0}}
   function holdFlush(){
     if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
-    HOLD.drain=q;HOLD.dn=n;holdNote(n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
+    holdLostSay();HOLD.drain=q;HOLD.dn=n;holdNote(n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
     dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sending '+(n/SR16).toFixed(1)+' s of kept sound');
     alertClear('sonioxnet');
     var d=$('dot');d&&d.classList.remove('warn');problemText='';
@@ -2007,7 +2008,7 @@ body.running #en p .draft{opacity:1}
     if(NO_BACKUP)serviceDown('sonioxnet',navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach Soniox (Wi-Fi?). It reconnects by itself.');
     if(n>SR16*0.7){buf=q;bufLen=n;energy=[];speechSamples=n;chunkMs=n/SR16*1000;try{cutChunk(false)}catch(e){}}
   }
-  function holdDrop(){HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0;HOLD.drain=[];HOLD.dn=0;HOLD.told=false;holdNote('')}
+  function holdDrop(){try{holdLostSay()}catch(e){}HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0;HOLD.drain=[];HOLD.dn=0;HOLD.told=false;holdNote('')}
   window.addEventListener('online',function(){try{if(HOLD.on&&dgWanted()&&!DG.ws){clearTimeout(DG.timer);dgOpen()}}catch(e){}});
   setInterval(function(){ // a line that is open but no longer carries anything (weak Wi-Fi) is closed and reopened; Soniox answers about once a second even in silence
     var ws=DG.ws;if(!ws||!DG.live||!ws.__sn||!running||paused)return;
@@ -2053,7 +2054,7 @@ body.running #en p .draft{opacity:1}
     try{if(ws){ws.onclose=null;if(ws.readyState===1)ws.send(ws.__sn?'':JSON.stringify({type:'CloseStream'}));ws.close()}}catch(e){}}
   function dgFeed(s16){ // 16 kHz samples in, 16-bit sound out
     var ws=DG.ws;if(!ws||ws.readyState!==1)return;
-    if(HOLD.drain.length&&ws.__sn){HOLD.drain.push(s16);HOLD.dn+=s16.length;while(HOLD.dn>SR16*HOLD_SEC&&HOLD.drain.length>1){HOLD.dn-=HOLD.drain[0].length;HOLD.drain.shift()}return} // kept sound goes first, in order
+    if(HOLD.drain.length&&ws.__sn){HOLD.drain.push(s16);HOLD.dn+=s16.length;while(HOLD.dn>SR16*HOLD_SEC&&HOLD.drain.length>1){HOLD.dn-=HOLD.drain[0].length;HOLD.lostN=(HOLD.lostN||0)+HOLD.drain[0].length;HOLD.drain.shift()}return} // kept sound goes first, in order
     dgSend(ws,s16)}
   function dgSend(ws,s16){
     var b=new Int16Array(s16.length);for(var i=0;i<s16.length;i++){var x=Math.max(-1,Math.min(1,s16[i]));b[i]=x<0?x*0x8000:x*0x7fff}
@@ -2568,7 +2569,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
@@ -2612,28 +2613,72 @@ body.running #en p .draft{opacity:1}
   var sessionBegan=0;
   function reportBuild(began,test){
     var log=DBG.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
-    var txt=log.join('\n');if(txt.length>600000)txt=txt.slice(0,150000)+'\n…(middle left out)…\n'+txt.slice(-450000);
     var ls=lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
       device:navigator.userAgent,sentences:ls.length,
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
-      drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,200)}).slice(0,40),
+      drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,300)}),
       translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:claudeUse.req,inTokens:claudeUse.inTok,outTokens:claudeUse.outTok},
-      text:ls.slice(-400).map(function(l){return {ar:String(l.ar||'').slice(0,400),en:String(l.en||'').slice(0,400)}}),log:txt};
+      logLinesDropped:DBGDROP,logShortened:false,sentencesLeftOut:0,
+      text:ls.map(function(l){return {ar:String(l.ar||'').slice(0,4000),en:String(l.en||'').slice(0,4000),s:(l.t0&&l.t1)?Math.round((l.t1-l.t0)/100)/10:null}}),log:log.join('\n')};
   }
-  function reportPost(body){return fetch(CLAUDE_PROXY+'/report',{method:'POST',headers:{'content-type':'application/json'},body:body}).then(function(r){if(!r.ok&&r.status!==429&&r.status!==413&&r.status!==400)throw new Error('server '+r.status);return true})}
+  // v101: a report is never cut quietly. If it is too large for the server, the middle of the debug log goes first, then the oldest sentences, and the report says exactly what was left out.
+  var REPORT_MAX=850000;
+  function reportFit(o){
+    var body=JSON.stringify(o);if(body.length<=REPORT_MAX)return body;
+    var over=body.length-REPORT_MAX+2000,L=o.log||'';
+    if(L.length>60000){var keep=Math.max(50000,L.length-over),head=Math.floor(keep*0.3);o.log=L.slice(0,head)+'\n0.0s LOG dropped: the middle of this log was left out to fit\n'+L.slice(L.length-(keep-head));o.logShortened=true;body=JSON.stringify(o)}
+    while(body.length>REPORT_MAX&&o.text&&o.text.length>20){var n=Math.ceil(o.text.length*0.2);o.text=o.text.slice(n);o.sentencesLeftOut=(o.sentencesLeftOut||0)+n;body=JSON.stringify(o)}
+    return body;
+  }
+  // the waiting list of reports on this device (kept in the device's database, which holds far more than the small settings store)
+  function qGet(){return KEYDB.get('pendingReports').then(function(v){try{var a=JSON.parse(v||'[]');return Array.isArray(a)?a:[]}catch(e){return []}})}
+  function qPut(a){return KEYDB.put('pendingReports',JSON.stringify(a)).then(function(ok){if(ok)try{localStorage.setItem('reportsWaiting',String(a.length))}catch(e){}return ok})}
+  function qAdd(body){return qGet().then(function(a){a.push(body);return qPut(a).then(function(ok){if(ok)return true;
+    // the device's database refused it: keep at least the summary in the small store, and count it so it is shown
+    try{var o=JSON.parse(body);o.log='0.0s LOG dropped: this device could not keep the full report';o.logShortened=true;o.sentencesLeftOut=(o.sentencesLeftOut||0)+(o.text||[]).length;o.text=[];var sm=JSON.parse(localStorage.getItem('pendingSmall')||'[]');sm.push(JSON.stringify(o));localStorage.setItem('pendingSmall',JSON.stringify(sm));return true}
+    catch(e){try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return false}})})}
+  function reportPost(body){return fetch(CLAUDE_PROXY+'/report',{method:'POST',headers:{'content-type':'application/json'},body:body}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {ok:r.ok,status:r.status,type:(j&&j.error&&j.error.type)||''}})})}
+  var qBusy=false;
+  function qFlush(){ // sends everything waiting on this device, oldest first; stops at the first one the server cannot take right now
+    if(qBusy||!CLAUDE_PROXY)return Promise.resolve();qBusy=true;
+    var step=function(){return qGet().then(function(a){
+      try{var sm=JSON.parse(localStorage.getItem('pendingSmall')||'[]');if(sm.length){a=sm.concat(a);localStorage.removeItem('pendingSmall');return qPut(a).then(step)}}catch(e){}
+      if(!a.length)return;
+      var body=a[0];try{var o=JSON.parse(body);if(!o.sentLate&&o.ended&&Date.now()-Date.parse(o.ended)>600000){o.sentLate='it waited on the device since '+o.ended;body=JSON.stringify(o)}}catch(e){}
+      return reportPost(body).then(function(r){
+        if(r.ok){a.shift();return qPut(a).then(step)}
+        if(r.status===413){try{var o2=JSON.parse(body);REPORT_MAX=Math.max(200000,Math.floor(body.length*0.7));a[0]=reportFit(o2);return qPut(a).then(step)}catch(e){return}}
+        dbg('REPORT still waiting on this device (server said '+r.status+' '+r.type+')');
+      })})};
+    return step().catch(function(){}).then(function(){qBusy=false;repStat()});
+  }
   function reportSend(began,test){
     if(!CLAUDE_PROXY||!began||Date.now()-began<60000)return; // under a minute is not a service
-    var body;try{body=JSON.stringify(reportBuild(began,test))}catch(e){return}
-    reportPost(body).then(function(){dbg('REPORT sent');try{localStorage.removeItem('pendingReport')}catch(e){}},function(e){dbg('REPORT not sent ('+e.message+'): kept for the next time the app opens');try{localStorage.setItem('pendingReport',body.length>250000?JSON.stringify(Object.assign(JSON.parse(body),{log:'(left out: too large to keep on the device)',text:[]})):body)}catch(x){}});
+    var body;try{body=reportFit(reportBuild(began,test))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
+    qAdd(body).then(function(){return qFlush()}); // always through the waiting list: it leaves the list only when the server confirms it
   }
-  setTimeout(function(){try{var pr=localStorage.getItem('pendingReport');if(pr&&CLAUDE_PROXY)reportPost(pr).then(function(){localStorage.removeItem('pendingReport')},function(){})}catch(e){}},9000);
+  // what is waiting, and where: shown as an orange dot on the start screen (only when something is waiting) and in the owner's settings
+  var REPSTAT={device:0,server:0,lost:0,deviceLost:0,received:0,inSheet:0,ok:false};
+  function repStat(){
+    try{REPSTAT.deviceLost=+localStorage.getItem('reportsLost')||0}catch(e){}
+    return qGet().then(function(a){REPSTAT.device=a.length;try{REPSTAT.device+=JSON.parse(localStorage.getItem('pendingSmall')||'[]').length}catch(e){}
+      if(!CLAUDE_PROXY)return;
+      return fetch(CLAUDE_PROXY+'/usage',{method:'POST'}).then(function(r){return r.json()}).then(function(j){REPSTAT.usage=j;if(j&&j.reports){REPSTAT.server=j.reports.waiting||0;REPSTAT.lost=j.reports.lost||0;REPSTAT.received=j.reports.received||0;REPSTAT.inSheet=j.reports.inSheet||0;REPSTAT.ok=true}},function(){})
+    }).catch(function(){}).then(function(){readyRefresh()});
+  }
+  function repDotText(){var t=[];if(!REPSTAT)return '';
+    if(REPSTAT.device)t.push(REPSTAT.device+(REPSTAT.device===1?' report is':' reports are')+' still on this device. It is sent when the app is open with a connection.');
+    if(REPSTAT.server)t.push(REPSTAT.server+(REPSTAT.server===1?' report has':' reports have')+' not reached the Google Sheet yet (the mini PC may be off). The server tries again every hour.');
+    if(REPSTAT.lost||REPSTAT.deviceLost)t.push((REPSTAT.lost+REPSTAT.deviceLost)+' report(s) could not be kept. Tell Claude.');
+    return t.join(' ')}
+  setTimeout(function(){try{var pr=localStorage.getItem('pendingReport');if(pr){localStorage.removeItem('pendingReport');qAdd(pr).then(qFlush);return}}catch(e){}qFlush()},7000);
   // v99 usage: the owner's settings show how much of today's limit is used
   function usageShow(){
     if(!CLAUDE_PROXY)return;var ow=document.getElementById('ownerArea');if(!ow)return;var el=document.getElementById('usageNote');
     if(!el){el=document.createElement('div');el.id='usageNote';el.className='help';el.style.cssText='margin:10px 0;font-weight:700;color:var(--fg)';ow.insertBefore(el,ow.firstChild)}
     el.textContent='Use today: checking…';
-    fetch(CLAUDE_PROXY+'/usage',{method:'POST'}).then(function(r){return r.json()}).then(function(j){if(j&&typeof j.today==='number')el.textContent='Used today: '+j.today+' of '+j.cap+' minutes. This month: '+j.month+' minutes.';else el.textContent='Use today: not available.'},function(){el.textContent='Use today: could not reach the church server.'});
+    fetch(CLAUDE_PROXY+'/usage',{method:'POST'}).then(function(r){return r.json()}).then(function(j){if(j&&typeof j.today==='number'){var rp=j.reports,rl='';if(rp)rl=' Reports: '+rp.received+' received by the server, '+rp.inSheet+' in the Google Sheet, '+rp.waiting+' waiting on the server, '+REPSTAT.device+' waiting on this device, '+((rp.lost||0)+REPSTAT.deviceLost)+' lost.';el.textContent='Used today: '+j.today+' of '+j.cap+' minutes. This month: '+j.month+' minutes.'+rl}else el.textContent='Use today: not available.'},function(){el.textContent='Use today: could not reach the church server.'});
   }
   try{$('gear').addEventListener('click',function(){setTimeout(usageShow,200)})}catch(e){}
   // v100: a mark is kept while listening; if the page comes back without Stop having been pressed (a reload, a crash), it offers one tap to carry on
@@ -2754,7 +2799,7 @@ body.running #en p .draft{opacity:1}
   loadReadings();
   window.__churchTest={copticDate:copticDate,saintsToday:saintsToday,loadModels:loadModels,chatCall:chatCall,pool:function(){return POOL.slice()},noteUse:noteUse,budgetLeft:budgetLeft,nextFree:nextFree,dbg:function(){return DBG.slice()},caps:function(){return {TPD_SAFE:TPD_SAFE}}}; // for the offline test harness only
 
-  // ---- v101: two views of the same app ----
+  // ---- v102: two views of the same app ----
   // The link that is shared is the USER view: captions, text size, Start / Pause, full screen. Nothing else can be reached from it.
   // The ADMIN link (…/admin/) asks for a passcode that the church server checks (never the page: this page's code is public),
   // shows every setting, and saves the settings on the server so every device picks them up by itself.
