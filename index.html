@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v84">
+<meta name="build" content="v85">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -280,7 +280,7 @@ body.running #en #hist p{font-size:.6em;line-height:1.3;font-weight:600;color:#8
 body.running #en #hist p.in{opacity:0;transform:translateY(1.2em)}body.running #en #hist p.out{opacity:0}
 body.running #en #cbox{position:relative;flex:none;height:33vh;background:#f2c94c;color:#121214;border-radius:20px;overflow:hidden;margin:0 0 .15em}
 body.running #en #cbox .bx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:.25em .7em;font-size:1.05em;line-height:1.25;font-weight:700;overflow:hidden;transition:opacity .45s ease,transform .45s ease}
-body.running #en #cbox .bx.in{opacity:0;transform:translateY(30%)}body.running #en #cbox .bx.out{opacity:0;transform:translateY(-45%)}
+body.running #en #cbox .bx.in{opacity:0;transform:translateY(18%)}body.running #en #cbox .bx.out{opacity:0;transform:translateY(-45%)}
 body.running #en #cbox .ref{color:#5a4a12}body.running #en #cbox .dots i{background:#121214}
 body.running #en:has(#cbox){justify-content:flex-end;padding-bottom:0;gap:0}
 body.running #en .dotrow{position:absolute;left:0;right:0;bottom:.15em;text-align:center;color:#77777d;font-size:.6em;line-height:1}
@@ -779,10 +779,19 @@ body.running #en p .draft{opacity:1}
     past.forEach(function(l){var el=document.getElementById('h'+l.id),b=before['h'+l.id];if(!el||b===undefined)return;var d=b-el.getBoundingClientRect().top;if(Math.abs(d)<1)return;
       el.style.transition='none';el.style.transform='translateY('+d+'px)';void el.offsetHeight;el.style.transition='';el.style.transform=''});
     var want=cur?cur.id:(dotsOn?'dots':'');
-    if(box.dataset.id!==want){box.dataset.id=want;
+    if(box.dataset.id!==want){var prevId=box.dataset.id,oldBx=box.lastElementChild,oldR=null,oldF=0,glide=null;
+      if(oldBx&&prevId&&prevId!=='dots'){var ot=oldBx.querySelector('.bt');if(ot){oldR=ot.getBoundingClientRect();oldF=parseFloat(getComputedStyle(oldBx).fontSize)||0}}
+      glide=oldR?document.getElementById('h'+prevId):null; // v85: the sentence leaving the box glides up into its place in the history
+      if(glide&&oldR&&oldF){var nr=glide.getBoundingClientRect(),nf=parseFloat(getComputedStyle(glide).fontSize)||oldF,k=oldF/nf;
+        oldBx.style.transition='none';oldBx.style.opacity='0';
+        glide.classList.remove('in');glide.style.transition='none';glide.style.transformOrigin='50% 50%';glide.style.color='#f2c94c';
+        glide.style.transform='translate('+((oldR.left+oldR.width/2)-(nr.left+nr.width/2))+'px,'+((oldR.top+oldR.height/2)-(nr.top+nr.height/2))+'px) scale('+k.toFixed(3)+')';
+        void glide.offsetHeight;glide.style.transition='transform .75s cubic-bezier(.22,.7,.2,1),color .9s ease';glide.style.transform='';glide.style.color='';
+        (function(g){setTimeout(function(){g.style.transition='';g.style.transformOrigin=''},900)})(glide)}
+      box.dataset.id=want;
       Array.prototype.slice.call(box.children).forEach(function(el){if(!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
-      if(want){var sp=document.createElement('div');sp.className='bx in';sp.innerHTML=cur?lineHtml(cur):DOTS;box.appendChild(sp);boxFit(sp);requestAnimationFrame(function(){requestAnimationFrame(function(){sp.classList.remove('in')})})}}
-    else if(cur){var lastB=box.lastElementChild,h2=lineHtml(cur);if(lastB&&lastB.innerHTML!==h2){lastB.innerHTML=h2;boxFit(lastB)}}
+      if(want){var sp=document.createElement('div');sp.className='bx in';sp.innerHTML=cur?'<span class="bt">'+lineHtml(cur)+'</span>':DOTS;box.appendChild(sp);boxFit(sp);setTimeout(function(){sp.classList.remove('in')},glide?260:30)}}
+    else if(cur){var lastB=box.lastElementChild,h2='<span class="bt">'+lineHtml(cur)+'</span>';if(lastB&&lastB.innerHTML!==h2){lastB.innerHTML=h2;boxFit(lastB)}}
     BIGLIVE='';lagShow();
     SHARE.rows=rel.slice(-3).map(function(l){return {r:l===cur?'cur':'prev',t:cleanEn(l.en||''),d:'',ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
     if(txId)txSave(false);
@@ -1007,7 +1016,7 @@ body.running #en p .draft{opacity:1}
     }
     return out.join(' ');
   }
-  var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else.';
+  var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else. He also drops single English words into Arabic sentences, and the recognizer often writes them in Arabic letters, where they can look like a different Arabic word: فن or فان is usually the English word fun (not art) when he talks about enjoyment or says "as they say", and the same goes for words like ستريس (stress), بيزي (busy), ميتنج (meeting), ويك إند (weekend), أوكيه (okay). When an Arabic-looking word sounds like an English word and that English word fits the sentence better, write the English word he said.';
   var SYS='You translate a live Coptic Orthodox church service, spoken in Egyptian Arabic, into natural English for a screen. Most of it is a sermon, but the speaker also makes ordinary announcements (tickets, the festival, building repairs, money, dates, schedules): translate those plainly in everyday words and do not turn them into religious language. The Arabic comes from speech recognition and can have misheard words. Only when the sentence is about faith, Scripture, saints or prayer and a word makes no sense there, treat it as a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). In an announcement or an everyday sentence, keep the plain meaning of the words. Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Meaning comes before polish. Keep every negation exactly (مش, ما...ش, لا, لم, لن, ولا, عمره ما): never turn "did not" into "did" or the reverse. Keep every number, amount of money, currency, date, day, time and percentage exactly as said, and whether money was collected, owed, promised or spent. Never write the name of a person that is not in the Arabic: a garbled or unknown word must never become a name (no Boaz, Judas or any other person he did not say), so leave that part out instead. When several people are named in a row (prayers, condolences, thanks), every word is part of a name: write each first name and family name in English letters and do not drop or translate any of them (ياسر سيدهم is Yasser Sedhom). Keep every name as said, never swap one person for another, and keep a title (Abouna, Anba, Pope, Saint) with the name it was said with; بابا can mean Dad or the Pope, so decide from the sentence. If the speaker corrects himself ("Friday, sorry, Saturday"), keep the correction. Keep repetition he uses for emphasis. In a story or quotation keep clear who is speaking: words said by a person in a story must not read as advice from the speaker himself. Do not add anything that was not said: no extra details, explanation, theology or verse. Scripture: when the speaker is clearly quoting a verse word for word, render it in NKJV wording; when he paraphrases, retells or only alludes to a passage, translate what he actually said and do not complete the verse. Never add a chapter and verse reference he did not say. If part of the sentence is garbled and you cannot tell what was said, leave that part out rather than invent a plausible sentence. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
   var groqBlockedUntil=0;
 
