@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v107">
+<meta name="build" content="v108">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1486,7 +1486,7 @@ body.running #en p .draft{opacity:1}
   }
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
   function waitAhead(item){return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
-    if(!running||w>=6||el>7000||(el>1200&&Date.now()-lastSpeechAt>2500)){res(a);return}setTimeout(chk,250)})()})}
+    if(!running||w>=6||el>4000||(el>1200&&Date.now()-lastSpeechAt>1200)){res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
