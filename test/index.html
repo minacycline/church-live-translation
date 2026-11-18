@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v115">
+<meta name="build" content="v116">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,8 @@
 <link rel="manifest" href="manifest.json">
 <title>Live Translation</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://church-captions.minaypharmd.workers.dev" crossorigin>
+<link rel="preconnect" href="https://stt-rt.soniox.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
 /* Palette: icon ground oxblood, parchment text, gold leaf, aged gold for quiet lines */
@@ -1496,14 +1498,16 @@ body.running #en p .draft{opacity:1}
     return list;
   }
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
-  function waitAhead(item){return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
-    if(!running||w>=6||el>4000||(el>1200&&Date.now()-lastSpeechAt>1200)){res(a);return}setTimeout(chk,250)})()})}
+  // v116: the first sentence after Start waits less (3 more words, 0.8 s of quiet, at most 2.5 s) so the first caption comes sooner; later sentences are unchanged
+  var sessFirst=false;
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?2500:4000,Q=f?800:1200;return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+    if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
     if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false,t0:Date.now(),t1:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,rep:!!replayEl};lines.push(it);arEl.textContent=cleanAr(ar);render();enCheck(it);return}
     var ng=nameGuesses(ar);
-    var item={rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=cleanAr(ar);render();
+    var item={first:sessFirst&&!(sessFirst=false),rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=cleanAr(ar);render();
     if(curUnsure&&curUnsure.length){var un=curUnsure.filter(function(w){return ar.indexOf(w)>=0});if(un.length)item.unsure=un}
     if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
     var p=matchPrayer(ar);
@@ -2027,7 +2031,7 @@ body.running #en p .draft{opacity:1}
   // v79 hold and resend: when the live line drops or stalls, the sound is kept (up to HOLD_SEC seconds) instead of being lost, the line is retried quickly,
   // and the kept sound is sent as soon as it returns. Soniox reports how much sound it has finished hearing, so only the part it had not finished is sent again.
   // If the line stays away longer than HOLD_MAX, the kept sound goes to the backup hearing (Whisper), as before this change.
-  var HOLD_SEC=120,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0,drain:[],dn:0,told:false};
+  var HOLD_SEC=120,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0,drain:[],dn:0,told:false,boot:false};
   // v96 weak Wi-Fi: up to 2 minutes of speech is kept during a drop (it was 25 s), it is never thrown away while the line is being retried,
   // and when the line returns the kept sound goes up at a steady pace (about 5 times normal speed) so a weak line is not flooded and dropped again.
   function holdNote(t){try{var g=$('liveTag');if(!g)return;g.textContent=t||'Live Translation';g.classList.toggle('weak',!!t)}catch(e){}}
@@ -2041,16 +2045,18 @@ body.running #en p .draft{opacity:1}
     var q=[],n=0;HOLD.ring.forEach(function(r){var st=r[0],b=r[1];if(st+b.length<=HOLD.finN)return;var from=Math.max(0,HOLD.finN-st),f=new Float32Array(b.length-from);for(var i=from;i<b.length;i++)f[i-from]=b[i]/32768;q.push(f);n+=f.length});
     HOLD.drain.forEach(function(f){q.push(f);n+=f.length});HOLD.drain=[];HOLD.dn=0; // kept sound that had not gone up yet stays in line
     while(n>SR16*HOLD_SEC&&q.length>1){n-=q[0].length;HOLD.lostN=(HOLD.lostN||0)+q[0].length;q.shift()}
-    HOLD.on=true;HOLD.told=false;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;holdNote('WEAK WI-FI \u00b7 RECONNECTING');
+    HOLD.on=true;HOLD.boot=false;HOLD.told=false;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;holdNote('WEAK WI-FI \u00b7 RECONNECTING');
     dbg('HOLD line lost: keeping the sound ('+(n/SR16).toFixed(1)+' s not yet heard)');
     problemText='The connection dropped: the sound is being kept and is sent when it returns';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');
   }
   function holdPush(f){HOLD.q.push(f);HOLD.n+=f.length;while(HOLD.n>SR16*HOLD_SEC&&HOLD.q.length>1){HOLD.n-=HOLD.q[0].length;HOLD.lostN=(HOLD.lostN||0)+HOLD.q[0].length;HOLD.q.shift()}}
   function holdLostSay(){if(HOLD.lostN>0){dbg('HOLD dropped '+(HOLD.lostN/SR16).toFixed(1)+' s of speech: the connection was away longer than the '+HOLD_SEC+' s the app can keep');HOLD.lostN=0}}
+  // v116: from the moment the microphone opens until the live line is up, the sound is kept the same way and sent first, so the opening words are heard
+  function holdBoot(){if(HOLD.on||DG.live||!running||paused)return;HOLD.on=true;HOLD.boot=true;HOLD.told=false;HOLD.since=Date.now();HOLD.q=[];HOLD.n=0;dbg('START keeping the sound until the live line is up')}
   function holdFlush(){
-    if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
-    holdLostSay();HOLD.drain=q;HOLD.dn=n;holdNote(n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
-    dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sending '+(n/SR16).toFixed(1)+' s of kept sound');
+    if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n,boot=HOLD.boot;HOLD.on=false;HOLD.boot=false;HOLD.q=[];HOLD.n=0;
+    holdLostSay();HOLD.drain=q;HOLD.dn=n;holdNote(!boot&&n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
+    dbg(boot?'START line up '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s after the microphone: sending '+(n/SR16).toFixed(1)+' s of kept sound':'HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sending '+(n/SR16).toFixed(1)+' s of kept sound');
     alertClear('sonioxnet');
     var d=$('dot');d&&d.classList.remove('warn');problemText='';
   }
@@ -2063,7 +2069,7 @@ body.running #en p .draft{opacity:1}
     if(NO_BACKUP)serviceDown('sonioxnet',navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach Soniox (Wi-Fi?). It reconnects by itself.');
     if(n>SR16*0.7){buf=q;bufLen=n;energy=[];speechSamples=n;chunkMs=n/SR16*1000;try{cutChunk(false)}catch(e){}}
   }
-  function holdDrop(){try{holdLostSay()}catch(e){}HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0;HOLD.drain=[];HOLD.dn=0;HOLD.told=false;holdNote('')}
+  function holdDrop(){try{holdLostSay()}catch(e){}HOLD.on=false;HOLD.boot=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0;HOLD.drain=[];HOLD.dn=0;HOLD.told=false;holdNote('')}
   window.addEventListener('online',function(){try{if(HOLD.on&&dgWanted()&&!DG.ws){clearTimeout(DG.timer);dgOpen()}}catch(e){}});
   setInterval(function(){ // a line that is open but no longer carries anything (weak Wi-Fi) is closed and reopened; Soniox answers about once a second even in silence
     var ws=DG.ws;if(!ws||!DG.live||!ws.__sn||!running||paused)return;
@@ -2088,11 +2094,11 @@ body.running #en p .draft{opacity:1}
     ws.__sn=sn;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.msgAt=Date.now();HOLD.jam=0;
     ws.binaryType='arraybuffer';DG.ws=ws;
     ws.onopen=function(){setTimeout(function(){ // the line counts as up only once it has stayed open for a moment: a line that opens and is shut at once must not disturb Whisper
-      if(DG.ws!==ws||ws.readyState!==1||!dgWanted())return;DG.live=true;DG.seg=[];DG.interim='';DG.opened=Date.now();dbg('STREAM line is up');
+      if(DG.ws!==ws||ws.readyState!==1||!dgWanted())return;DG.live=true;DG.seg=[];DG.interim='';DG.opened=Date.now();DG.sent=Date.now();dbg('STREAM line is up');
       try{if(proc&&speechSamples/SR16>0.7)cutChunk(false)}catch(e){} // what Whisper was in the middle of hearing is not thrown away
       buf=[];bufLen=0;energy=[];speechSamples=0;chunkMs=0;sinceVoiceMs=0;
       if(ws.__sn)holdFlush();
-      clearInterval(DG.keep);DG.keep=setInterval(function(){try{if(DG.live&&Date.now()-DG.sent>4000)ws.send(JSON.stringify({type:ws.__sn?'keepalive':'KeepAlive'}))}catch(e){}if(DG.live&&Date.now()-DG.opened>15000)DG.tries=0},4000)},1200)};
+      clearInterval(DG.keep);DG.keep=setInterval(function(){try{if(DG.live&&Date.now()-DG.sent>4000)ws.send(JSON.stringify({type:ws.__sn?'keepalive':'KeepAlive'}))}catch(e){}if(DG.live&&Date.now()-DG.opened>15000)DG.tries=0},4000)},ws.__sn?300:1200)};
     ws.onmessage=function(ev){if(DG.ws!==ws||typeof ev.data!=='string')return;var m;try{m=JSON.parse(ev.data)}catch(e){return}if(ws.__sn)sxMessage(m,ws);else dgMessage(m)};
     ws.onerror=function(){dbg('STREAM line error')};
     ws.onclose=function(ev){if(DG.ws!==ws)return;var was=DG.live;DG.live=false;DG.ws=null;clearInterval(DG.keep);dbg('STREAM line closed ('+ev.code+(ev.reason?' '+String(ev.reason).slice(0,60):'')+')'+(was?'':' before it opened: the key may be wrong, or this device cannot reach Deepgram'));
@@ -2626,10 +2632,13 @@ body.running #en p .draft{opacity:1}
       return;
     }
     running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    sessFirst=true;var early=NO_BACKUP&&useWhisper()&&!!streamEngine()&&!replayEl;
+    if(early){try{dgOpen()}catch(e){}try{healthAtStart()}catch(e){}} // v116 warm-up: the live line and the translator start getting ready while the microphone opens
     var ok=useWhisper()?await startWhisper():await startApple();
-    if(!ok)return;
+    if(!ok){try{dgClose()}catch(e){}return}
+    if(early)holdBoot();
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
-    loadReadings();healthAtStart();
+    loadReadings();if(!early)healthAtStart();
     if(useWhisper())setTimeout(startPreviewSR,600);
     if(useWhisper()&&streamEngine())dgOpen();
     lastSpeechAt=Date.now();clearInterval(idleTimer);
