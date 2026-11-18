@@ -3,7 +3,7 @@
 <head>
 <base href="../">
 <meta charset="utf-8">
-<meta name="build" content="v99">
+<meta name="build" content="v100">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -135,7 +135,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 .rv .saved{color:#2f6b4a}
 </style>
 <style>
-#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#1f7a4d;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
 body.listening.admin #sideMeter{display:block}
 body.listening:not(.admin) #status,body.listening:not(.admin) #meter{visibility:hidden}
 .dot.on.voice{box-shadow:0 0 0 4px rgba(47,143,91,.28)}.dot.warn.voice{box-shadow:0 0 0 3px rgba(224,160,48,.25)}
@@ -233,6 +233,7 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 <body>
 <div style="position:fixed;left:0;bottom:0;z-index:99;background:#6d28d9;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:0 8px 0 0;pointer-events:none">TEST VERSION</div>
 <div id="alert"></div>
+<div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
 <div id="liveTag" aria-hidden="true">TRANSLATING</div>
 <div id="betaNote" aria-hidden="true">Beta - Translation may not be fully accurate</div>
 <div id="viewTag" aria-hidden="true">TRANSLATING</div>
@@ -2336,6 +2337,7 @@ body.running #en p .draft{opacity:1}
     if(sp<0.7){liveEn='';liveGen++;render()}
   }
 
+  var micFails=0;
   async function restartAudio(why){
     if(restarting||!running)return;restarting=true;
     try{
@@ -2346,16 +2348,23 @@ body.running #en p .draft{opacity:1}
       await new Promise(function(r){setTimeout(r,400)});
       if(!running)return;
       var ok=await startWhisper(true);
-      if(ok&&running)setStatus('Listening again. Heard '+heardCount+' pieces');
-      else if(running){setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
+      if(ok&&running){micFails=0;if(tapFn)tapDone();setStatus('Listening again. Heard '+heardCount+' pieces')}
+      else if(running){micFails++;
+        if(micFails>=2&&!tapFn)askTap(function(){restarting=false;micFails=0;restartAudio('Screen tapped')},'The microphone was interrupted (a call, another app, or the screen locked).');
+        setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
     }finally{if(restarting&&running!==false)restarting=false}
   }
+  // v100: when the device needs a touch before it may listen again (iPhone and iPad rule), one large button fills the screen
+  var tapFn=null;
+  function askTap(fn,why){tapFn=fn;try{$('resumeWhy').textContent=why||'';$('resume').hidden=false}catch(e){}dbg('TAP asked: '+(why||''))}
+  function tapDone(){tapFn=null;try{$('resume').hidden=true}catch(e){}}
+  try{$('resumeBtn').onclick=function(){var f=tapFn;tapDone();dbg('TAP given');try{f&&f()}catch(e){}}}catch(e){}
   function resumeOrAsk(c){ // a browser can hold sound until the screen is touched: never hang silently, ask for one tap
     return new Promise(function(done){
       var fin=false;function ok(){if(fin)return;fin=true;showAlert('');done()}
       try{c.resume().then(ok,function(){})}catch(e){}
-      setTimeout(function(){if(fin)return;if(c.state!=='suspended'){ok();return}dbg('AUDIO waiting for a tap');setStatus('Tap the red bar at the top to start.');showAlert('TAP HERE to start listening.',true,0,true);
-        $('alert').onclick=function(){try{c.resume().then(ok,ok)}catch(e){ok()}};},2500);
+      setTimeout(function(){if(fin)return;if(c.state!=='suspended'){ok();return}dbg('AUDIO waiting for a tap');setStatus('Tap the screen to start.');
+        askTap(function(){try{c.resume().then(ok,ok)}catch(e){ok()}},'This device needs one touch before it can listen.');},2500);
     });
   }
   async function startWhisper(retrying,mediaEl){
@@ -2570,7 +2579,7 @@ body.running #en p .draft{opacity:1}
     try{wake&&wake.release()}catch(e){}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
-    setStatus('Stopped');
+    setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
     try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||'');setTimeout(function(){reportSend(rb,rr)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
@@ -2606,6 +2615,9 @@ body.running #en p .draft{opacity:1}
     fetch(CLAUDE_PROXY+'/usage',{method:'POST'}).then(function(r){return r.json()}).then(function(j){if(j&&typeof j.today==='number')el.textContent='Used today: '+j.today+' of '+j.cap+' minutes. This month: '+j.month+' minutes.';else el.textContent='Use today: not available.'},function(){el.textContent='Use today: could not reach the church server.'});
   }
   try{$('gear').addEventListener('click',function(){setTimeout(usageShow,200)})}catch(e){}
+  // v100: a mark is kept while listening; if the page comes back without Stop having been pressed (a reload, a crash), it offers one tap to carry on
+  setInterval(function(){try{if(running&&!replayEl&&!isScreen())localStorage.setItem('liveAt',String(Date.now()))}catch(e){}},10000);
+  setTimeout(function(){try{var la=+localStorage.getItem('liveAt')||0;localStorage.removeItem('liveAt');if(la&&Date.now()-la<180000&&!running&&roleChosen()&&!isScreen()){dbg('RELOAD in the middle of listening: asking for a tap');askTap(function(){if(!running)start()},'The app restarted. Tap to carry on.')}}catch(e){}},1200);
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
