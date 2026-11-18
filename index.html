@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v87">
+<meta name="build" content="v88">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1334,7 +1334,7 @@ body.running #en p .draft{opacity:1}
   }
   async function quick(ar,deadline){
     var res=await chatCall([
-        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox church service (a sermon, sometimes ordinary announcements) from Egyptian Arabic to natural English for a screen. If the piece is about faith and a word makes no sense, it may be a misheard religious word: pick the church word it most likely was; in an announcement keep the plain everyday meaning. Never write the name of a person that is not in the Arabic, and never drop a name that is. Keep every negation, number, amount of money, date, time and name exactly as said. Do not add anything that was not said and do not complete a verse he only paraphrased; leave out a garbled part rather than guess. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English.'+groqGlossary(ar,'')},
+        {role:'system',content:(sermonMemo?'Context: '+sermonMemo.slice(0,200)+'\n':'')+'Translate this piece of a Coptic Orthodox church service (a sermon, sometimes ordinary announcements) from Egyptian Arabic to natural English for a screen. If the piece is about faith and a word makes no sense, it may be a misheard religious word: pick the church word it most likely was; in an announcement keep the plain everyday meaning. Never write the name of a person that is not in the Arabic, and never drop a name that is. Translate only the NEW sentence: never repeat the previous sentence in front of it. If the NEW sentence is a meaningless scrap (a lone joining word, or two or three words that say nothing), answer with an empty string instead of inventing a meaning or a name. Keep every negation, number, amount of money, date, time and name exactly as said. Do not add anything that was not said and do not complete a verse he only paraphrased; leave out a garbled part rather than guess. أحبائي = "my beloved", المعرض = "festival". Never write profanity or crude words; use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English.'+groqGlossary(ar,'')},
         {role:'user',content:ar}],200,0,true,deadline,null);
     return res.text;
   }
@@ -1372,7 +1372,7 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5; // the hearing service's own English often lands a moment after the Arabic: give it a short moment
           return (late?new Promise(function(x){setTimeout(x,400)}):Promise.resolve()).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var pe=prevItem&&prevItem.en?prevItem.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
         if(e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
         serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
@@ -1806,6 +1806,7 @@ body.running #en p .draft{opacity:1}
     (tk||[]).forEach(function(k){var t=String(k[0]||'');if(/^\s/.test(t))push();w+=t;if(typeof k[1]==='number'&&k[1]<c)c=k[1];if(/\s$/.test(t))push()});push();
     return out.slice(0,6);
   }
+  function sxClose(fa){SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=lastSxItem}
   function sxMessage(m,ws){
     if(m.error_code){dbg('STREAM Soniox refused: '+m.error_code+' '+(m.error_type||'')+' '+String(m.error_message||'').slice(0,90));if(m.error_code===401||m.error_code===402||m.error_code===403){DG.tries=Math.max(DG.tries,4);problemText='Soniox: '+String(m.error_message||m.error_type||m.error_code).slice(0,120);problemAt=Date.now();if(NO_BACKUP)serviceDown('soniox',(m.error_code===402||/credit|balance|billing|payment|quota/i.test(String(m.error_message||'')))?'HEARING STOPPED: the Soniox account is out of credit. Add credit at console.soniox.com (Billing), then press Restart.':'HEARING STOPPED: Soniox refused the key ('+String(m.error_message||m.error_code).slice(0,60)+').')}
       else if(m.error_code===400&&SXCUT<4){SXCUT++;DG.tries=0;dbg('STREAM Soniox did not accept the opening message: trying a simpler one (step '+SXCUT+')')}
@@ -1824,7 +1825,13 @@ body.running #en p .draft{opacity:1}
     if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
     if(fa&&(end||(nw>=7&&/[.!?؟]\s*$/.test(fa)&&!SX.nfAr.trim())||nw>=26)){ // a finished thought: at his pause, at the end of a sentence, or when it is getting long
-      DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=lastSxItem;return}
+      // v88: a pause in the middle of a thought must not put a stray piece on the screen ("From."): a piece of one or two words, or one that ends on a joining word, waits up to 3.5 s for the rest
+      var dangling=nw<=2||/(^|\s)(من|في|على|إلى|الى|عن|مع|و|أو|ان|أن|إن|اللي|الذي|التي|لكن|بس|يعني|زي|كان|ده|دي|لما|عشان|علشان|حتى|ثم|بعد|قبل)[.،,؟!]*\s*$/.test(fa);
+      clearTimeout(SX.holdT);
+      if(end&&dangling&&nw<26&&!(SX.heldAt&&Date.now()-SX.heldAt>3400)){
+        if(!SX.heldAt)SX.heldAt=Date.now();SX.ar=SX.ar.replace(/[.؟!]\s*$/,' ');dbg('STREAM piece held for the rest: '+fa.slice(-30));
+        SX.holdT=setTimeout(function(){try{if(DG.ws!==ws)return;var f2=SX.ar.replace(/\s+/g,' ').trim();if(!f2||SX.nfAr.trim())return;sxClose(f2)}catch(e){}},3600);return}
+      sxClose(fa);return}
     if(tailR)render();
     if(en&&Date.now()-SX.shown>180){SX.shown=Date.now();if(!liveFirstAt)liveFirstAt=Date.now();if(liveEn!==en){liveEn=en;render()}}
     if(m.finished)dbg('STREAM Soniox finished the stream');
