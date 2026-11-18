@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v83">
+<meta name="build" content="v84">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1091,7 +1091,7 @@ body.running #en p .draft{opacity:1}
     else if(r.status===400&&REASON_OK&&/reason|include|effort|param/i.test(msg)){REASON_OK=false;LEARN.reasonOk=false;learnSave();dbg('Reasoning options refused, retrying plain: '+msg.slice(0,80))}
   }
   async function loadModels(){
-    if(!S.get('groqKey',''))return;
+    if(NO_BACKUP||!S.get('groqKey',''))return; // v84: no Groq at all, not even its list of models
     try{
       var r=await fetchT('https://api.groq.com/openai/v1/models',{headers:{'authorization':'Bearer '+S.get('groqKey','')}},8000);
       if(!r.ok){dbg('MODELS list failed '+r.status);return}
