@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v94">
+<meta name="build" content="v95">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -216,6 +216,14 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
 .dot.on{background:var(--green)}
 /* a phone held sideways is very short: the Ready screen tightens so nothing touches the Start button */
 @media (max-height:520px){header{padding-top:8px}main{padding:8px 0 4px}footer{padding:6px 0 20px}.ready{gap:7px}.ready h1{font-size:clamp(24px,8vh,38px)}.rolebadge{font-size:11px;padding:3px 10px}.chks{flex-direction:row;flex-wrap:wrap;gap:6px 22px}.chk{font-size:16px;gap:9px}.chk span{width:11px;height:11px}.follow input{font-size:15px;padding:6px 8px}#watchBtn{min-height:40px;padding:6px 12px;font-size:15px}.sharecode{font-size:13px}.ready .hint{font-size:13px}#chkReady{min-height:44px;padding:6px 16px;font-size:16px}#go:not(.stop){font-size:22px;padding:.5em 1.6em;border-radius:14px}}
+body:not(.running):not(.viewing) #meter,body:not(.running):not(.viewing) #status,body:not(.running):not(.viewing) #lag{display:none}
+#readyDots{display:flex;gap:0;margin-left:-8px;align-items:center;position:relative}
+body.running #readyDots,body.viewing #readyDots{display:none}
+#readyDots button{all:unset;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+#readyDots button i{width:16px;height:16px;border-radius:50%;background:var(--green);display:block}
+#readyDots button.no i{background:#fff;border:3px solid #b45309;box-sizing:border-box}
+#readyDots button:focus-visible{outline:2px solid var(--fg)}
+#dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:nowrap;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 </style>
 </head>
 <body>
@@ -302,6 +310,7 @@ body.running #en p .draft{opacity:1}
 </main>
 
 <footer>
+  <span id="readyDots" role="group" aria-label="Ready checks"></span>
   <button id="go">Start</button>
   <button id="pause" type="button">Pause</button>
   <div id="sideMeter" title="Sound level: rises and turns green when it hears the speaker"><i></i></div>
@@ -715,11 +724,17 @@ body.running #en p .draft{opacity:1}
     var key=NO_BACKUP?sxHaveKey():!!S.get('groqKey',''),rd=0,on=navigator.onLine!==false;try{rd=autoReadingPairs().length}catch(e){}
     var rows=READYCHK.rows.length?READYCHK.rows.map(function(x){return row(x[0],x[1])}).join(''):row(on,on?'Internet connected':'No internet connection')+row(key,key?(NO_BACKUP?(CLAUDE_PROXY?'Hearing and translating ready (church server)':'Hearing key saved on this device'):'Translation key saved on this device'):(NO_BACKUP?'No Soniox key on this device':'Password needed: it is asked when you press Start'));
     rows+=(S.get('autoRead','1')==='1'?row(rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"):'');
+    readyDots([[on,on?'Internet connected':'No internet connection'],[key,key?(NO_BACKUP?(CLAUDE_PROXY?'Hearing and translating ready (church server)':'Hearing key saved on this device'):'Translation key saved on this device'):(NO_BACKUP?'No Soniox key on this device':'Password needed: it is asked when you press Start')],[rd>0,rd?"Today's readings loaded":"Today's readings not loaded yet"]]);
     var note=READYCHK.busy?'Checking: say a few words near the microphone…':READYCHK.at?'Checked at '+new Date(READYCHK.at).toTimeString().slice(0,5)+'.':'Press Check before the service to test the microphone, the hearing and the translator.';
     if(!roleChosen())return '<div class="empty ready"><h1>Live Translation</h1><div class="sharecode big">What is this device for?</div><div class="pick"><button type="button" id="pickMain"><b>Main device</b><span>Listens and makes the captions. Only one.</span></button><button type="button" id="pickScreen"><b>Screen only</b><span>Does not listen. Shows the captions.</span></button></div></div>';
     if(isScreen())return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1><div class="sharecode">This device shows what the main device sends. It does not listen.</div><div class="follow"><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||S.get('watchCode',''))+'"><button type="button" id="watchBtn">Follow the main device</button></div><div><button type="button" id="makeMain" class="linkbtn">Use this device as the main device instead</button></div></div>';
-    return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1><div class="chks">'+rows+'</div><div><button type="button" id="chkReady"'+(READYCHK.busy?' disabled':'')+'>'+(READYCHK.busy?'Checking…':READYCHK.at?'Check again':'Check before the service')+'</button></div>'+(MULTI&&S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':(SHARE.show?'<div class="sharecode big">To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+' <button type="button" id="hideCode" class="linkbtn">Hide</button></div>':'<div class="sharecode"><button type="button" id="showCode" class="linkbtn">Show code for other screens</button>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>')):'')+(MULTI?'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div>':'')+'<div class="hint">'+note+' The gear at the top opens the settings.</div></div>';
+    return '<div class="empty ready">'+rolePick()+'<h1>Live Translation</h1>'+(MULTI&&S.get('share','1')==='1'&&typeof Peer!=='undefined'?(SHARE.err?'<div class="sharecode warnc">'+esc(SHARE.err)+'</div>':(SHARE.show?'<div class="sharecode big">To show captions on another screen, open this same link there, tap Follow and type the code <b>'+esc(roomCode())+'</b>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+' <button type="button" id="hideCode" class="linkbtn">Hide</button></div>':'<div class="sharecode"><button type="button" id="showCode" class="linkbtn">Show code for other screens</button>'+(SHARE.conns.length?' \u00b7 '+SHARE.conns.length+' following now':'')+'</div>')):'')+(MULTI?'<div class="follow"><span class="sharecode">Only a screen? Type the code shown on the main device:</span><input id="watchCodeBox" aria-label="Code of the main device" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" value="'+esc((VIEW&&VIEW.typed)||'')+'"><button type="button" id="watchBtn">Follow</button></div>':'')+'</div>';
   }
+  // ---- three dots next to Start: green when ready, tap one to see what it means ----
+  var DOTTIP=-1;
+  function readyDots(list){var el=document.getElementById('readyDots');if(!el)return;
+    el.innerHTML=list.map(function(x,i){return '<button type="button" data-i="'+i+'" class="'+(x[0]?'':'no')+'" aria-label="'+esc(x[1])+'"><i></i></button>'}).join('')+(DOTTIP>=0&&list[DOTTIP]?'<div id="dotTip" role="status">'+esc(list[DOTTIP][1])+'</div>':'');}
+  document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('#readyDots button');var was=DOTTIP;DOTTIP=b?(+b.getAttribute('data-i')===DOTTIP?-1:+b.getAttribute('data-i')):-1;if(was!==DOTTIP)readyRefresh()});
   // ---- check before the service: opens the microphone for a few seconds and asks each outside service for a real answer ----
   var READYCHK={at:0,rows:[],busy:false};
   async function micTest(){
@@ -2516,7 +2531,7 @@ body.running #en p .draft{opacity:1}
     var standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
     var inApp=!/Safari\//.test(navigator.userAgent)||/CriOS|FxiOS|Claude|GSA|FBAN|Instagram/.test(navigator.userAgent);
     if(standalone)return;
-    if(!S.get('groqKey','')||inApp)showAlert((inApp?'This page is open inside another app\'s browser, which forgets settings. ':'')+'For church, open the app from its Home Screen icon so the key stays saved. (In Safari: Share, then Add to Home Screen.)\n(tap to hide)',false,15000);
+    if(false)showAlert((inApp?'This page is open inside another app\'s browser, which forgets settings. ':'')+'For church, open the app from its Home Screen icon so the key stays saved. (In Safari: Share, then Add to Home Screen.)\n(tap to hide)',false,15000);
   },2500);
 
   // ---- live test: play a recording in real time through the church path, then report the delays ----
