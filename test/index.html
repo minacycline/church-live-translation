@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v113">
+<meta name="build" content="v114">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -171,14 +171,14 @@ main{justify-content:flex-start}
 .follow input{width:8.5em;font:inherit;font-size:18px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--fg)}
 #go{white-space:nowrap}
 /* the main device shows a red frame and a small tag while it is listening, so nobody mistakes it for a screen */
-body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
+body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #1f7a4d;pointer-events:none;z-index:55}
 .rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
-#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
-body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
-/* a screen shows a green frame and "TRANSLATING" while captions are arriving from the main device */
+body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#1f7a4d;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
+/* a screen shows a green frame and "Live Translation" while captions are arriving from the main device */
 body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #1f7a4d;pointer-events:none;z-index:55}
 #viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.viewing.livecap:not(.noframe) #viewTag{display:block}
@@ -246,8 +246,6 @@ body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:
 #admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
 #closing{position:fixed;top:0;left:0;right:0;bottom:0;z-index:120;background:#fff;color:#16171a;display:flex;align-items:center;justify-content:center;padding:6vw;text-align:center;font:700 clamp(38px,9vw,130px)/1.15 system-ui,sans-serif;cursor:pointer;-webkit-user-select:none;user-select:none}
 #closing[hidden]{display:none}
-#closing{flex-direction:column;gap:5vh}
-#closing img{height:min(22vh,180px);width:auto;background:#101014;border-radius:16px;padding:8px 14px;pointer-events:none}
 body.running header,body.running footer{transition:opacity .4s}
 body.running.idle:not(.paused) header,body.running.idle:not(.paused) footer{opacity:0;pointer-events:none}
 body.running.idle:not(.paused){cursor:none}
@@ -263,9 +261,9 @@ body.closed #en{visibility:hidden}
 <div id="closing" hidden role="button" tabindex="0" aria-label="Glory be to God Forever, Amen! Tap to go back to the start screen">Glory be to God Forever, Amen!</div>
 <div id="alert"></div>
 <div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
-<div id="liveTag" aria-hidden="true">TRANSLATING</div>
+<div id="liveTag" aria-hidden="true">Live Translation</div>
 <div id="betaNote" aria-hidden="true">Beta - Translation may not be fully accurate</div>
-<div id="viewTag" aria-hidden="true">TRANSLATING</div>
+<div id="viewTag" aria-hidden="true">Live Translation</div>
 <header>
   <div class="titlerow">
     <span class="dot" id="dot"></span>
@@ -435,7 +433,7 @@ body.running #en p .draft{opacity:1}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Red with "TRANSLATING" at the top and the beta notice at the bottom on the main device, green with "TRANSLATING" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Green with "Live Translation" at the top and the beta notice at the bottom on the main device, green with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
@@ -2027,7 +2025,7 @@ body.running #en p .draft{opacity:1}
   var HOLD_SEC=120,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0,drain:[],dn:0,told:false};
   // v96 weak Wi-Fi: up to 2 minutes of speech is kept during a drop (it was 25 s), it is never thrown away while the line is being retried,
   // and when the line returns the kept sound goes up at a steady pace (about 5 times normal speed) so a weak line is not flooded and dropped again.
-  function holdNote(t){try{var g=$('liveTag');if(!g)return;g.textContent=t||'TRANSLATING';g.classList.toggle('weak',!!t)}catch(e){}}
+  function holdNote(t){try{var g=$('liveTag');if(!g)return;g.textContent=t||'Live Translation';g.classList.toggle('weak',!!t)}catch(e){}}
   setInterval(function(){
     if(!HOLD.drain.length)return;var ws=DG.ws;if(!ws||ws.readyState!==1||!DG.live)return;
     var sent=0;while(HOLD.drain.length&&sent<SR16*0.5&&ws.bufferedAmount<48000){var f=HOLD.drain.shift();HOLD.dn-=f.length;sent+=f.length;dgSend(ws,f)}
@@ -2660,13 +2658,12 @@ body.running #en p .draft{opacity:1}
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else{goFull();start()}};
   // v104: pressing Stop shows only the closing line on a clean white screen; one tap goes back to the start screen
-  // v113: the closing screen keeps the device awake (30 minutes at most) and carries the church logo above the line
+  // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
   function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown')}catch(e){}
     try{closeWakeOff();if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;closeWakeT=setTimeout(closeWakeOff,30*60000)}).catch(function(){})}catch(e){}}
   function closingHide(){try{$('closing').hidden=true}catch(e){}closeWakeOff()}
-  try{var cLogo=$('logo');if(cLogo&&cLogo.src){var cImg=new Image();cImg.alt='';cImg.src=cLogo.src;$('closing').insertBefore(cImg,$('closing').firstChild)}}catch(e){}
   // v113: clean screen for the projector (user view only). Start goes full screen where the device allows it; while translating, the top bar and the buttons fade out after 4 seconds without a touch, and the first touch only brings them back
   var CLEANVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')!=='admin';
   function goFull(){try{if(!CLEANVIEW)return;var de=document.documentElement,rq=de.requestFullscreen||de.webkitRequestFullscreen;if(!rq||document.fullscreenElement||document.webkitFullscreenElement)return;if((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone)return;var r=rq.call(de,{navigationUI:'hide'});if(r&&r.catch)r.catch(function(){})}catch(e){}}
