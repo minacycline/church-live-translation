@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en">
 <head>
+<base href="../">
 <meta charset="utf-8">
 <meta name="build" content="v102">
-<base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -228,23 +228,6 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 #readyDots button.no i{background:#fff;border:3px solid #b45309;box-sizing:border-box}
 #readyDots button:focus-visible{outline:2px solid var(--fg)}
 #dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:normal;width:max-content;max-width:min(78vw,340px);z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-
-/* v102: user view and admin view */
-body.userview #ownerGate,body.adminview #ownerGate,#ownerWarn{display:none!important}
-body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:none!important}
-#cfgState{margin:0 0 12px;font-weight:600}
-#cfgNote{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:150;background:#14532d;color:#fff;font:600 15px/1.35 system-ui,sans-serif;padding:10px 16px;border-radius:12px;width:max-content;max-width:min(92vw,560px);text-align:center;display:none;box-shadow:0 6px 20px rgba(0,0,0,.2)}
-#cfgNote.bad{background:#b45309}
-#admGate{position:fixed;inset:0;z-index:300;background:#fff;display:flex;align-items:center;justify-content:center;padding:24px}
-#admForm{width:min(92vw,380px);display:flex;flex-direction:column;gap:14px;font-family:system-ui,sans-serif;color:#16171a}
-#admForm h2{margin:0;font-size:28px}
-#admForm p{margin:0;font-size:17px;line-height:1.4;color:#4b4f58}
-#admPass{font-size:20px;padding:14px;border:2px solid #16171a;border-radius:12px;width:100%;box-sizing:border-box}
-#admGo{min-height:52px;border:0;border-radius:12px;background:#16171a;color:#fff;font-size:19px;font-weight:700}
-#admGo:disabled{opacity:.5}
-#admMsg{min-height:1.4em;font-size:16px;font-weight:600;color:#b45309}
-#admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
-#admTag{position:fixed;right:0;bottom:0;z-index:99;background:#16171a;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:8px 0 0 0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -515,7 +498,6 @@ body.running #en p .draft{opacity:1}
 (function(){
   var $=function(id){return document.getElementById(id)};
   var S={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-  var ADMINVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')==='admin'; // v102: the admin link; every other link is the user view
   var KEYDB={
     open:function(){return new Promise(function(res,rej){try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}catch(e){rej(e)}})},
     put:function(k,v){return KEYDB.open().then(function(db){return new Promise(function(res){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=function(){res(true)};tx.onerror=function(){res(false)}})}).catch(function(){return false})},
@@ -567,7 +549,6 @@ body.running #en p .draft{opacity:1}
   applyView();
   var dlg=$('settings');
   var BASICF={size:1,showAr:1,micMode:1,noise:1,lang:1,autoRead:1,notes:1,reading:1}; // the everyday settings: nothing here can break the app or cost money
-  if(!ADMINVIEW)BASICF={size:1}; // v102: the shared link only changes the text size
   (function(){
     try{
       var kids=[].slice.call(dlg.children),blocks={},order=[],cur=null,tail=null;
@@ -577,6 +558,7 @@ body.running #en p .draft{opacity:1}
         if(el.tagName==='LABEL'||el.classList.contains('row')){var key=el.tagName==='LABEL'?(el.getAttribute('for')||el.textContent.trim()):'row';cur=blocks[key]={els:[el]};order.push(key)}
         else if(cur)cur.els.push(el);
       });
+      try{var dc=$('dailyCap');if(dc&&dc.parentNode)dc.parentNode.style.display='none'}catch(e){}
       var GONEF={groqKey:1,hearSpeed:1,hearEngine:1,cohereKey:1,deepgramKey:1,translator:1,engine:1,email:1,testfile:1}; // v98: settings of the removed services stay hidden
       function sec(parent,title,keys,open){var d=document.createElement(parent.id==='basicArea'?'div':'details');
         if(d.tagName==='DETAILS'){d.className='sec';if(open)d.open=true;var sm=document.createElement('summary');sm.textContent=title;d.appendChild(sm)}else{var h=document.createElement('h3');h.textContent=title;d.appendChild(h)}
@@ -1099,6 +1081,7 @@ body.running #en p .draft{opacity:1}
     if(typeof running!=='undefined'&&running&&PROBLEM_RE.test(t)&&!/^Listening/.test(t)){problemText=t;problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');return}
     if(/^Listening/.test(t)&&typeof running!=='undefined'&&running){var dd=$('dot');if(dd&&Date.now()-problemAt>8000){dd.classList.remove('warn');problemText=''}}
     $('status').textContent=t;
+    try{if(!(typeof running!=='undefined'&&running)&&t&&t!=='Stopped'&&(PROBLEM_RE.test(t)||/^Stopped.{3,}/.test(t)))showAlert(t+'\n(tap to hide)',false,0,true)}catch(e){}
   }
   var problemAt=0;
 
@@ -1256,7 +1239,7 @@ body.running #en p .draft{opacity:1}
   }
   function alertClear(key){try{var al=$('alert');if(al&&al.style.display!=='none'&&al.dataset.k===key){showAlert('');al.dataset.k=''}delete downAt[key]}catch(e){}}
   // v99: the church server stops the day at its limit; the app then stops listening and says so, instead of retrying all day
-  var limitTold=false;
+  var limitTold=false,MISSED=[]; // MISSED: sentences that were heard but never reached the screen; they go in the report
   function limitHit(m){if(limitTold)return;limitTold=true;dbg('DAILY LIMIT '+m);serviceDown('limit','DAILY LIMIT REACHED: '+String(m||'the church server reached its limit for today').replace(/^Daily limit reached:\s*/i,'').slice(0,160));setTimeout(function(){try{if(running)stop()}catch(e){}try{showAlert(problemText+'\n(tap to hide)',false,0,true)}catch(e){}},300)}
   function aiOK(){return NO_BACKUP?(claudeReady()&&Date.now()>claudeBlockedUntil):(!!S.get('groqKey','')&&Date.now()>groqBlockedUntil)}
   var CLAUDE_MODEL='claude-haiku-5-5',claudeBlockedUntil=0,claudeUse={req:0,inTok:0,outTok:0};
@@ -1281,6 +1264,7 @@ body.running #en p .draft{opacity:1}
     var ownKey=S.get('claudeKey','');
     var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
     if(!r.ok){var em='',et='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||'';et=(ej.error&&ej.error.type)||''}catch(e){}
+      if(et==='rate_limit')dbg('RATE LIMIT the church server refused a request: too many in one minute');
       if(et==='daily_limit'){claudeBlockedUntil=Date.now()+3600000;limitHit(em);var le=new Error('Claude is stopped (daily limit)');le.kind='credit';throw le}
       var credit=/credit|balance|billing|payment/i.test(em)||r.status===402,keyBad=r.status===401||r.status===403||/key is not set/i.test(em);
       if(credit||keyBad){claudeBlockedUntil=Date.now()+(NO_BACKUP?20000:600000);
@@ -1496,10 +1480,11 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}
         if(nx&&nx.en&&!nx.q&&en.length>3&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=nx.en.slice(en.trim().length).trim();dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
+        dbg('SENTENCE not translated ('+String(e&&e.message||e).slice(0,120)+')');try{MISSED.push({ar:String(ar).slice(0,4000),why:String(e&&e.message||e).slice(0,160)})}catch(x){}
         if(e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
         serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
       .then(function(){qDepth=Math.max(0,qDepth-1)});
@@ -1534,12 +1519,12 @@ body.running #en p .draft{opacity:1}
   }
   (function(){
     var t=$('title'),h=null;
-    function down(e){return; /* v102: the settings are reached from the admin link, not by holding the title */ if(document.body.classList.contains('admin'))return;clearTimeout(h);h=setTimeout(function(){h=null;askAdmin()},2000)}
+    function down(e){if(document.body.classList.contains('admin'))return;clearTimeout(h);h=setTimeout(function(){h=null;askAdmin()},2000)}
     function up(){clearTimeout(h);h=null}
     ['pointerdown','touchstart','mousedown'].forEach(function(n){t.addEventListener(n,down,{passive:true})});
     ['pointerup','pointercancel','pointerleave','touchend','touchmove','mouseup','mouseleave'].forEach(function(n){t.addEventListener(n,up,{passive:true})});
     t.addEventListener('contextmenu',function(e){if(!document.body.classList.contains('admin'))e.preventDefault()});
-    setAdmin(false); // v102: ?admin=1 no longer opens anything
+    if(/[?&]admin=1/.test(location.search))askAdmin();else setAdmin(false);
     function bump(d){var v=Math.max(28,Math.min(90,(parseInt(S.get('size','46'),10)||46)+d));S.set('size',String(v));applyView()}
     $('fsDown').onclick=function(){bump(-4)};$('fsUp').onclick=function(){bump(4)};
 
@@ -1572,7 +1557,7 @@ body.running #en p .draft{opacity:1}
   function rvFixes(){return rvJ('reviewFix')}
   function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved. ':'No key yet: open the setup link once. ')+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
   function rvQueue(ls){
-    var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
+    var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0,over=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
     ls.forEach(function(l){
       if(l.rvDone||!l.en||l.fixed||l.prayer||!l.ar||!AR.test(l.ar))return;l.rvDone=true;
       var why=[],shaky=typeof l.conf==='number'&&l.conf<-0.7;
@@ -1581,15 +1566,17 @@ body.running #en p .draft{opacity:1}
       if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
       if(l.fixes)why.push('translator changed words: '+l.fixes.join(' | '));
       if(!why.length)return;
-      var key=rvHash(fixKey(l.ar));if(have[key]||fx[key]||add>=60)return;have[key]=1;add++;
+      var key=rvHash(fixKey(l.ar));if(have[key]||fx[key])return;if(add>=500){over++;return}have[key]=1;add++;
       q.push({key:key,ar:l.ar,en:l.en,pos:l.rep?mmss(l.pos):new Date(l.t0||Date.now()).toTimeString().slice(0,5),why:why.join('; ')});
     });
-    S.set('reviewQ',JSON.stringify(q.slice(-300)));
+    if(over)dbg('REVIEW more flagged lines than one session may add: '+over+' were not put on the Corrections list');
+    if(q.length>3000)dbg('REVIEW list is full: '+(q.length-3000)+' of the oldest waiting lines were let go');
+    S.set('reviewQ',JSON.stringify(q.slice(-3000)));
   }
   async function rvPull(){
     var k=rvKey();if(!k||!navigator.onLine)return;
     try{var c=new AbortController();setTimeout(function(){c.abort()},20000);var r=await fetch(RV_BASE+'/church-review-approved?k='+encodeURIComponent(k),{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);var j=await r.json();
-      if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,2000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
+      if(j&&j.ok&&Array.isArray(j.rows)){var old=S.get('reviewFix','[]'),nw=JSON.stringify(j.rows.slice(0,20000));if(old!==nw){S.set('reviewFix',nw);LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);dbg('REVIEW: '+j.rows.length+' approved fixes loaded')}rvLast='Sheet checked '+new Date().toTimeString().slice(0,5)+'.'}
     }catch(e){rvLast='Sheet not reachable ('+(e.name==='AbortError'?'timeout':e.message)+'); will retry.';dbg('REVIEW pull failed: '+e.message)}
     rvNote();
   }
@@ -2458,7 +2445,7 @@ body.running #en p .draft{opacity:1}
       lastF=audioFrames;
     },1500);
     buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
-    proc.onaudioprocess=function(e){
+    proc.onaudioprocess=function(e){if(!ctx)return; // v102: a late sound frame after the microphone closed is ignored
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
       if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now)}catch(x){}return}
@@ -2567,7 +2554,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
@@ -2577,10 +2564,10 @@ body.running #en p .draft{opacity:1}
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
       var ref=useWhisper()?lastSpeechAt:lastResult;
-      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){stop();setStatus('Stopped: nothing was heard for '+num('idleMin',10)+' minutes.')}
+      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){autoStop('Nothing was heard for '+num('idleMin',10)+' minutes, so listening stopped.')}
     },15000);
     var mins=parseInt(S.get('maxMin','240'),10)||240;
-    maxTimer=setTimeout(function(){stop();setStatus('Stopped automatically after '+mins+' minutes.')},mins*60000);
+    maxTimer=setTimeout(function(){autoStop('Listening stopped by itself after '+mins+' minutes.')},mins*60000);
     try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
   }
   function stop(){
@@ -2600,7 +2587,7 @@ body.running #en p .draft{opacity:1}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
     setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
-    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||'');setTimeout(function(){reportSend(rb,rr)},6000)}catch(e){}
+    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;setTimeout(function(){reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}running?stop():start()};
@@ -2609,19 +2596,20 @@ body.running #en p .draft{opacity:1}
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
   // v99 service report: when listening stops, a summary and the full debug log go to the church server (kept 90 days), so problems can be studied later.
   var sessionBegan=0;
-  function reportBuild(began,test){
-    var log=DBG.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
-    var ls=lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
+  function reportBuild(began,test,snap){
+    snap=snap||{log:DBG,lines:lines,missed:MISSED,drop:DBGDROP,use:claudeUse};
+    var log=snap.log.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
+    var ls=snap.lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
       device:navigator.userAgent,sentences:ls.length,
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
       drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,300)}),
-      translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:claudeUse.req,inTokens:claudeUse.inTok,outTokens:claudeUse.outTok},
-      logLinesDropped:DBGDROP,logShortened:false,sentencesLeftOut:0,
+      translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:snap.use.req,inTokens:snap.use.inTok,outTokens:snap.use.outTok},missed:(snap.missed||[]).slice(),
+      logLinesDropped:snap.drop,logShortened:false,sentencesLeftOut:0,
       text:ls.map(function(l){return {ar:String(l.ar||'').slice(0,4000),en:String(l.en||'').slice(0,4000),s:(l.t0&&l.t1)?Math.round((l.t1-l.t0)/100)/10:null}}),log:log.join('\n')};
   }
   // v101: a report is never cut quietly. If it is too large for the server, the middle of the debug log goes first, then the oldest sentences, and the report says exactly what was left out.
-  var REPORT_MAX=850000;
+  var REPORT_MAX=3500000; // v102: the server now takes 4 MB (it was 0.9 MB)
   function reportFit(o){
     var body=JSON.stringify(o);if(body.length<=REPORT_MAX)return body;
     var over=body.length-REPORT_MAX+2000,L=o.log||'';
@@ -2651,9 +2639,9 @@ body.running #en p .draft{opacity:1}
       })})};
     return step().catch(function(){}).then(function(){qBusy=false;repStat()});
   }
-  function reportSend(began,test){
-    if(!CLAUDE_PROXY||!began||Date.now()-began<60000)return; // under a minute is not a service
-    var body;try{body=reportFit(reportBuild(began,test))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
+  function reportSend(began,test,snap){
+    if(!CLAUDE_PROXY||!began)return; // v102: every session is reported, short ones too (the sheet marks them as short)
+    var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
     qAdd(body).then(function(){return qFlush()}); // always through the waiting list: it leaves the list only when the server confirms it
   }
   // what is waiting, and where: shown as an orange dot on the start screen (only when something is waiting) and in the owner's settings
@@ -2682,6 +2670,8 @@ body.running #en p .draft{opacity:1}
   // v100: a mark is kept while listening; if the page comes back without Stop having been pressed (a reload, a crash), it offers one tap to carry on
   setInterval(function(){try{if(running&&!replayEl&&!isScreen())localStorage.setItem('liveAt',String(Date.now()))}catch(e){}},10000);
   setTimeout(function(){try{var la=+localStorage.getItem('liveAt')||0;localStorage.removeItem('liveAt');if(la&&Date.now()-la<180000&&!running&&roleChosen()&&!isScreen()){dbg('RELOAD in the middle of listening: asking for a tap');askTap(function(){if(!running)start()},'The app restarted. Tap to carry on.')}}catch(e){}},1200);
+  // v102: when the app stops listening by itself, it says why on the whole screen and one tap starts it again
+  function autoStop(why){dbg('AUTO STOP '+why);try{stop()}catch(e){}setTimeout(function(){askTap(function(){if(!running)start()},why+' Tap to start again.')},500)}
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
@@ -2704,7 +2694,7 @@ body.running #en p .draft{opacity:1}
     var el=document.createElement('audio');el.preload='auto';el.playsInline=true;el.setAttribute('playsinline','');
     replayUrl=URL.createObjectURL(f);el.src=replayUrl;replayName=f.name||'recording';
     lines=[];enEl.innerHTML='';liveEn='';heardCount=0;lastText='';sermonMemo='';memoCount=0;testFixes=[];fixCount=0;
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();MISSED=[];dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
     replayEl=el;testStart=Date.now();
     var ok=await startWhisper(false,el);
     if(!ok){replayEl=null;running=false;ui();setStatus('Live test could not start');return}
@@ -2796,137 +2786,6 @@ body.running #en p .draft{opacity:1}
   (function(){var sc=document.createElement('script');sc.src='bible.js';sc.async=true;sc.onload=function(){LIB=null;setTimeout(function(){try{getLib()}catch(e){}},300)};document.head.appendChild(sc)})();
   loadReadings();
   window.__churchTest={copticDate:copticDate,saintsToday:saintsToday,loadModels:loadModels,chatCall:chatCall,pool:function(){return POOL.slice()},noteUse:noteUse,budgetLeft:budgetLeft,nextFree:nextFree,dbg:function(){return DBG.slice()},caps:function(){return {TPD_SAFE:TPD_SAFE}}}; // for the offline test harness only
-
-  // ---- v102: two views of the same app ----
-  // The link that is shared is the USER view: captions, text size, Start / Pause, full screen. Nothing else can be reached from it.
-  // The ADMIN link (…/admin/) asks for a passcode that the church server checks (never the page: this page's code is public),
-  // shows every setting, and saves the settings on the server so every device picks them up by itself.
-  var CFG_URL='https://church-settings.minaypharmd.workers.dev',CFG_NS=/\/test\//.test(location.pathname)?'test':'live';
-  // what every device shares. Keys, the review key, the text size and the instant preview stay with each device.
-  var SHARED=['micMode','noise','lang','autoRead','notes','terms','hideWords','reading','prayers','showAr','maxMin','idleMin','dailyCap','builtin','think','frame','title'];
-  var LIGHT={showAr:1,frame:1,think:1,title:1}; // safe to change while a service is running; the rest waits until it is stopped
-  var CFG={rev:parseInt(S.get('cfgRev','0'),10)||0,busy:false,pt:0,rt:0};
-  function cfgTok(){var t=S.get('adminTok','');var m=/^(\d{10,16})\.[0-9a-f]{64}$/.exec(t);return m&&Number(m[1])>Date.now()?t:''}
-  function cfgDef(k){return k==='title'?CHURCH:(DEF[k]||'')}
-  function cfgLocal(){var o={};SHARED.forEach(function(k){o[k]=String(S.get(k,cfgDef(k)))});return o}
-  function cfgFetch(path,opts,ms){
-    var ac=('AbortController' in window)?new AbortController():null,o=opts||{};if(ac)o.signal=ac.signal;o.cache='no-store';
-    var t=setTimeout(function(){try{ac&&ac.abort()}catch(e){}},ms||9000);
-    return fetch(CFG_URL+path,o).then(function(r){clearTimeout(t);return r.json().then(function(j){return {s:r.status,j:j||{}}},function(){return {s:r.status,j:{}}})},function(e){clearTimeout(t);throw e});
-  }
-  function cfgNote(text,bad,stay){
-    if(!ADMINVIEW)return;var n=$('cfgNote');
-    if(!n){n=document.createElement('div');n.id='cfgNote';document.body.appendChild(n)}
-    n.textContent=text||'';n.className=bad?'bad':'';n.style.display=text?'block':'none';
-    clearTimeout(CFG.nt);if(text&&!bad&&!stay)CFG.nt=setTimeout(function(){n.style.display='none'},5000);
-  }
-  function cfgEditing(){try{return ADMINVIEW&&(dlg.open||document.activeElement===title||S.get('cfgDirty','')==='1')}catch(e){return false}}
-  // takes the server's settings into this device. Never moves backwards, never touches what the admin is in the middle of changing.
-  function cfgApply(vals,rev){
-    if(!vals||typeof rev!=='number'||rev<=CFG.rev)return false;
-    if(cfgEditing())return false;
-    if(!S.get('cfgBackup','')){try{S.set('cfgBackup',JSON.stringify({at:new Date().toISOString(),values:cfgLocal()}))}catch(e){}} // this device's own settings from before the first sync, kept once
-    var ch=[],waiting=false;
-    SHARED.forEach(function(k){
-      if(typeof vals[k]!=='string')return;var v=(k==='title'&&!vals[k].trim())?CHURCH:vals[k];
-      if(String(S.get(k,cfgDef(k)))===v)return;
-      if(running&&!LIGHT[k]){waiting=true;return}
-      S.set(k,v);ch.push(k);
-    });
-    if(!waiting){CFG.rev=rev;S.set('cfgRev',String(rev))} // with something still waiting, the same version is taken again after the service
-    if(ch.length){
-      dbg('SETTINGS from the server (version '+rev+'): '+ch.join(', ')+(waiting?' (the rest waits until the service is stopped)':''));
-      try{if(ch.indexOf('title')>=0)title.textContent=S.get('title',CHURCH)}catch(e){}
-      try{applyView()}catch(e){}
-      if(!running&&ch.some(function(k){return !LIGHT[k]})){
-        try{readyRefresh()}catch(e){}
-        LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);
-        if(ch.indexOf('reading')>=0||ch.indexOf('autoRead')>=0||ch.indexOf('notes')>=0){try{loadReadings()}catch(e){}}
-      }
-    }
-    return true;
-  }
-  function cfgPull(){
-    if(CFG.busy)return Promise.resolve();CFG.busy=true;
-    return cfgFetch('/settings?ns='+CFG_NS).then(function(x){
-      CFG.busy=false;if(x.s!==200||typeof x.j.rev!=='number')return;
-      CFG.seen=x.j.rev;CFG.at=x.j.at||'';cfgApply(x.j.values,x.j.rev);cfgState();
-    },function(){CFG.busy=false});
-  }
-  function cfgPush(){
-    if(!ADMINVIEW)return;S.set('cfgDirty','1');clearTimeout(CFG.pt);CFG.pt=setTimeout(cfgSend,500);
-  }
-  function cfgSend(){
-    clearTimeout(CFG.rt);
-    var tk=cfgTok();if(!tk){cfgNote('Not saved for the other devices: the admin passcode is needed again.',true);admGate();return}
-    cfgNote('Saving for every device…',false,true);
-    cfgFetch('/settings?ns='+CFG_NS,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({baseRev:CFG.rev,values:cfgLocal()})},12000).then(function(x){
-      if(x.s===200&&x.j.ok){CFG.rev=x.j.rev;CFG.seen=x.j.rev;CFG.at=x.j.at||'';S.set('cfgRev',String(x.j.rev));S.set('cfgDirty','');cfgNote('Saved for every device ✓');cfgState();return}
-      if(x.s===409){S.set('cfgDirty','');var was=dlg.open;try{if(was)dlg.close()}catch(e){}cfgApply(x.j.values,x.j.rev);cfgState();cfgNote('Another device changed the settings a moment ago, so that newer version was loaded here. Open Settings and make your change again.',true);return}
-      if(x.s===401){S.set('adminTok','');cfgNote('Not saved for the other devices: the admin passcode is needed again.',true);admGate();return}
-      cfgNote('Not saved for the other devices (the server answered '+x.s+(x.j.error?' '+x.j.error:'')+'). Trying again in 30 seconds.',true);CFG.rt=setTimeout(cfgSend,30000);
-    },function(){cfgNote('Not saved for the other devices yet: no connection to the server. Trying again in 30 seconds.',true);CFG.rt=setTimeout(cfgSend,30000)});
-  }
-  function cfgState(){ // one line at the top of the admin's settings: what the server holds
-    var el=$('cfgState');if(!el)return;
-    if(S.get('cfgDirty','')==='1'){el.textContent='A change on this device is not on the server yet.';return}
-    if(typeof CFG.seen!=='number'){el.textContent='The server has not answered yet, so these are the settings saved on this device.';return}
-    if(!CFG.seen){el.textContent='Nothing is saved on the server yet. Press Save here, on the device whose settings every device should use, to send them.';return}
-    var when='';try{if(CFG.at)when=' Last saved '+new Date(CFG.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'.'}catch(e){}
-    el.textContent=(CFG.rev===CFG.seen?'Every device uses these settings.':'A newer version is on the server; it loads here when Settings is closed.')+when;
-  }
-  // ---- the passcode screen of the admin link ----
-  function admGate(){
-    if($('admGate'))return;
-    var g=document.createElement('div');g.id='admGate';
-    g.innerHTML='<form id="admForm" autocomplete="off"><h2>Admin</h2><p>Enter the admin passcode to open every setting.</p><input id="admPass" type="password" autocomplete="current-password" aria-label="Admin passcode"><button id="admGo" type="submit">Open</button><div id="admMsg" role="status"></div></form>';
-    document.body.appendChild(g);
-    var msg=$('admMsg'),inp=$('admPass'),go=$('admGo');
-    setTimeout(function(){try{inp.focus()}catch(e){}},50);
-    $('admForm').onsubmit=function(ev){
-      ev.preventDefault();var v=inp.value;if(!v){msg.textContent='Type the passcode first.';return}
-      go.disabled=true;msg.textContent='Checking…';
-      cfgFetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pass:v})},12000).then(function(x){
-        go.disabled=false;
-        if(x.s===200&&x.j.token){S.set('adminTok',x.j.token);inp.value='';g.remove();admEnter();return}
-        inp.value='';
-        if(x.s===401)msg.textContent='Wrong passcode.'+(typeof x.j.left==='number'&&x.j.left<=3?' '+x.j.left+' more tr'+(x.j.left===1?'y':'ies')+' before a 15 minute wait.':'');
-        else if(x.s===429)msg.textContent='Too many wrong tries. Wait 15 minutes, then try again.';
-        else if(x.s===503&&x.j.error==='not_set')msg.textContent='No admin passcode has been set on the server yet.';
-        else msg.textContent='The server could not check the passcode (answer '+x.s+'). Try again in a minute.';
-      },function(){go.disabled=false;msg.textContent='Could not reach the server. Check the connection and try again.'});
-    };
-  }
-  function admEnter(){
-    setAdmin(true);adminUntil=Date.now()+3e11; // the admin link stays unlocked: the passcode is the lock
-    document.body.classList.add('adminok');
-    cfgPull().then(function(){if(S.get('cfgDirty','')==='1')cfgSend()});
-  }
-  function admSignOut(){S.set('adminTok','');try{dlg.close()}catch(e){}setAdmin(false);document.body.classList.remove('adminok');admGate()}
-  (function(){
-    document.body.classList.add(ADMINVIEW?'adminview':'userview');
-    setTimeout(function(){ // after the settings window has been built
-      try{var ba0=$('basicArea'),c=$('showAr');while(c&&ba0&&c!==ba0&&!(c.parentNode&&c.parentNode.parentNode&&c.parentNode.parentNode.parentNode===ba0))c=c.parentNode;if(c&&c!==ba0)c.classList.add('adminonly')}catch(e){}
-      try{var ap=$('adminPin'),d=ap&&ap.closest('details');if(d)d.style.display='none'}catch(e){} // the per-device Owner PIN is replaced by the server passcode
-      if(ADMINVIEW){
-        try{var oa=$('ownerArea');
-          var st=document.createElement('div');st.id='cfgState';st.className='help';var ba=$('basicArea');if(ba&&ba.parentNode)ba.parentNode.insertBefore(st,ba);
-          var so=document.createElement('div');so.className='actions';so.style.justifyContent='flex-start';so.innerHTML='<button type="button" id="admOut">Sign out of admin on this device</button>';if(oa)oa.appendChild(so);
-          $('admOut').onclick=admSignOut;
-        }catch(e){}
-        var g0=$('gear').onclick;$('gear').onclick=function(){cfgState();return g0.apply(this,arguments)};
-        var s0=$('save').onclick;$('save').onclick=function(){var r=s0.apply(this,arguments);cfgPush();return r};
-        title.addEventListener('input',function(){if(document.body.classList.contains('admin'))cfgPush()});
-        title.addEventListener('blur',function(){if(S.get('cfgDirty','')==='1'){clearTimeout(CFG.pt);cfgSend()}});
-      }
-    },0);
-    if(ADMINVIEW){
-      if(cfgTok()){admEnter();cfgFetch('/check',{headers:{'Authorization':'Bearer '+cfgTok()}}).then(function(x){if(x.s===401){S.set('adminTok','');setAdmin(false);document.body.classList.remove('adminok');admGate()}},function(){})} // no connection: the saved sign-in still opens the settings of this device
-      else admGate();
-    }else cfgPull();
-    setInterval(function(){if(!document.hidden)cfgPull()},120000);
-    document.addEventListener('visibilitychange',function(){if(!document.hidden)cfgPull()});
-  })();
 })();
 </script>
 </body>
