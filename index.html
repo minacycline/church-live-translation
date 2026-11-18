@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v92">
+<meta name="build" content="v93">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1414,7 +1414,9 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var pe=prevItem&&prevItem.en?prevItem.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}
+        if(nx&&nx.en&&!nx.q&&en.length>3&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=nx.en.slice(en.trim().length).trim();dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
+        item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
         if(e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
         serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
