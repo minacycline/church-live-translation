@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v80">
+<meta name="build" content="v81">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -317,8 +317,8 @@ body.running #en p .draft{opacity:1}
   <input id="sonioxKey" type="password" autocomplete="off" placeholder="from console.soniox.com, API keys">
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Soniox. Soniox charges for the time the app is listening.</div>
   <label for="translator">Translator for finished sentences</label>
-  <select id="translator"><option value="groq">Groq free models</option><option value="claude">Claude Haiku (paid, needs the Claude key below)</option></select>
-  <label for="claudeKey">Claude key (optional)</label>
+  <select id="translator"><option value="groq">Groq free models</option><option value="claude">Claude Haiku (paid, best)</option></select>
+  <label for="claudeKey">Claude key (not needed, the church server holds it)</label>
   <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
   <div class="help">Stays on this device. With Claude Haiku chosen above, every finished sentence is translated by Claude; the quick live words stay on Groq. If Claude does not answer (no credit, wrong key, no connection), Groq translates instead, so the screen never stops.</div>
   <label for="deepgramKey">Deepgram key (optional)</label>
@@ -492,7 +492,7 @@ body.running #en p .draft{opacity:1}
   try{if(!S.get('shareMig58','')){if(S.get('share','1')==='0')S.set('share','1');S.set('shareMig58','1')}}catch(e){}
   try{if(!S.get('maxMig58','')){if(S.get('maxMin','120')==='120')S.set('maxMin','240');S.set('maxMig58','1')}}catch(e){} // v58: the automatic stop moves from 2 hours to 4
   try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','translator','claudeKey','share','room','role','watchCode','frame'],DEF={translator:'groq',frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','translator','claudeKey','share','room','role','watchCode','frame'],DEF={translator:'claude',frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.body.classList.toggle('noframe',S.get('frame','1')==='0');document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -1086,13 +1086,16 @@ body.running #en p .draft{opacity:1}
   function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
   // v79 Claude Haiku: when it is chosen in Settings and its key is saved, every careful call (finished sentences, the sermon memo) goes to Claude.
   // The quick live words stay on Groq. Any Claude failure falls back to Groq for that call, and a rejected key or empty balance pauses Claude for 10 minutes.
+  var CLAUDE_PROXY='https://church-captions.minaypharmd.workers.dev';
   var CLAUDE_MODEL='claude-haiku-5-5',claudeBlockedUntil=0,claudeUse={req:0,inTok:0,outTok:0};
-  function useClaude(){return S.get('translator','groq')==='claude'&&!!S.get('claudeKey','')&&Date.now()>claudeBlockedUntil}
+  function claudeReady(){return !!S.get('claudeKey','')||!!CLAUDE_PROXY}
+  function useClaude(){return S.get('translator',CLAUDE_PROXY?'claude':'groq')==='claude'&&claudeReady()&&Date.now()>claudeBlockedUntil}
   async function claudeCall(msgs,maxTok,temp,ms){
     var sys=msgs.filter(function(m){return m.role==='system'}).map(function(m){return m.content}).join('\n\n'),conv=msgs.filter(function(m){return m.role!=='system'}).map(function(m){return {role:m.role==='assistant'?'assistant':'user',content:String(m.content)}});
     if(!conv.length||conv[0].role!=='user')conv.unshift({role:'user',content:'Translate.'});
-    var body={model:CLAUDE_MODEL,max_tokens:Math.max(64,maxTok||300),messages:conv};if(sys)body.system=sys;if(typeof temp==='number')body.temperature=Math.max(0,Math.min(1,temp));
-    var r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.get('claudeKey',''),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000);
+    var body={model:CLAUDE_MODEL,max_tokens:Math.max(64,maxTok||300),messages:conv};if(sys)body.system=sys; /* claude-haiku-5-5 refuses a temperature setting */
+    var ownKey=S.get('claudeKey','');
+    var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
     if(!r.ok){var em='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||''}catch(e){}
       if(r.status===401||r.status===403||(r.status===400&&/credit|balance|billing/i.test(em))){claudeBlockedUntil=Date.now()+600000;problemText='Claude: '+(r.status===400?'the credit balance is too low':'the key was not accepted')+'. Groq is translating instead.';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn')}
       throw new Error('Claude '+r.status+(em?': '+em.slice(0,120):''))}
@@ -1162,7 +1165,7 @@ body.running #en p .draft{opacity:1}
     if(!ids.length)return res;
     await loadModels();
     res.push({n:'Hearing model',ok:ids.indexOf(MODELS.asr)>=0,m:MODELS.asr+(ids.indexOf(MODELS.asr)>=0?'':' is not available to this key')});
-    if(full&&S.get('claudeKey','')){claudeBlockedUntil=0;try{var ck=await claudeCall([{role:'user',content:'Translate to English, answer with the English only: الرب راعي'}],40,0,12000);res.push({n:'Claude translator',ok:true,m:CLAUDE_MODEL+' works ("'+ck.text.slice(0,40)+'")'+(S.get('translator','groq')==='claude'?'':'. Choose Claude Haiku as the translator to use it.')})}catch(e){res.push({n:'Claude translator',ok:false,m:e.message+'. Groq is used instead.'})}}
+    if(full&&claudeReady()){claudeBlockedUntil=0;try{var ck=await claudeCall([{role:'user',content:'Translate to English, answer with the English only: الرب راعي'}],40,0,12000);res.push({n:'Claude translator',ok:true,m:CLAUDE_MODEL+' works ("'+ck.text.slice(0,40)+'")'+(S.get('translator',CLAUDE_PROXY?'claude':'groq')==='claude'?'':'. Choose Claude Haiku as the translator to use it.')})}catch(e){res.push({n:'Claude translator',ok:false,m:e.message+'. Groq is used instead.'})}}
     if(full&&S.get('sonioxKey','')){var sc=await sxCheck();res.push({n:'Soniox streaming',ok:sc[0],m:sc[1]+(sc[0]?'':'. Whisper is used instead.')})}
     if(full&&S.get('deepgramKey','')){var dc=await dgCheck();res.push({n:'Deepgram streaming',ok:dc[0],m:dc[1]+(dc[0]?'':'. Whisper is used instead.')})}
     if(full&&S.get('cohereKey','')){try{cohereBlockedUntil=0;await cohereHear(wavBlob(new Float32Array(16000)),12000);res.push({n:'Cohere hearing',ok:true,m:COHERE_MODEL+' answers from this device'})}catch(e){res.push({n:'Cohere hearing',ok:false,m:e.message+'. Whisper is used instead.'})}}
