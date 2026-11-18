@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v89">
+<meta name="build" content="v90">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -281,6 +281,12 @@ body.running #en #hist p.in{opacity:0;transform:translateY(1.2em)}body.running #
 body.running #en #cbox{position:relative;flex:none;height:33vh;background:#f2c94c;color:#121214;border-radius:20px;overflow:hidden;margin:0 0 .15em}
 body.running #en #cbox .bx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:.25em .7em;font-size:1.05em;line-height:1.25;font-weight:700;overflow:hidden;transition:opacity .45s ease,transform .45s ease}
 body.running #en #cbox .bx.in{opacity:0;transform:translateY(18%)}body.running #en #cbox .bx.out{opacity:0;transform:translateY(-45%)}
+body.running #en #hist p.hw{position:relative;flex:none;font-size:1em;transition:opacity .5s ease,transform 1s cubic-bezier(.45,0,.2,1)}
+body.running #en #hist p.hw.in{transform:none}
+body.running #en #hist .hi{position:absolute;left:50%;top:0;display:block;text-align:center;line-height:1.25;font-weight:700;color:#8d8d93;transform-origin:50% 0}
+body.running #en #cbox .bx.out.roll{opacity:1;transform:none}
+body.running #en #cbox .bx.rollin{transition:transform 1s cubic-bezier(.45,0,.2,1)}
+body.running #en #cbox .bx.rollin.in{opacity:1;transform:translateY(105%)}
 body.running #en #cmeas{position:absolute;left:-200vw;top:0;visibility:hidden;pointer-events:none;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:.25em .7em;font-size:1.05em;line-height:1.25;font-weight:700;overflow:hidden}
 body.running #en #cbox .bx{box-sizing:border-box}
 body.running #en #cbox .ref{color:#5a4a12}body.running #en #cbox .dots i{background:#121214}
@@ -801,24 +807,27 @@ body.running #en p .draft{opacity:1}
     var before={},keep={};Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
     past.forEach(function(l){keep['h'+l.id]=1});
     Array.prototype.slice.call(hist.children).forEach(function(el){if(!keep[el.id]&&!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
-    past.forEach(function(l){var id='h'+l.id,el=document.getElementById(id),h=unitHtml(l);
-      if(!el){el=document.createElement('p');el.id=id;el.className='in';hist.appendChild(el);requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
-      if(el.innerHTML!==h)el.innerHTML=h;hist.appendChild(el)});
+    var HR=0.58,mm0=boxMeasure(),mcs=mm0?getComputedStyle(mm0):null,HW=mcs?Math.max(60,mm0.clientWidth-parseFloat(mcs.paddingLeft)-parseFloat(mcs.paddingRight)):300,HFS=mcs?parseFloat(mcs.fontSize):30;
+    past.forEach(function(l){var id='h'+l.id,el=document.getElementById(id);
+      if(!el){el=document.createElement('p');el.id=id;el.className='hw in'; // v90: the same line breaks as in the box (the box layout, scaled down), so a sentence leaves the box as one solid block
+        el.innerHTML='<span class="hi" style="width:'+HW+'px;margin-left:'+(-HW/2)+'px;font-size:'+HFS+'px;transform:scale('+HR+')">'+unitHtml(l)+'</span>';hist.appendChild(el);
+        el.style.height=Math.ceil(el.firstChild.offsetHeight*HR)+'px';requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
+      hist.appendChild(el)});
     past.forEach(function(l){var el=document.getElementById('h'+l.id),b=before['h'+l.id];if(!el||b===undefined)return;var d=b-el.getBoundingClientRect().top;if(Math.abs(d)<1)return;
       el.style.transition='none';el.style.transform='translateY('+d+'px)';void el.offsetHeight;el.style.transition='';el.style.transform=''});
     var want=cur?cur.id:(dotsOn?'dots':'');
     if(box.dataset.id!==want){var prevId=box.dataset.id,oldBx=box.lastElementChild,oldR=null,oldF=0,glide=null;
       if(oldBx&&prevId&&prevId!=='dots'){var ot=oldBx.querySelector('.bt');if(ot){oldR=ot.getBoundingClientRect();oldF=parseFloat(getComputedStyle(oldBx).fontSize)||0}}
-      glide=oldR?document.getElementById('h'+prevId):null; // v85: the sentence leaving the box glides up into its place in the history
-      if(glide&&oldR&&oldF){var nr=glide.getBoundingClientRect(),nf=parseFloat(getComputedStyle(glide).fontSize)||oldF,k=oldF/nf;
-        oldBx.style.transition='none';oldBx.style.opacity='0';
-        glide.classList.remove('in');glide.style.transition='none';glide.style.transformOrigin='50% 50%';glide.style.color='#f2c94c';
-        glide.style.transform='translate('+((oldR.left+oldR.width/2)-(nr.left+nr.width/2))+'px,'+((oldR.top+oldR.height/2)-(nr.top+nr.height/2))+'px) scale('+k.toFixed(3)+')';
-        void glide.offsetHeight;glide.style.transition='transform .75s cubic-bezier(.22,.7,.2,1),color .9s ease';glide.style.transform='';glide.style.color='';
-        (function(g){setTimeout(function(){g.style.transition='';g.style.transformOrigin=''},900)})(glide)}
+      glide=oldR?document.getElementById('h'+prevId):null;var hi=glide?glide.querySelector('.hi'):null,ROLL='transform 1s cubic-bezier(.45,0,.2,1)';
+      // v90: conveyor. The sentence rolls up out of the top of the box and carries straight on into the history, shrinking as it goes, while the next one rolls in from below. One continuous movement.
+      if(hi&&oldR){var dy=oldR.top-hi.getBoundingClientRect().top,ot2=oldBx.querySelector('.bt');
+        glide.classList.remove('in');hi.style.transition='none';hi.style.transform='translateY('+dy+'px) scale(1)';
+        ot2.style.display='block';ot2.style.width=HW+'px';ot2.style.transformOrigin='50% 0';ot2.style.transition='none';ot2.style.transform='translateY(0px) scale(1)';
+        void hi.offsetHeight;hi.style.transition=ROLL;hi.style.transform='translateY(0px) scale('+HR+')';ot2.style.transition=ROLL;ot2.style.transform='translateY('+(-dy)+'px) scale('+HR+')';
+        oldBx.classList.add('roll');(function(g){setTimeout(function(){g.style.transition=''},1100)})(hi)}
       box.dataset.id=want;
-      Array.prototype.slice.call(box.children).forEach(function(el){if(!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
-      if(want){var sp=document.createElement('div');sp.className='bx in';sp.innerHTML=cur?'<span class="bt">'+unitHtml(cur)+'</span>':DOTS;box.appendChild(sp);setTimeout(function(){sp.classList.remove('in')},glide?260:30)}}
+      Array.prototype.slice.call(box.children).forEach(function(el){if(!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},el.classList.contains('roll')?1080:520)}});
+      if(want){var sp=document.createElement('div');sp.className='bx in'+(hi&&cur?' rollin':'');sp.innerHTML=cur?'<span class="bt">'+unitHtml(cur)+'</span>':DOTS;box.appendChild(sp);void sp.offsetHeight;setTimeout(function(){sp.classList.remove('in')},30)}}
     BIGLIVE='';lagShow();
     SHARE.rows=UNITS.slice(-3).map(function(l){return {r:l===cur?'cur':'prev',t:l.t,d:'',ref:l.ref||'',f:0}});shareQueue();
     if(txId)txSave(false);
