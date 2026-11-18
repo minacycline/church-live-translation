@@ -3,7 +3,7 @@
 <head>
 <base href="../">
 <meta charset="utf-8">
-<meta name="build" content="v97">
+<meta name="build" content="v98">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -355,7 +355,7 @@ body.running #en p .draft{opacity:1}
   <select id="think"><option value="ahead">Understand first: it hears what he says next, then writes (clearer, a few seconds later)</option><option value="fast">Fast: writes each sentence at once</option></select>
   <label for="claudeKey">Claude key (not needed, the church server holds it)</label>
   <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
-  <div class="help">Stays on this device. With Claude Haiku chosen above, every finished sentence is translated by Claude; the quick live words stay on Groq. If Claude does not answer (no credit, wrong key, no connection), Groq translates instead, so the screen never stops.</div>
+  <div class="help">Stays on this device. Claude Haiku translates every sentence. If Claude does not answer (no credit, wrong key, no connection), the screen says so; no other translator is used.</div>
   <label for="deepgramKey">Deepgram key (optional)</label>
   <input id="deepgramKey" type="password" autocomplete="off" placeholder="from console.deepgram.com, API keys">
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Deepgram. Deepgram charges for every minute the app is listening, silence included, against the account's credit.</div>
@@ -474,6 +474,22 @@ body.running #en p .draft{opacity:1}
 
 
 </script>
+<script>
+/* v98: Groq, Whisper, Cohere, Deepgram and the free MyMemory translator are removed. This guard makes sure of it:
+   any request to one of them is refused before it leaves the device, whatever the rest of the code does. */
+(function(){
+  var GONE=/(^|\.)(groq\.com|cohere\.com|cohere\.ai|deepgram\.com|translated\.net)$/i;
+  function host(u){try{return new URL(String(u&&u.url||u),location.href).hostname}catch(e){return ''}}
+  window.__blocked=[];
+  var f0=window.fetch;if(f0)window.fetch=function(u,o){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);return Promise.reject(new Error('removed service ('+h+')'))}return f0.apply(this,arguments)};
+  var W0=window.WebSocket;if(W0){var W=function(u,p){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);throw new Error('removed service ('+h+')')}return p===undefined?new W0(u):new W0(u,p)};W.prototype=W0.prototype;W.CONNECTING=0;W.OPEN=1;W.CLOSING=2;W.CLOSED=3;window.WebSocket=W}
+  // old keys of the removed services are wiped from this device, with their backup copies
+  try{['groqKey','cohereKey','deepgramKey'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+  try{document.cookie='gk=;max-age=0;path=/;SameSite=Strict;Secure'}catch(e){}
+  try{if(window.caches)caches.delete('church-kv')}catch(e){}
+  try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){try{var tx=r.result.transaction('kv','readwrite'),st=tx.objectStore('kv');['groqKey','cohereKey','deepgramKey'].forEach(function(k){st.delete(k)})}catch(e){}}}catch(e){}
+})();
+</script>
 <script src="terms.js"></script>
 <script src="names.js"></script>
 <script src="liturgy.js"></script>
@@ -541,9 +557,10 @@ body.running #en p .draft{opacity:1}
         if(el.tagName==='LABEL'||el.classList.contains('row')){var key=el.tagName==='LABEL'?(el.getAttribute('for')||el.textContent.trim()):'row';cur=blocks[key]={els:[el]};order.push(key)}
         else if(cur)cur.els.push(el);
       });
+      var GONEF={groqKey:1,hearSpeed:1,hearEngine:1,cohereKey:1,deepgramKey:1,translator:1,engine:1,email:1,testfile:1}; // v98: settings of the removed services stay hidden
       function sec(parent,title,keys,open){var d=document.createElement(parent.id==='basicArea'?'div':'details');
         if(d.tagName==='DETAILS'){d.className='sec';if(open)d.open=true;var sm=document.createElement('summary');sm.textContent=title;d.appendChild(sm)}else{var h=document.createElement('h3');h.textContent=title;d.appendChild(h)}
-        keys.forEach(function(k){var b=blocks[k];if(!b)return;b.els.forEach(function(e){d.appendChild(e)});delete blocks[k]});parent.appendChild(d);return d}
+        keys.forEach(function(k){var b=blocks[k];if(!b)return;b.els.forEach(function(e){if(GONEF[k])e.style.display='none';d.appendChild(e)});delete blocks[k]});parent.appendChild(d);return d}
       var basic=document.createElement('div');basic.id='basicArea';var owner=document.createElement('div');owner.id='ownerArea';
       // the row of small boxes holds both kinds: text size and "show Arabic" are everyday, the three stops are the owner's
       var row=blocks.row&&blocks.row.els[0],brow=document.createElement('div');brow.className='row';
@@ -2458,7 +2475,7 @@ body.running #en p .draft{opacity:1}
     return true;
   }
 
-  var LOCKED={"s":"BQ/TSSEHOG0tes9SmSFnlw==","i":"XMipapvTpygcNHtl","c":"+K/KTeFUEkJMGFHBS4KzYVrwH7RrSH9wPI47NkmSBTB+WiZaXsjDS378MtI3IbHTJme02ujFnX/mVVTQ3BHPwhQ1c6SKAP53","n":600000}; // the Groq key, locked with a password (AES-GCM). Without the password it is unreadable.
+  var LOCKED=null; // the Groq key, locked with a password (AES-GCM). Without the password it is unreadable.
   async function unlockKey(pw){
     try{
       var u=function(b){return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)})};
