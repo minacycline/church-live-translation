@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v97">
+<meta name="build" content="v100">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -134,7 +134,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 .rv .saved{color:#2f6b4a}
 </style>
 <style>
-#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#1f7a4d;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
 body.listening.admin #sideMeter{display:block}
 body.listening:not(.admin) #status,body.listening:not(.admin) #meter{visibility:hidden}
 .dot.on.voice{box-shadow:0 0 0 4px rgba(47,143,91,.28)}.dot.warn.voice{box-shadow:0 0 0 3px rgba(224,160,48,.25)}
@@ -231,6 +231,7 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 </head>
 <body>
 <div id="alert"></div>
+<div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
 <div id="liveTag" aria-hidden="true">TRANSLATING</div>
 <div id="betaNote" aria-hidden="true">Beta - Translation may not be fully accurate</div>
 <div id="viewTag" aria-hidden="true">TRANSLATING</div>
@@ -353,7 +354,7 @@ body.running #en p .draft{opacity:1}
   <select id="think"><option value="ahead">Understand first: it hears what he says next, then writes (clearer, a few seconds later)</option><option value="fast">Fast: writes each sentence at once</option></select>
   <label for="claudeKey">Claude key (not needed, the church server holds it)</label>
   <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
-  <div class="help">Stays on this device. With Claude Haiku chosen above, every finished sentence is translated by Claude; the quick live words stay on Groq. If Claude does not answer (no credit, wrong key, no connection), Groq translates instead, so the screen never stops.</div>
+  <div class="help">Stays on this device. Claude Haiku translates every sentence. If Claude does not answer (no credit, wrong key, no connection), the screen says so; no other translator is used.</div>
   <label for="deepgramKey">Deepgram key (optional)</label>
   <input id="deepgramKey" type="password" autocomplete="off" placeholder="from console.deepgram.com, API keys">
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Deepgram. Deepgram charges for every minute the app is listening, silence included, against the account's credit.</div>
@@ -472,6 +473,22 @@ body.running #en p .draft{opacity:1}
 
 
 </script>
+<script>
+/* v98: Groq, Whisper, Cohere, Deepgram and the free MyMemory translator are removed. This guard makes sure of it:
+   any request to one of them is refused before it leaves the device, whatever the rest of the code does. */
+(function(){
+  var GONE=/(^|\.)(groq\.com|cohere\.com|cohere\.ai|deepgram\.com|translated\.net)$/i;
+  function host(u){try{return new URL(String(u&&u.url||u),location.href).hostname}catch(e){return ''}}
+  window.__blocked=[];
+  var f0=window.fetch;if(f0)window.fetch=function(u,o){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);return Promise.reject(new Error('removed service ('+h+')'))}return f0.apply(this,arguments)};
+  var W0=window.WebSocket;if(W0){var W=function(u,p){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);throw new Error('removed service ('+h+')')}return p===undefined?new W0(u):new W0(u,p)};W.prototype=W0.prototype;W.CONNECTING=0;W.OPEN=1;W.CLOSING=2;W.CLOSED=3;window.WebSocket=W}
+  // old keys of the removed services are wiped from this device, with their backup copies
+  try{['groqKey','cohereKey','deepgramKey'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+  try{document.cookie='gk=;max-age=0;path=/;SameSite=Strict;Secure'}catch(e){}
+  try{if(window.caches)caches.delete('church-kv')}catch(e){}
+  try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){try{var tx=r.result.transaction('kv','readwrite'),st=tx.objectStore('kv');['groqKey','cohereKey','deepgramKey'].forEach(function(k){st.delete(k)})}catch(e){}}}catch(e){}
+})();
+</script>
 <script src="terms.js"></script>
 <script src="names.js"></script>
 <script src="liturgy.js"></script>
@@ -539,9 +556,10 @@ body.running #en p .draft{opacity:1}
         if(el.tagName==='LABEL'||el.classList.contains('row')){var key=el.tagName==='LABEL'?(el.getAttribute('for')||el.textContent.trim()):'row';cur=blocks[key]={els:[el]};order.push(key)}
         else if(cur)cur.els.push(el);
       });
+      var GONEF={groqKey:1,hearSpeed:1,hearEngine:1,cohereKey:1,deepgramKey:1,translator:1,engine:1,email:1,testfile:1}; // v98: settings of the removed services stay hidden
       function sec(parent,title,keys,open){var d=document.createElement(parent.id==='basicArea'?'div':'details');
         if(d.tagName==='DETAILS'){d.className='sec';if(open)d.open=true;var sm=document.createElement('summary');sm.textContent=title;d.appendChild(sm)}else{var h=document.createElement('h3');h.textContent=title;d.appendChild(h)}
-        keys.forEach(function(k){var b=blocks[k];if(!b)return;b.els.forEach(function(e){d.appendChild(e)});delete blocks[k]});parent.appendChild(d);return d}
+        keys.forEach(function(k){var b=blocks[k];if(!b)return;b.els.forEach(function(e){if(GONEF[k])e.style.display='none';d.appendChild(e)});delete blocks[k]});parent.appendChild(d);return d}
       var basic=document.createElement('div');basic.id='basicArea';var owner=document.createElement('div');owner.id='ownerArea';
       // the row of small boxes holds both kinds: text size and "show Arabic" are everyday, the three stops are the owner's
       var row=blocks.row&&blocks.row.els[0],brow=document.createElement('div');brow.className='row';
@@ -1209,8 +1227,16 @@ body.running #en p .draft{opacity:1}
   function serviceDown(key,msg){ // one clear message, shown on the screen even during the service, at most once a minute per problem
     dbg('DOWN '+msg);problemText=msg;problemAt=Date.now();try{var d=$('dot');d&&d.classList.add('warn')}catch(e){}
     if(downAt[key]&&Date.now()-downAt[key]<60000)return;downAt[key]=Date.now();
-    setStatus(msg);showAlert(msg+'\n(tap to hide)',false,0,true);
+    setStatus(msg);
+    // v99: while the service is running the congregation sees one calm line; the owner (unlocked) and the small dot keep the full reason
+    var calm=typeof running!=='undefined'&&running&&!document.body.classList.contains('admin');
+    showAlert(calm?(/STOPPED|LIMIT/.test(msg)?'Translation is not available right now.':'Translation paused. It will return shortly.'):msg+'\n(tap to hide)',false,0,true);
+    try{var al=$('alert');al.dataset.k=key;al.classList.toggle('calm',calm)}catch(e){}
   }
+  function alertClear(key){try{var al=$('alert');if(al&&al.style.display!=='none'&&al.dataset.k===key){showAlert('');al.dataset.k=''}delete downAt[key]}catch(e){}}
+  // v99: the church server stops the day at its limit; the app then stops listening and says so, instead of retrying all day
+  var limitTold=false;
+  function limitHit(m){if(limitTold)return;limitTold=true;dbg('DAILY LIMIT '+m);serviceDown('limit','DAILY LIMIT REACHED: '+String(m||'the church server reached its limit for today').replace(/^Daily limit reached:\s*/i,'').slice(0,160));setTimeout(function(){try{if(running)stop()}catch(e){}try{showAlert(problemText+'\n(tap to hide)',false,0,true)}catch(e){}},300)}
   function aiOK(){return NO_BACKUP?(claudeReady()&&Date.now()>claudeBlockedUntil):(!!S.get('groqKey','')&&Date.now()>groqBlockedUntil)}
   var CLAUDE_MODEL='claude-haiku-5-5',claudeBlockedUntil=0,claudeUse={req:0,inTok:0,outTok:0};
   function claudeReady(){return !!S.get('claudeKey','')||!!CLAUDE_PROXY}
@@ -1222,6 +1248,7 @@ body.running #en p .draft{opacity:1}
     var r,j=null;try{var kc=typeof AbortController!=='undefined'?new AbortController():null,kt=setTimeout(function(){try{kc&&kc.abort()}catch(x){}},6000);try{r=await fetch(CLAUDE_PROXY+'/soniox-key',{method:'POST',signal:kc?kc.signal:undefined})}finally{clearTimeout(kt)}}catch(e){if(S.get('sonioxKey',''))return S.get('sonioxKey','');var ne=new Error('cannot reach the church server');ne.net=true;throw ne}
     try{j=await r.json()}catch(e){}
     if(r.ok&&j&&j.api_key)return j.api_key;
+    if(j&&j.error&&j.error.type==='daily_limit'){limitHit(j.error.message);var lm=new Error('daily limit');lm.limit=true;throw lm}
     if(S.get('sonioxKey',''))return S.get('sonioxKey','');
     var m=(j&&((j.error&&j.error.message)||j.error_message||j.message))||('server answered '+r.status);var er=new Error(String(m).slice(0,120));er.status=r.status;throw er
   }
@@ -1232,13 +1259,15 @@ body.running #en p .draft{opacity:1}
     var body={model:CLAUDE_MODEL,max_tokens:Math.max(64,maxTok||300),messages:conv};if(sys)body.system=sys; /* claude-haiku-5-5 refuses a temperature setting */
     var ownKey=S.get('claudeKey','');
     var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
-    if(!r.ok){var em='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||''}catch(e){}
+    if(!r.ok){var em='',et='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||'';et=(ej.error&&ej.error.type)||''}catch(e){}
+      if(et==='daily_limit'){claudeBlockedUntil=Date.now()+3600000;limitHit(em);var le=new Error('Claude is stopped (daily limit)');le.kind='credit';throw le}
       var credit=/credit|balance|billing|payment/i.test(em)||r.status===402,keyBad=r.status===401||r.status===403||/key is not set/i.test(em);
       if(credit||keyBad){claudeBlockedUntil=Date.now()+(NO_BACKUP?20000:600000);
         if(NO_BACKUP)serviceDown('claude',credit?'TRANSLATION STOPPED: the Claude account is out of credit. Add credit at platform.claude.com (Billing), then press Restart.':'TRANSLATION STOPPED: the Claude key on the church server was refused. A new key is needed.');
         else{problemText='Claude: '+(credit?'the credit balance is too low':'the key was not accepted')+'. Groq is translating instead.';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn')}}
       var er=new Error('Claude '+r.status+(em?': '+em.slice(0,120):''));er.kind=credit?'credit':keyBad?'key':(r.status===429||r.status>=500)?'busy':'other';throw er}
     var j=await r.json(),txt=cleanLLM(((j.content||[]).filter(function(c){return c.type==='text'}).map(function(c){return c.text}).join('')));
+    alertClear('claudenet');
     if(j.usage){claudeUse.req++;claudeUse.inTok+=j.usage.input_tokens||0;claudeUse.outTok+=j.usage.output_tokens||0}
     if(!txt)throw new Error('Claude answered with nothing');
     return {text:txt,model:CLAUDE_MODEL};
@@ -1289,7 +1318,7 @@ body.running #en p .draft{opacity:1}
   function showAlert(msg,ok,ms,force){
     var a=$('alert');if(!a)return;if(!msg){a.style.display='none';return}
     if(running&&!force){problemText=msg.replace(/\n\(tap to hide\)/,'');problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');return} // the congregation is watching: no banners
-    a.textContent=msg;a.className=ok?'ok':'';a.style.display='block';if(ms)setTimeout(function(){if(a.textContent===msg)a.style.display='none'},ms)
+    a.textContent=msg;a.className=ok?'ok':'';a.dataset.k='';a.style.display='block';if(ms)setTimeout(function(){if(a.textContent===msg)a.style.display='none'},ms)
   }
   setTimeout(function(){var d=$('dot');if(d)d.onclick=function(){showAlert(problemText?('Last problem: '+problemText+'\n(tap to hide)'):'No problems.\n(tap to hide)',!problemText,7000,true)}},0);
   $('alert').onclick=function(){showAlert('')};
@@ -1943,7 +1972,7 @@ body.running #en p .draft{opacity:1}
     if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
     HOLD.drain=q;HOLD.dn=n;holdNote(n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
     dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sending '+(n/SR16).toFixed(1)+' s of kept sound');
-    try{var al=$('alert');if(al&&/HEARING PAUSED/.test(al.textContent))showAlert('');delete downAt.sonioxnet}catch(e){}
+    alertClear('sonioxnet');
     var d=$('dot');d&&d.classList.remove('warn');problemText='';
   }
   function holdGiveUp(){
@@ -1968,6 +1997,7 @@ body.running #en p .draft{opacity:1}
     if(streamEngine()!=='soniox'){dgOpenWith('');return}
     DG.keyWait=true;
     sxKey().then(function(k){DG.keyWait=false;dgOpenWith(k)},function(e){DG.keyWait=false;dbg('STREAM no Soniox key: '+e.message);
+      if(e.limit)return; // the day's limit: no retry
       if(NO_BACKUP&&!(e.net&&HOLD.on&&Date.now()-HOLD.since<HOLD_MAX))serviceDown(e.net?'sonioxnet':'soniox',e.net?(navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach the church server (Wi-Fi?). It reconnects by itself.'):(e.status===402||/credit|balance|billing|payment|quota/i.test(e.message)?'HEARING STOPPED: the Soniox account is out of credit. Add credit at console.soniox.com (Billing), then press Restart.':'HEARING STOPPED: the church server could not get a Soniox key ('+e.message.slice(0,70)+').'));
       dgRetry()});
   }
@@ -2305,6 +2335,7 @@ body.running #en p .draft{opacity:1}
     if(sp<0.7){liveEn='';liveGen++;render()}
   }
 
+  var micFails=0;
   async function restartAudio(why){
     if(restarting||!running)return;restarting=true;
     try{
@@ -2315,16 +2346,23 @@ body.running #en p .draft{opacity:1}
       await new Promise(function(r){setTimeout(r,400)});
       if(!running)return;
       var ok=await startWhisper(true);
-      if(ok&&running)setStatus('Listening again. Heard '+heardCount+' pieces');
-      else if(running){setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
+      if(ok&&running){micFails=0;if(tapFn)tapDone();setStatus('Listening again. Heard '+heardCount+' pieces')}
+      else if(running){micFails++;
+        if(micFails>=2&&!tapFn)askTap(function(){restarting=false;micFails=0;restartAudio('Screen tapped')},'The microphone was interrupted (a call, another app, or the screen locked).');
+        setTimeout(function(){restarting=false;restartAudio('Still no microphone')},3000);return}
     }finally{if(restarting&&running!==false)restarting=false}
   }
+  // v100: when the device needs a touch before it may listen again (iPhone and iPad rule), one large button fills the screen
+  var tapFn=null;
+  function askTap(fn,why){tapFn=fn;try{$('resumeWhy').textContent=why||'';$('resume').hidden=false}catch(e){}dbg('TAP asked: '+(why||''))}
+  function tapDone(){tapFn=null;try{$('resume').hidden=true}catch(e){}}
+  try{$('resumeBtn').onclick=function(){var f=tapFn;tapDone();dbg('TAP given');try{f&&f()}catch(e){}}}catch(e){}
   function resumeOrAsk(c){ // a browser can hold sound until the screen is touched: never hang silently, ask for one tap
     return new Promise(function(done){
       var fin=false;function ok(){if(fin)return;fin=true;showAlert('');done()}
       try{c.resume().then(ok,function(){})}catch(e){}
-      setTimeout(function(){if(fin)return;if(c.state!=='suspended'){ok();return}dbg('AUDIO waiting for a tap');setStatus('Tap the red bar at the top to start.');showAlert('TAP HERE to start listening.',true,0,true);
-        $('alert').onclick=function(){try{c.resume().then(ok,ok)}catch(e){ok()}};},2500);
+      setTimeout(function(){if(fin)return;if(c.state!=='suspended'){ok();return}dbg('AUDIO waiting for a tap');setStatus('Tap the screen to start.');
+        askTap(function(){try{c.resume().then(ok,ok)}catch(e){ok()}},'This device needs one touch before it can listen.');},2500);
     });
   }
   async function startWhisper(retrying,mediaEl){
@@ -2456,7 +2494,7 @@ body.running #en p .draft{opacity:1}
     return true;
   }
 
-  var LOCKED={"s":"BQ/TSSEHOG0tes9SmSFnlw==","i":"XMipapvTpygcNHtl","c":"+K/KTeFUEkJMGFHBS4KzYVrwH7RrSH9wPI47NkmSBTB+WiZaXsjDS378MtI3IbHTJme02ujFnX/mVVTQ3BHPwhQ1c6SKAP53","n":600000}; // the Groq key, locked with a password (AES-GCM). Without the password it is unreadable.
+  var LOCKED=null; // the Groq key, locked with a password (AES-GCM). Without the password it is unreadable.
   async function unlockKey(pw){
     try{
       var u=function(b){return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)})};
@@ -2507,7 +2545,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
     var ok=useWhisper()?await startWhisper():await startApple();
     if(!ok)return;
     setStatus(useWhisper()?'Listening. Used today: '+Math.round(usedToday()/60)+' min':'Listening (iPad recognizer)');
@@ -2539,13 +2577,45 @@ body.running #en p .draft{opacity:1}
     try{wake&&wake.release()}catch(e){}
     recTrim();
     var endingId=txId;setTimeout(function(){if(txId===endingId){txSave(true);if(!running)txId=null}try{if(!running&&!replayEl)txSummarize(endingId)}catch(e){}try{rvQueue(lines);rvFlush()}catch(e){}try{if(!replayEl)tunePause(lines.filter(function(l){return l.en&&l.t0}))}catch(e){}},4000); // wait for the last sentences to finish translating
-    setStatus('Stopped');
+    setStatus('Stopped');try{localStorage.removeItem('liveAt')}catch(e){}if(tapFn)tapDone();micFails=0;
+    try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||'');setTimeout(function(){reportSend(rb,rr)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
   $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}running?stop():start()};
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
   $('rstNo').onclick=function(){$('rstDlg').close()};
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
+  // v99 service report: when listening stops, a summary and the full debug log go to the church server (kept 90 days), so problems can be studied later.
+  var sessionBegan=0;
+  function reportBuild(began,test){
+    var log=DBG.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
+    var txt=log.join('\n');if(txt.length>600000)txt=txt.slice(0,150000)+'\n…(middle left out)…\n'+txt.slice(-450000);
+    var ls=lines.filter(function(l){return l.en}),lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
+    return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
+      device:navigator.userAgent,sentences:ls.length,
+      delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
+      drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,200)}).slice(0,40),
+      translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:claudeUse.req,inTokens:claudeUse.inTok,outTokens:claudeUse.outTok},
+      text:ls.slice(-400).map(function(l){return {ar:String(l.ar||'').slice(0,400),en:String(l.en||'').slice(0,400)}}),log:txt};
+  }
+  function reportPost(body){return fetch(CLAUDE_PROXY+'/report',{method:'POST',headers:{'content-type':'application/json'},body:body}).then(function(r){if(!r.ok&&r.status!==429&&r.status!==413&&r.status!==400)throw new Error('server '+r.status);return true})}
+  function reportSend(began,test){
+    if(!CLAUDE_PROXY||!began||Date.now()-began<60000)return; // under a minute is not a service
+    var body;try{body=JSON.stringify(reportBuild(began,test))}catch(e){return}
+    reportPost(body).then(function(){dbg('REPORT sent');try{localStorage.removeItem('pendingReport')}catch(e){}},function(e){dbg('REPORT not sent ('+e.message+'): kept for the next time the app opens');try{localStorage.setItem('pendingReport',body.length>250000?JSON.stringify(Object.assign(JSON.parse(body),{log:'(left out: too large to keep on the device)',text:[]})):body)}catch(x){}});
+  }
+  setTimeout(function(){try{var pr=localStorage.getItem('pendingReport');if(pr&&CLAUDE_PROXY)reportPost(pr).then(function(){localStorage.removeItem('pendingReport')},function(){})}catch(e){}},9000);
+  // v99 usage: the owner's settings show how much of today's limit is used
+  function usageShow(){
+    if(!CLAUDE_PROXY)return;var ow=document.getElementById('ownerArea');if(!ow)return;var el=document.getElementById('usageNote');
+    if(!el){el=document.createElement('div');el.id='usageNote';el.className='help';el.style.cssText='margin:10px 0;font-weight:700;color:var(--fg)';ow.insertBefore(el,ow.firstChild)}
+    el.textContent='Use today: checking…';
+    fetch(CLAUDE_PROXY+'/usage',{method:'POST'}).then(function(r){return r.json()}).then(function(j){if(j&&typeof j.today==='number')el.textContent='Used today: '+j.today+' of '+j.cap+' minutes. This month: '+j.month+' minutes.';else el.textContent='Use today: not available.'},function(){el.textContent='Use today: could not reach the church server.'});
+  }
+  try{$('gear').addEventListener('click',function(){setTimeout(usageShow,200)})}catch(e){}
+  // v100: a mark is kept while listening; if the page comes back without Stop having been pressed (a reload, a crash), it offers one tap to carry on
+  setInterval(function(){try{if(running&&!replayEl&&!isScreen())localStorage.setItem('liveAt',String(Date.now()))}catch(e){}},10000);
+  setTimeout(function(){try{var la=+localStorage.getItem('liveAt')||0;localStorage.removeItem('liveAt');if(la&&Date.now()-la<180000&&!running&&roleChosen()&&!isScreen()){dbg('RELOAD in the middle of listening: asking for a tap');askTap(function(){if(!running)start()},'The app restarted. Tap to carry on.')}}catch(e){}},1200);
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
@@ -2568,7 +2638,7 @@ body.running #en p .draft{opacity:1}
     var el=document.createElement('audio');el.preload='auto';el.playsInline=true;el.setAttribute('playsinline','');
     replayUrl=URL.createObjectURL(f);el.src=replayUrl;replayName=f.name||'recording';
     lines=[];enEl.innerHTML='';liveEn='';heardCount=0;lastText='';sermonMemo='';memoCount=0;testFixes=[];fixCount=0;
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();dbg('LIVE TEST START '+replayName+' ios='+IOS);setStatus('Live test: starting…');
     replayEl=el;testStart=Date.now();
     var ok=await startWhisper(false,el);
     if(!ok){replayEl=null;running=false;ui();setStatus('Live test could not start');return}
