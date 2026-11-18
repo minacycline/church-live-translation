@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v88">
+<meta name="build" content="v89">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -281,6 +281,8 @@ body.running #en #hist p.in{opacity:0;transform:translateY(1.2em)}body.running #
 body.running #en #cbox{position:relative;flex:none;height:33vh;background:#f2c94c;color:#121214;border-radius:20px;overflow:hidden;margin:0 0 .15em}
 body.running #en #cbox .bx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:.25em .7em;font-size:1.05em;line-height:1.25;font-weight:700;overflow:hidden;transition:opacity .45s ease,transform .45s ease}
 body.running #en #cbox .bx.in{opacity:0;transform:translateY(18%)}body.running #en #cbox .bx.out{opacity:0;transform:translateY(-45%)}
+body.running #en #cmeas{position:absolute;left:-200vw;top:0;visibility:hidden;pointer-events:none;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:.25em .7em;font-size:1.05em;line-height:1.25;font-weight:700;overflow:hidden}
+body.running #en #cbox .bx{box-sizing:border-box}
 body.running #en #cbox .ref{color:#5a4a12}body.running #en #cbox .dots i{background:#121214}
 body.running #en:has(#cbox){justify-content:flex-end;padding-bottom:0;gap:0}
 body.running #en .dotrow{position:absolute;left:0;right:0;bottom:.15em;text-align:center;color:#77777d;font-size:.6em;line-height:1}
@@ -748,32 +750,58 @@ body.running #en p .draft{opacity:1}
   enEl.addEventListener('keydown',function(e){var t=e.target;if(t&&t.id==='watchCodeBox'&&e.key==='Enter')viewStart(t.value)});
   function readyRefresh(){try{if(!running&&!lines.length)render()}catch(e){}}
   var DWELL=4000,relAt=0,relTimer=null;
-  function releaseLines(){ // finished sentences go on screen in order, one at a time, at least DWELL apart (faster when several are waiting, so the screen never falls far behind)
-    var now=Date.now();
-    if(!running){lines.forEach(function(l){if(l.en&&!l.rel)l.rel=now});return}
-    var wait=[];for(var i=0;i<lines.length;i++){var l=lines[i];if(l.rel)continue;if(!l.en){if(now-(l.t0||now)<9000){wait.push(l);break}continue}wait.push(l)}
-    var ready=wait.filter(function(l){return l.en}),blocked=wait.length&&!wait[0].en;
-    if(blocked){clearTimeout(relTimer);relTimer=setTimeout(render,700);return} // an earlier sentence is still being translated: keep the order
-    if(!ready.length)return;
-    var gap=ready.length>2?1500:ready.length>1?2500:DWELL;
-    if(now-relAt>=gap){ready[0].rel=now;relAt=now;if(ready.length>1){clearTimeout(relTimer);relTimer=setTimeout(render,gap)}}
-    else{clearTimeout(relTimer);relTimer=setTimeout(render,gap-(now-relAt)+30)}
+  function releaseLines(){ // used when captions are not running (the plain list): everything finished is shown
+    var now=Date.now();lines.forEach(function(l){if(l.en&&!l.rel)l.rel=now});
   }
-  // v83: the yellow box. The sentence on screen sits big in a yellow box filling the bottom third; when the next one comes it slides up
-  // into the history above, smaller and gray, and the history moves up smoothly. The box never changes size; a long sentence gets a
-  // smaller letter size once, when it appears, so it fits.
-  var BOX_UI=true;
-  function boxFit(sp){var f=1;sp.style.fontSize='';for(var i=0;i<14&&sp.scrollHeight>sp.clientHeight+1;i++){f-=0.06;sp.style.fontSize=f+'em'}}
+  // v83: the yellow box. The sentence on screen sits big in a yellow box filling the bottom third; when the next one comes it glides up
+  // into the history above, smaller and gray, and the history moves up smoothly.
+  // v89: one letter size, always. A sentence too long for the box is shown as two or more calm pages, one after the other. How long a page
+  // stays follows its length (a comfortable reading speed), never less than 2.5 s, and short waiting sentences share one page instead of flashing by.
+  var BOX_UI=true,UNITS=[],PEND=[],unitSeq=0;
+  function wc(t){return String(t||'').trim().split(/\s+/).filter(Boolean).length}
+  function unitHtml(u){return esc(u.t)+(u.ref?' <span class="ref">'+esc(u.ref)+'</span>':'')}
+  function boxMeasure(){var m=$('cmeas'),box=$('cbox');if(!box)return null;if(!m||m.parentNode!==enEl){m=document.createElement('div');m.id='cmeas';enEl.appendChild(m)}m.style.width=box.clientWidth+'px';m.style.height=box.clientHeight+'px';return m}
+  function boxFits(m,t){m.innerHTML='<span class="bt">'+esc(t)+'</span>';return m.scrollHeight<=m.clientHeight+1}
+  function boxPages(text){ // split a sentence into pages that fit the box at the one fixed letter size, breaking at punctuation where possible
+    var m=boxMeasure(),t=String(text||'').replace(/\s+/g,' ').trim();if(!m||!t||boxFits(m,t))return [t];
+    var w=t.split(' '),out=[],i=0,guard=0;
+    while(i<w.length&&guard++<12){
+      var lo=1,hi=w.length-i;if(boxFits(m,w.slice(i).join(' '))){out.push(w.slice(i).join(' '));i=w.length;break}
+      while(lo<hi){var mid=Math.ceil((lo+hi)/2);if(boxFits(m,w.slice(i,i+mid).join(' ')+' …'))lo=mid;else hi=mid-1}
+      var n=Math.max(1,lo),left=w.length-i-n;
+      if(left>0&&left<4&&n>8)n-=4-left; // never leave a tiny tail alone on the last page
+      for(var k=n;k>Math.max(3,Math.floor(n*0.55));k--){if(/[.,;:!?]["”’)]?$/.test(w[i+k-1])){n=k;break}} // prefer to end a page at a comma or a full stop
+      out.push(w.slice(i,i+n).join(' ')+(i+n<w.length?' …':''));i+=n}
+    if(i<w.length)out.push(w.slice(i).join(' '));
+    return out}
+  function unitDwell(u){return Math.max(2500,Math.min(9000,1200+wc(u.t)*330))} // about three words a second, plus a moment to find the line
+  function unitQueue(){
+    var now=Date.now();
+    for(var i=0;i<lines.length;i++){var l=lines[i];if(l.q)continue;
+      if(!l.en){if(now-(l.t0||now)<9000)break;continue} // an earlier sentence is still being translated: keep the order (but never wait on it for long)
+      l.q=1;if(!l.id)l.id='l'+(++lineSeq);var pg=boxPages(cleanEn(l.en));
+      pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length})})}
+    // two short sentences waiting together share one page
+    for(var k=0;k<PEND.length-1;k++){var a=PEND[k],b=PEND[k+1];if(a.n===1&&b.n===1&&!a.ref&&wc(a.t)+wc(b.t)<=16){var mm=boxMeasure();if(mm&&boxFits(mm,a.t+' '+b.t)){a.t=a.t+' '+b.t;a.ref=b.ref;PEND.splice(k+1,1);k--}}}
+  }
+  function unitRelease(){
+    unitQueue();clearTimeout(relTimer);
+    var now=Date.now(),cur=UNITS.length?UNITS[UNITS.length-1]:null;
+    if(!PEND.length){if(lines.some(function(l){return !l.q&&!l.en}))relTimer=setTimeout(render,700);return}
+    var need=cur?unitDwell(cur):0;if(cur&&PEND.length>2)need=Math.max(2500,Math.round(need*0.7)); // falling behind: a little quicker, never rushed
+    if(now-relAt>=need){UNITS.push(PEND.shift());relAt=now;if(UNITS.length>40)UNITS.splice(0,UNITS.length-40);if(PEND.length)relTimer=setTimeout(render,Math.max(2500,Math.round(unitDwell(UNITS[UNITS.length-1])*(PEND.length>2?0.7:1)))+30)}
+    else relTimer=setTimeout(render,need-(now-relAt)+30);
+  }
   function renderBox(){
     var hist=$('hist'),box=$('cbox');
-    if(!hist||!box||hist.parentNode!==enEl){enEl.innerHTML='';hist=document.createElement('div');hist.id='hist';box=document.createElement('div');box.id='cbox';enEl.appendChild(hist);enEl.appendChild(box)}
-    releaseLines();
-    var rel=lines.filter(function(l){return l.en&&l.rel}),cur=rel.length?rel[rel.length-1]:null,past=rel.slice(-7,-1);
-    rel.slice(-7).forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
+    if(!hist||!box||hist.parentNode!==enEl){enEl.innerHTML='';hist=document.createElement('div');hist.id='hist';box=document.createElement('div');box.id='cbox';enEl.appendChild(hist);enEl.appendChild(box);
+      UNITS=[];PEND=[];relAt=0;lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
+    unitRelease();
+    var cur=UNITS.length?UNITS[UNITS.length-1]:null,past=UNITS.slice(-7,-1);
     var before={},keep={};Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
     past.forEach(function(l){keep['h'+l.id]=1});
     Array.prototype.slice.call(hist.children).forEach(function(el){if(!keep[el.id]&&!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
-    past.forEach(function(l){var id='h'+l.id,el=document.getElementById(id),h=lineHtml(l);
+    past.forEach(function(l){var id='h'+l.id,el=document.getElementById(id),h=unitHtml(l);
       if(!el){el=document.createElement('p');el.id=id;el.className='in';hist.appendChild(el);requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
       if(el.innerHTML!==h)el.innerHTML=h;hist.appendChild(el)});
     past.forEach(function(l){var el=document.getElementById('h'+l.id),b=before['h'+l.id];if(!el||b===undefined)return;var d=b-el.getBoundingClientRect().top;if(Math.abs(d)<1)return;
@@ -790,10 +818,9 @@ body.running #en p .draft{opacity:1}
         (function(g){setTimeout(function(){g.style.transition='';g.style.transformOrigin=''},900)})(glide)}
       box.dataset.id=want;
       Array.prototype.slice.call(box.children).forEach(function(el){if(!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
-      if(want){var sp=document.createElement('div');sp.className='bx in';sp.innerHTML=cur?'<span class="bt">'+lineHtml(cur)+'</span>':DOTS;box.appendChild(sp);boxFit(sp);setTimeout(function(){sp.classList.remove('in')},glide?260:30)}}
-    else if(cur){var lastB=box.lastElementChild,h2='<span class="bt">'+lineHtml(cur)+'</span>';if(lastB&&lastB.innerHTML!==h2){lastB.innerHTML=h2;boxFit(lastB)}}
+      if(want){var sp=document.createElement('div');sp.className='bx in';sp.innerHTML=cur?'<span class="bt">'+unitHtml(cur)+'</span>':DOTS;box.appendChild(sp);setTimeout(function(){sp.classList.remove('in')},glide?260:30)}}
     BIGLIVE='';lagShow();
-    SHARE.rows=rel.slice(-3).map(function(l){return {r:l===cur?'cur':'prev',t:cleanEn(l.en||''),d:'',ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
+    SHARE.rows=UNITS.slice(-3).map(function(l){return {r:l===cur?'cur':'prev',t:l.t,d:'',ref:l.ref||'',f:0}});shareQueue();
     if(txId)txSave(false);
   }
   function render(){
