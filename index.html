@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v95">
+<meta name="build" content="v96">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -173,6 +173,7 @@ main{justify-content:flex-start}
 body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
 .rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
+#liveTag.weak{background:#b45309}
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
 body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
@@ -1213,7 +1214,7 @@ body.running #en p .draft{opacity:1}
   function sxHaveKey(){return !!CLAUDE_PROXY||!!S.get('sonioxKey','')}
   async function sxKey(){
     if(!CLAUDE_PROXY)return S.get('sonioxKey','');
-    var r,j=null;try{r=await fetch(CLAUDE_PROXY+'/soniox-key',{method:'POST'})}catch(e){if(S.get('sonioxKey',''))return S.get('sonioxKey','');var ne=new Error('cannot reach the church server');ne.net=true;throw ne}
+    var r,j=null;try{var kc=typeof AbortController!=='undefined'?new AbortController():null,kt=setTimeout(function(){try{kc&&kc.abort()}catch(x){}},6000);try{r=await fetch(CLAUDE_PROXY+'/soniox-key',{method:'POST',signal:kc?kc.signal:undefined})}finally{clearTimeout(kt)}}catch(e){if(S.get('sonioxKey',''))return S.get('sonioxKey','');var ne=new Error('cannot reach the church server');ne.net=true;throw ne}
     try{j=await r.json()}catch(e){}
     if(r.ok&&j&&j.api_key)return j.api_key;
     if(S.get('sonioxKey',''))return S.get('sonioxKey','');
@@ -1914,28 +1915,42 @@ body.running #en p .draft{opacity:1}
   // v79 hold and resend: when the live line drops or stalls, the sound is kept (up to HOLD_SEC seconds) instead of being lost, the line is retried quickly,
   // and the kept sound is sent as soon as it returns. Soniox reports how much sound it has finished hearing, so only the part it had not finished is sent again.
   // If the line stays away longer than HOLD_MAX, the kept sound goes to the backup hearing (Whisper), as before this change.
-  var HOLD_SEC=25,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0};
+  var HOLD_SEC=120,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0,drain:[],dn:0,told:false};
+  // v96 weak Wi-Fi: up to 2 minutes of speech is kept during a drop (it was 25 s), it is never thrown away while the line is being retried,
+  // and when the line returns the kept sound goes up at a steady pace (about 5 times normal speed) so a weak line is not flooded and dropped again.
+  function holdNote(t){try{var g=$('liveTag');if(!g)return;g.textContent=t||'TRANSLATING';g.classList.toggle('weak',!!t)}catch(e){}}
+  setInterval(function(){
+    if(!HOLD.drain.length)return;var ws=DG.ws;if(!ws||ws.readyState!==1||!DG.live)return;
+    var sent=0;while(HOLD.drain.length&&sent<SR16*0.5&&ws.bufferedAmount<48000){var f=HOLD.drain.shift();HOLD.dn-=f.length;sent+=f.length;dgSend(ws,f)}
+    if(!HOLD.drain.length){HOLD.dn=0;holdNote('');dbg('HOLD caught up: all the kept sound has been sent')}
+  },100);
   function holdStart(){
     if(HOLD.on||!running||paused)return;
     var q=[],n=0;HOLD.ring.forEach(function(r){var st=r[0],b=r[1];if(st+b.length<=HOLD.finN)return;var from=Math.max(0,HOLD.finN-st),f=new Float32Array(b.length-from);for(var i=from;i<b.length;i++)f[i-from]=b[i]/32768;q.push(f);n+=f.length});
-    HOLD.on=true;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;
+    HOLD.drain.forEach(function(f){q.push(f);n+=f.length});HOLD.drain=[];HOLD.dn=0; // kept sound that had not gone up yet stays in line
+    while(n>SR16*HOLD_SEC&&q.length>1){n-=q[0].length;q.shift()}
+    HOLD.on=true;HOLD.told=false;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;holdNote('WEAK WI-FI \u00b7 RECONNECTING');
     dbg('HOLD line lost: keeping the sound ('+(n/SR16).toFixed(1)+' s not yet heard)');
     problemText='The connection dropped: the sound is being kept and is sent when it returns';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');
   }
   function holdPush(f){HOLD.q.push(f);HOLD.n+=f.length;while(HOLD.n>SR16*HOLD_SEC&&HOLD.q.length>1){HOLD.n-=HOLD.q[0].length;HOLD.q.shift()}}
   function holdFlush(){
     if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
-    q.forEach(function(f){dgFeed(f)});
-    dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sent '+(n/SR16).toFixed(1)+' s of kept sound');
+    HOLD.drain=q;HOLD.dn=n;holdNote(n>SR16*2?'WEAK WI-FI \u00b7 CATCHING UP':'');
+    dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sending '+(n/SR16).toFixed(1)+' s of kept sound');
+    try{var al=$('alert');if(al&&/HEARING PAUSED/.test(al.textContent))showAlert('');delete downAt.sonioxnet}catch(e){}
     var d=$('dot');d&&d.classList.remove('warn');problemText='';
   }
   function holdGiveUp(){
+    if(NO_BACKUP){ // no backup hearing: keep holding the sound and keep retrying; only say so on the screen, once
+      if(HOLD.told)return;HOLD.told=true;dbg('HOLD no line for '+Math.round(HOLD_MAX/1000)+' s: still keeping the sound and retrying');
+      serviceDown('sonioxnet',navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself and catches up.':'HEARING PAUSED: the Wi-Fi is too weak to reach the hearing service. It reconnects by itself and catches up.');return}
     var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
     dbg('HOLD no line for '+Math.round(HOLD_MAX/1000)+' s: '+(n/SR16).toFixed(1)+' s of kept sound goes to the backup hearing');
     if(NO_BACKUP)serviceDown('sonioxnet',navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach Soniox (Wi-Fi?). It reconnects by itself.');
     if(n>SR16*0.7){buf=q;bufLen=n;energy=[];speechSamples=n;chunkMs=n/SR16*1000;try{cutChunk(false)}catch(e){}}
   }
-  function holdDrop(){HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0}
+  function holdDrop(){HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0;HOLD.drain=[];HOLD.dn=0;HOLD.told=false;holdNote('')}
   window.addEventListener('online',function(){try{if(HOLD.on&&dgWanted()&&!DG.ws){clearTimeout(DG.timer);dgOpen()}}catch(e){}});
   setInterval(function(){ // a line that is open but no longer carries anything (weak Wi-Fi) is closed and reopened; Soniox answers about once a second even in silence
     var ws=DG.ws;if(!ws||!DG.live||!ws.__sn||!running||paused)return;
@@ -1948,7 +1963,7 @@ body.running #en p .draft{opacity:1}
     if(streamEngine()!=='soniox'){dgOpenWith('');return}
     DG.keyWait=true;
     sxKey().then(function(k){DG.keyWait=false;dgOpenWith(k)},function(e){DG.keyWait=false;dbg('STREAM no Soniox key: '+e.message);
-      if(NO_BACKUP)serviceDown(e.net?'sonioxnet':'soniox',e.net?(navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach the church server (Wi-Fi?). It reconnects by itself.'):(e.status===402||/credit|balance|billing|payment|quota/i.test(e.message)?'HEARING STOPPED: the Soniox account is out of credit. Add credit at console.soniox.com (Billing), then press Restart.':'HEARING STOPPED: the church server could not get a Soniox key ('+e.message.slice(0,70)+').'));
+      if(NO_BACKUP&&!(e.net&&HOLD.on&&Date.now()-HOLD.since<HOLD_MAX))serviceDown(e.net?'sonioxnet':'soniox',e.net?(navigator.onLine===false?'HEARING PAUSED: no internet on this device. It reconnects by itself.':'HEARING PAUSED: cannot reach the church server (Wi-Fi?). It reconnects by itself.'):(e.status===402||/credit|balance|billing|payment|quota/i.test(e.message)?'HEARING STOPPED: the Soniox account is out of credit. Add credit at console.soniox.com (Billing), then press Restart.':'HEARING STOPPED: the church server could not get a Soniox key ('+e.message.slice(0,70)+').'));
       dgRetry()});
   }
   function dgOpenWith(sk){
@@ -1980,6 +1995,9 @@ body.running #en p .draft{opacity:1}
     try{if(ws){ws.onclose=null;if(ws.readyState===1)ws.send(ws.__sn?'':JSON.stringify({type:'CloseStream'}));ws.close()}}catch(e){}}
   function dgFeed(s16){ // 16 kHz samples in, 16-bit sound out
     var ws=DG.ws;if(!ws||ws.readyState!==1)return;
+    if(HOLD.drain.length&&ws.__sn){HOLD.drain.push(s16);HOLD.dn+=s16.length;while(HOLD.dn>SR16*HOLD_SEC&&HOLD.drain.length>1){HOLD.dn-=HOLD.drain[0].length;HOLD.drain.shift()}return} // kept sound goes first, in order
+    dgSend(ws,s16)}
+  function dgSend(ws,s16){
     var b=new Int16Array(s16.length);for(var i=0;i<s16.length;i++){var x=Math.max(-1,Math.min(1,s16[i]));b[i]=x<0?x*0x8000:x*0x7fff}
     try{ws.send(b.buffer);DG.sent=Date.now()}catch(e){}
     if(ws.__sn){HOLD.ring.push([HOLD.sentN,b]);HOLD.sentN+=b.length;while(HOLD.ring.length>1&&(HOLD.ring[0][0]+HOLD.ring[0][1].length<=HOLD.finN||HOLD.sentN-HOLD.ring[0][0]>SR16*HOLD_SEC))HOLD.ring.shift()}
@@ -2524,6 +2542,7 @@ body.running #en p .draft{opacity:1}
   $('rstNo').onclick=function(){$('rstDlg').close()};
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
+  try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
   setTimeout(function(){readyRefresh();if(!running)loadReadings()},500);window.addEventListener('online',readyRefresh);window.addEventListener('offline',readyRefresh);
   setTimeout(function(){
