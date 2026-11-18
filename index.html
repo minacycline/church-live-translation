@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v78">
+<meta name="build" content="v80">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -316,6 +316,11 @@ body.running #en p .draft{opacity:1}
   <label for="sonioxKey">Soniox key (optional)</label>
   <input id="sonioxKey" type="password" autocomplete="off" placeholder="from console.soniox.com, API keys">
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Soniox. Soniox charges for the time the app is listening.</div>
+  <label for="translator">Translator for finished sentences</label>
+  <select id="translator"><option value="groq">Groq free models</option><option value="claude">Claude Haiku (paid, needs the Claude key below)</option></select>
+  <label for="claudeKey">Claude key (optional)</label>
+  <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
+  <div class="help">Stays on this device. With Claude Haiku chosen above, every finished sentence is translated by Claude; the quick live words stay on Groq. If Claude does not answer (no credit, wrong key, no connection), Groq translates instead, so the screen never stops.</div>
   <label for="deepgramKey">Deepgram key (optional)</label>
   <input id="deepgramKey" type="password" autocomplete="off" placeholder="from console.deepgram.com, API keys">
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Deepgram. Deepgram charges for every minute the app is listening, silence included, against the account's credit.</div>
@@ -467,7 +472,7 @@ body.running #en p .draft{opacity:1}
     }).then(function(v){if(v&&!S.get('groqKey','')){S.set('groqKey',v);KEYSRC='restored from backup'}}).catch(function(){});
   }
   else KEYDB.get('groqKey').then(function(v){var cur=S.get('groqKey','');if(cur&&v!==cur)KEYDB.put('groqKey',cur)});
-  function keyBackup(){['sonioxKey','deepgramKey','cohereKey'].forEach(function(k){try{var cur=S.get(k,'');if(cur)KEYDB.put(k,cur);else KEYDB.get(k).then(function(v){if(v&&!S.get(k,''))S.set(k,v)})}catch(e){}})} // v63: a second copy of the other hearing keys, so they are pasted once and kept
+  function keyBackup(){['sonioxKey','deepgramKey','cohereKey','claudeKey'].forEach(function(k){try{var cur=S.get(k,'');if(cur)KEYDB.put(k,cur);else KEYDB.get(k).then(function(v){if(v&&!S.get(k,''))S.set(k,v)})}catch(e){}})} // v63: a second copy of the other hearing keys, so they are pasted once and kept
   keyBackup();
   try{if(!localStorage.getItem('langMig38')){localStorage.setItem('lang','mixed');localStorage.setItem('langMig38','1')}}catch(e){} // v38: English words by the speaker are shown as said
   var LAUNCHES=0,STANDALONE=false;
@@ -487,7 +492,7 @@ body.running #en p .draft{opacity:1}
   try{if(!S.get('shareMig58','')){if(S.get('share','1')==='0')S.set('share','1');S.set('shareMig58','1')}}catch(e){}
   try{if(!S.get('maxMig58','')){if(S.get('maxMin','120')==='120')S.set('maxMin','240');S.set('maxMig58','1')}}catch(e){} // v58: the automatic stop moves from 2 hours to 4
   try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','share','room','role','watchCode','frame'],DEF={frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','translator','claudeKey','share','room','role','watchCode','frame'],DEF={translator:'groq',frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.body.classList.toggle('noframe',S.get('frame','1')==='0');document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -512,7 +517,7 @@ body.running #en p .draft{opacity:1}
       sec(basic,'Display',['display']);sec(basic,'Sound',['micMode','noise','lang']);sec(basic,'Today',['autoRead','notes','reading']);
       var gate=document.createElement('div');gate.id='ownerGate';gate.innerHTML='<button type="button" id="ownerBtn">Owner settings</button><div class="help">Keys, hearing engine, church terms, limits and tests. For the person who set the app up.</div>';
       var warn=document.createElement('div');warn.className='help warn';warn.id='ownerWarn';owner.appendChild(warn);
-      var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
+      var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','translator','claudeKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
       sec(owner,'Words and corrections',['terms','hideWords','builtin','Learned corrections','prayers','reviewKey']);
       if(MULTI)sec(owner,'Other screens',['role','watchCode','frame','share','room']);
       sec(owner,'Limits',['row']);
@@ -527,7 +532,7 @@ body.running #en p .draft{opacity:1}
   function ownerNote(){var w=$('ownerWarn');if(w)w.textContent=S.get('adminPin','')?'':'No Owner PIN is set on this device, so anyone can open these settings. Set one under Access.'}
   function fillSettings(own){try{roomCode()}catch(e){}dlg.classList.toggle('basic',!own);FIELDS.forEach(function(k){var el=$(k);if(el)el.value=(own||BASICF[k])?S.get(k,DEF[k]||''):''});ownerNote();try{applyKeyLocks()}catch(e){}}
   // v64: a saved key is locked; the only way to change it is the Unlock button next to it
-  var KEYIDS=['groqKey','sonioxKey','deepgramKey','cohereKey'];
+  var KEYIDS=['groqKey','sonioxKey','deepgramKey','cohereKey','claudeKey'];
   function applyKeyLocks(){KEYIDS.forEach(function(k){var el=$(k);if(!el)return;var b=$(k+'Lock');if(!b){b=document.createElement('button');b.type='button';b.id=k+'Lock';b.className='keylock';el.insertAdjacentElement('afterend',b);b.onclick=function(){if(!el.readOnly)return;el.readOnly=false;el.value='';b.style.display='none';if(k==='groqKey'&&$('pasteKey'))$('pasteKey').disabled=false;el.focus()}}var saved=!!S.get(k,'');if(saved&&el.value){el.readOnly=true;b.style.display='';b.textContent='Locked and saved. Unlock to change';if(k==='groqKey'&&$('pasteKey'))$('pasteKey').disabled=true}else{el.readOnly=false;b.style.display='none';if(k==='groqKey'&&$('pasteKey'))$('pasteKey').disabled=false}})}
   $('gear').onclick=function(){fillSettings(document.body.classList.contains('admin'));$('keyNote').textContent=S.get('groqKey','')?'Key saved on this device ✓':'No key saved on this device yet. Paste it above; it saves by itself.';$('usageNote').textContent='Used today: '+Math.round(usedToday()/60)+' min. Translator allowance left today: '+Math.round(budgetLeft()*100)+'%'+(basicCount?'. Basic backup used '+basicCount+' time(s) this session.':'.');$('libNote').textContent=libNote();$('readStatus').textContent=readStatus;try{renderFixes()}catch(e){}try{rvNote()}catch(e){}dlg.showModal()};
   $('close').onclick=function(){dlg.close()};
@@ -535,7 +540,7 @@ body.running #en p .draft{opacity:1}
   function keyChanged(){var v=$('groqKey').value.trim();if(!v)return;var ok=saveKey(v);groqBlockedUntil=0;whisperBlockedUntil=0;
     $('keyNote').textContent=ok?(/^gsk_/.test(v)?'Key saved on this device ✓':'Saved, but Groq keys usually start with gsk_. Check you copied all of it.'):'Could not save the key: this device\'s storage is full or blocked (Private Browsing?).'}
   $('pasteKey').onclick=function(){try{navigator.clipboard.readText().then(function(v){v=(v||'').trim();if(!v){$('keyNote').textContent='Nothing copied. Copy the key first (it starts with gsk_).';return}$('groqKey').value=v;keyChanged()},function(){$('keyNote').textContent='Tap in the box, then tap and hold, then Paste.'})}catch(e){$('keyNote').textContent='Tap in the box, then tap and hold, then Paste.'}};
-  ['sonioxKey','deepgramKey','cohereKey','hearEngine'].forEach(function(k){var el=$(k);if(!el)return;var sv=function(){var v=String(el.value).trim();if(!v&&k!=='hearEngine')return;if(el.readOnly)return;S.set(k,v);if(v&&k!=='hearEngine')try{keyBackup()}catch(e){}};el.addEventListener('input',sv);el.addEventListener('change',sv);el.addEventListener('blur',sv)}); // saved as they are typed, like the Groq key, so "Check everything" tests what is in the boxes
+  ['sonioxKey','deepgramKey','cohereKey','claudeKey','hearEngine','translator'].forEach(function(k){var el=$(k);if(!el)return;var sv=function(){var v=String(el.value).trim();if(!v&&k!=='hearEngine'&&k!=='translator')return;if(el.readOnly)return;S.set(k,v);if(k==='claudeKey')claudeBlockedUntil=0;if(v&&k!=='hearEngine'&&k!=='translator')try{keyBackup()}catch(e){}};el.addEventListener('input',sv);el.addEventListener('change',sv);el.addEventListener('blur',sv)}); // saved as they are typed, like the Groq key, so "Check everything" tests what is in the boxes
   $('groqKey').addEventListener('input',keyChanged);$('groqKey').addEventListener('change',keyChanged);$('groqKey').addEventListener('blur',keyChanged);
   dlg.addEventListener('close',function(){var v=$('groqKey').value.trim();if(v&&v!==S.get('groqKey',''))saveKey(v)}); // closing the settings any way keeps a newly pasted key
   $('save').onclick=function(){var lim=dlg.classList.contains('basic');FIELDS.forEach(function(k){if(lim&&!BASICF[k])return;if(KEYIDS.indexOf(k)>=0&&!String($(k).value).trim())return; /* a key is never wiped by saving an empty box */if(k==='groqKey'){var kv=String($(k).value).trim();if(kv)saveKey(kv);return}S.set(k,String($(k).value).trim())});groqBlockedUntil=0;whisperBlockedUntil=0;interimBlockedUntil=0;keyBackup();applyView();dlg.close();try{if(!lim){var rc=String(S.get('room','')).toUpperCase().replace(/[^A-Z0-9]/g,'');S.set('room',rc);roomCode();S.set('watchCode',String(S.get('watchCode','')).toUpperCase().replace(/[^A-Z0-9]/g,''));shareStop();roleApply()}readyRefresh()}catch(e){}LIB=null;setTimeout(function(){try{getLib()}catch(e){}},0);loadReadings();if(running&&!isScreen()){stop();start()}};
@@ -930,7 +935,7 @@ body.running #en p .draft{opacity:1}
   function dbg(m){var s=((Date.now()-DBG0)/1000).toFixed(1);DBG.push(s+'s '+m);if(DBG.length>3000)DBG.shift()}
   function dbgReport(){
     return ['Church translation debug report','page '+(document.querySelector('meta[name=build]')||{content:'?'}).content,'ua '+navigator.userAgent,'ios '+IOS+' SR '+!!SR,
-      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper')+' | hearing '+hearEngine(),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview',DEF.preview),'memo '+sermonMemo.slice(0,200),'usage today '+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,fixes:Object.keys(LEARN.fix||{}).length,active:activeFixes().length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
+      'key '+(S.get('groqKey','')?'yes':'NO')+' | opens on this copy '+LAUNCHES+' | home-screen app '+(STANDALONE?'yes':'NO')+(KEYSRC?' | '+KEYSRC:''),'engine '+S.get('engine','whisper')+' | hearing '+hearEngine(),'noise '+S.get('noise','normal')+' mic '+S.get('micMode','room')+' lang '+S.get('lang','mixed'),'preview '+S.get('preview',DEF.preview),'memo '+sermonMemo.slice(0,200),'usage today '+(claudeUse.req?'claude-haiku '+claudeUse.req+'req/'+Math.round((claudeUse.inTok+claudeUse.outTok)/1000)+'k this session, ':'')+POOL.map(function(m){var u=useOf(m);return m.replace(/^.*\//,'')+' '+u.day.req+'req/'+Math.round(u.day.tok/1000)+'k'}).join(', '),'learned '+JSON.stringify({speech:LEARN.speech,floor:LEARN.floor,gap:LEARN.gap,junk:(LEARN.junk||[]).length,fixes:Object.keys(LEARN.fix||{}).length,active:activeFixes().length,models:LEARN.models}),'status: '+($('status')||{}).textContent,'---'].concat(DBG).join('\n');
   }
   // While the service is running nothing but the English may appear for the congregation: problems only turn the small dot amber.
   var problemText='',PROBLEM_RE=/problem|busy|limit|paused|no sound|recover|reconnect|interrupted|slow connection|not accepted|could not|isn.t|failed|blocked|stopped arriving|microphone/i;
@@ -1079,7 +1084,28 @@ body.running #en p .draft{opacity:1}
   }
   function coolDown(m,r){var ra=parseInt(r.headers.get('retry-after')||'20',10);if(!(ra>0))ra=20;COOL[m]=Date.now()+Math.min(ra,3600)*1000;dbg('MODEL busy, resting '+m+' '+ra+'s')}
   function estTokens(msgs,maxTok){var c=0;msgs.forEach(function(m){c+=m.content.length});return Math.round(c/2.6)+maxTok} // Arabic and English mixed: about 2.6 characters a token
+  // v79 Claude Haiku: when it is chosen in Settings and its key is saved, every careful call (finished sentences, the sermon memo) goes to Claude.
+  // The quick live words stay on Groq. Any Claude failure falls back to Groq for that call, and a rejected key or empty balance pauses Claude for 10 minutes.
+  var CLAUDE_MODEL='claude-haiku-5-5',claudeBlockedUntil=0,claudeUse={req:0,inTok:0,outTok:0};
+  function useClaude(){return S.get('translator','groq')==='claude'&&!!S.get('claudeKey','')&&Date.now()>claudeBlockedUntil}
+  async function claudeCall(msgs,maxTok,temp,ms){
+    var sys=msgs.filter(function(m){return m.role==='system'}).map(function(m){return m.content}).join('\n\n'),conv=msgs.filter(function(m){return m.role!=='system'}).map(function(m){return {role:m.role==='assistant'?'assistant':'user',content:String(m.content)}});
+    if(!conv.length||conv[0].role!=='user')conv.unshift({role:'user',content:'Translate.'});
+    var body={model:CLAUDE_MODEL,max_tokens:Math.max(64,maxTok||300),messages:conv};if(sys)body.system=sys;if(typeof temp==='number')body.temperature=Math.max(0,Math.min(1,temp));
+    var r=await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.get('claudeKey',''),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000);
+    if(!r.ok){var em='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||''}catch(e){}
+      if(r.status===401||r.status===403||(r.status===400&&/credit|balance|billing/i.test(em))){claudeBlockedUntil=Date.now()+600000;problemText='Claude: '+(r.status===400?'the credit balance is too low':'the key was not accepted')+'. Groq is translating instead.';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn')}
+      throw new Error('Claude '+r.status+(em?': '+em.slice(0,120):''))}
+    var j=await r.json(),txt=cleanLLM(((j.content||[]).filter(function(c){return c.type==='text'}).map(function(c){return c.text}).join('')));
+    if(j.usage){claudeUse.req++;claudeUse.inTok+=j.usage.input_tokens||0;claudeUse.outTok+=j.usage.output_tokens||0}
+    if(!txt)throw new Error('Claude answered with nothing');
+    return {text:txt,model:CLAUDE_MODEL};
+  }
   async function chatCall(msgs,maxTok,temp,preferFast,deadline,onPartial){ // returns {text, model}; tries other models when one is busy or gone
+    if(useClaude()&&(!preferFast||!S.get('groqKey',''))){
+      try{var cr=await claudeCall(msgs,maxTok,temp,deadline?Math.max(4000,Math.min(15000,deadline-Date.now())):12000);if(onPartial)try{onPartial(cr.text)}catch(e){}return cr}
+      catch(e){dbg('CLAUDE '+e.message+': Groq translates this one');if(!S.get('groqKey',''))throw e}
+    }
     var kind=preferFast?'q':'c',est0=estTokens(msgs,maxTok+(preferFast?150:250)),std=(kind==='c'&&maxTok===340)||(kind==='q'&&maxTok===200),est=std&&AVGT[kind]?Math.min(est0,Math.round(Math.max(AVGT[kind]*1.25,est0*0.5))):est0,tried={},waited=0; // budget each request by what such requests really cost, once Groq has told us
     for(var k=0;k<6;k++){
       var m=pickModel(est,preferFast);
@@ -1136,6 +1162,7 @@ body.running #en p .draft{opacity:1}
     if(!ids.length)return res;
     await loadModels();
     res.push({n:'Hearing model',ok:ids.indexOf(MODELS.asr)>=0,m:MODELS.asr+(ids.indexOf(MODELS.asr)>=0?'':' is not available to this key')});
+    if(full&&S.get('claudeKey','')){claudeBlockedUntil=0;try{var ck=await claudeCall([{role:'user',content:'Translate to English, answer with the English only: الرب راعي'}],40,0,12000);res.push({n:'Claude translator',ok:true,m:CLAUDE_MODEL+' works ("'+ck.text.slice(0,40)+'")'+(S.get('translator','groq')==='claude'?'':'. Choose Claude Haiku as the translator to use it.')})}catch(e){res.push({n:'Claude translator',ok:false,m:e.message+'. Groq is used instead.'})}}
     if(full&&S.get('sonioxKey','')){var sc=await sxCheck();res.push({n:'Soniox streaming',ok:sc[0],m:sc[1]+(sc[0]?'':'. Whisper is used instead.')})}
     if(full&&S.get('deepgramKey','')){var dc=await dgCheck();res.push({n:'Deepgram streaming',ok:dc[0],m:dc[1]+(dc[0]?'':'. Whisper is used instead.')})}
     if(full&&S.get('cohereKey','')){try{cohereBlockedUntil=0;await cohereHear(wavBlob(new Float32Array(16000)),12000);res.push({n:'Cohere hearing',ok:true,m:COHERE_MODEL+' answers from this device'})}catch(e){res.push({n:'Cohere hearing',ok:false,m:e.message+'. Whisper is used instead.'})}}
@@ -1683,6 +1710,7 @@ body.running #en p .draft{opacity:1}
     if(m.error_code){dbg('STREAM Soniox refused: '+m.error_code+' '+(m.error_type||'')+' '+String(m.error_message||'').slice(0,90));if(m.error_code===401||m.error_code===402||m.error_code===403){DG.tries=Math.max(DG.tries,4);problemText='Soniox: '+String(m.error_message||m.error_type||m.error_code).slice(0,120);problemAt=Date.now()}
       else if(m.error_code===400&&SXCUT<4){SXCUT++;DG.tries=0;dbg('STREAM Soniox did not accept the opening message: trying a simpler one (step '+SXCUT+')')}
       return}
+    HOLD.msgAt=Date.now();if(typeof m.final_audio_proc_ms==='number')HOLD.finN=Math.round(m.final_audio_proc_ms*16);
     var tk=m.tokens||[],end=false,tailR=false;SX.nfAr='';SX.nfEn='';
     for(var i=0;i<tk.length;i++){var k=tk[i],tx=String(k.text||'');
       if(tx==='<end>'||tx==='<fin>'){if(tx==='<end>')end=true;continue}
@@ -1706,17 +1734,49 @@ body.running #en p .draft{opacity:1}
     try{nameTerms().slice(0,24).forEach(function(t){q+='&keyterm='+encodeURIComponent(t)})}catch(e){}
     return 'wss://api.deepgram.com/v1/listen?'+q;
   }
+  // v79 hold and resend: when the live line drops or stalls, the sound is kept (up to HOLD_SEC seconds) instead of being lost, the line is retried quickly,
+  // and the kept sound is sent as soon as it returns. Soniox reports how much sound it has finished hearing, so only the part it had not finished is sent again.
+  // If the line stays away longer than HOLD_MAX, the kept sound goes to the backup hearing (Whisper), as before this change.
+  var HOLD_SEC=25,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0};
+  function holdStart(){
+    if(HOLD.on||!running||paused)return;
+    var q=[],n=0;HOLD.ring.forEach(function(r){var st=r[0],b=r[1];if(st+b.length<=HOLD.finN)return;var from=Math.max(0,HOLD.finN-st),f=new Float32Array(b.length-from);for(var i=from;i<b.length;i++)f[i-from]=b[i]/32768;q.push(f);n+=f.length});
+    HOLD.on=true;HOLD.since=Date.now();HOLD.q=q;HOLD.n=n;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;
+    dbg('HOLD line lost: keeping the sound ('+(n/SR16).toFixed(1)+' s not yet heard)');
+    problemText='The connection dropped: the sound is being kept and is sent when it returns';problemAt=Date.now();var d=$('dot');d&&d.classList.add('warn');
+  }
+  function holdPush(f){HOLD.q.push(f);HOLD.n+=f.length;while(HOLD.n>SR16*HOLD_SEC&&HOLD.q.length>1){HOLD.n-=HOLD.q[0].length;HOLD.q.shift()}}
+  function holdFlush(){
+    if(!HOLD.on)return;var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
+    q.forEach(function(f){dgFeed(f)});
+    dbg('HOLD line back after '+((Date.now()-HOLD.since)/1000).toFixed(1)+' s: sent '+(n/SR16).toFixed(1)+' s of kept sound');
+    var d=$('dot');d&&d.classList.remove('warn');problemText='';
+  }
+  function holdGiveUp(){
+    var q=HOLD.q,n=HOLD.n;HOLD.on=false;HOLD.q=[];HOLD.n=0;
+    dbg('HOLD no line for '+Math.round(HOLD_MAX/1000)+' s: '+(n/SR16).toFixed(1)+' s of kept sound goes to the backup hearing');
+    if(n>SR16*0.7){buf=q;bufLen=n;energy=[];speechSamples=n;chunkMs=n/SR16*1000;try{cutChunk(false)}catch(e){}}
+  }
+  function holdDrop(){HOLD.on=false;HOLD.q=[];HOLD.n=0;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.jam=0}
+  window.addEventListener('online',function(){try{if(HOLD.on&&dgWanted()&&!DG.ws){clearTimeout(DG.timer);dgOpen()}}catch(e){}});
+  setInterval(function(){ // a line that is open but no longer carries anything (weak Wi-Fi) is closed and reopened; Soniox answers about once a second even in silence
+    var ws=DG.ws;if(!ws||!DG.live||!ws.__sn||!running||paused)return;
+    var now=Date.now(),mute=now-HOLD.msgAt>5000&&now-DG.opened>6000&&now-DG.sent<1500;
+    HOLD.jam=ws.bufferedAmount>SR16*2*3?HOLD.jam+1:0;
+    if(HOLD.jam>=3||mute){HOLD.jam=0;dbg('STREAM line stalled ('+(mute?'no answer for 5 s':'sound is not leaving this device')+'): reconnecting');var h=ws.onclose;ws.onclose=null;try{ws.close()}catch(e){}try{h&&h({code:4000,reason:'stalled'})}catch(e){}}
+  },1000);
   function dgOpen(){
     if(!dgWanted()||DG.ws)return;
     var sn=streamEngine()==='soniox',ws;
     try{ws=sn?new WebSocket('wss://stt-rt.soniox.com/transcribe-websocket',['soniox-api-key',S.get('sonioxKey','')]):new WebSocket(dgUrl(),['token',S.get('deepgramKey','')])}catch(e){dbg('STREAM could not start: '+e.message);dgRetry();return}
     if(sn){ws.addEventListener('open',function(){try{ws.send(JSON.stringify(sxStart()))}catch(e){}});SX={ar:'',en:'',nfAr:'',nfEn:'',at:0,shown:0}}
-    ws.__sn=sn;
+    ws.__sn=sn;HOLD.ring=[];HOLD.sentN=0;HOLD.finN=0;HOLD.msgAt=Date.now();HOLD.jam=0;
     ws.binaryType='arraybuffer';DG.ws=ws;
     ws.onopen=function(){setTimeout(function(){ // the line counts as up only once it has stayed open for a moment: a line that opens and is shut at once must not disturb Whisper
       if(DG.ws!==ws||ws.readyState!==1||!dgWanted())return;DG.live=true;DG.seg=[];DG.interim='';DG.opened=Date.now();dbg('STREAM line is up');
       try{if(proc&&speechSamples/SR16>0.7)cutChunk(false)}catch(e){} // what Whisper was in the middle of hearing is not thrown away
       buf=[];bufLen=0;energy=[];speechSamples=0;chunkMs=0;sinceVoiceMs=0;
+      if(ws.__sn)holdFlush();
       clearInterval(DG.keep);DG.keep=setInterval(function(){try{if(DG.live&&Date.now()-DG.sent>4000)ws.send(JSON.stringify({type:ws.__sn?'keepalive':'KeepAlive'}))}catch(e){}if(DG.live&&Date.now()-DG.opened>15000)DG.tries=0},4000)},1200)};
     ws.onmessage=function(ev){if(DG.ws!==ws||typeof ev.data!=='string')return;var m;try{m=JSON.parse(ev.data)}catch(e){return}if(ws.__sn)sxMessage(m,ws);else dgMessage(m)};
     ws.onerror=function(){dbg('STREAM line error')};
@@ -1724,10 +1784,11 @@ body.running #en p .draft{opacity:1}
       if(was){try{var tl=flatten();if(!replayEl&&tl.length>SR16)recPut(tl);var kp=tl.slice(-Math.round(SR16*1.2));buf=[kp];bufLen=kp.length;energy=[];speechSamples=0;chunkMs=0;sinceVoiceMs=0}catch(e){}}
       if(DG.seg.length){var t=DG.seg.join(' ');DG.seg=[];dgFinal(t)}DG.interim='';
       var sa=SX.ar.replace(/\s+/g,' ').trim();if(sa){var se=SX.en.replace(/\s+/g,' ').trim();SX.ar='';SX.en='';SX.at=0;dgFinal(sa,se)}
+      if(was&&ws.__sn&&dgWanted())holdStart();
       if(dgWanted())dgRetry()};
   }
-  function dgRetry(){clearTimeout(DG.timer);DG.tries++;var w=Math.min(30000,1500*Math.pow(2,Math.min(DG.tries,4)));dbg('STREAM retry in '+(w/1000).toFixed(1)+' s, Whisper is hearing meanwhile');DG.timer=setTimeout(function(){if(dgWanted())dgOpen()},w)}
-  function dgClose(){clearTimeout(DG.timer);clearInterval(DG.keep);var ws=DG.ws;DG.ws=null;DG.live=false;DG.tries=0;
+  function dgRetry(){clearTimeout(DG.timer);DG.tries++;var w=HOLD.on?(DG.tries<=5?600:1500):Math.min(30000,1500*Math.pow(2,Math.min(DG.tries,4)));dbg('STREAM retry in '+(w/1000).toFixed(1)+' s, '+(HOLD.on?'the sound is being kept meanwhile':'Whisper is hearing meanwhile'));DG.timer=setTimeout(function(){if(dgWanted())dgOpen()},w)}
+  function dgClose(){clearTimeout(DG.timer);clearInterval(DG.keep);var ws=DG.ws;DG.ws=null;DG.live=false;DG.tries=0;holdDrop();
     if(DG.seg.length&&running===false){var t=DG.seg.join(' ');DG.seg=[];try{dgFinal(t)}catch(e){}}DG.seg=[];DG.interim='';
     var sa=SX.ar.replace(/\s+/g,' ').trim();if(sa&&running===false){var se=SX.en.replace(/\s+/g,' ').trim();try{dgFinal(sa,se)}catch(e){}}SX.ar='';SX.en='';SX.nfAr='';SX.nfEn='';SX.at=0;
     try{if(ws){ws.onclose=null;if(ws.readyState===1)ws.send(ws.__sn?'':JSON.stringify({type:'CloseStream'}));ws.close()}}catch(e){}}
@@ -1735,6 +1796,7 @@ body.running #en p .draft{opacity:1}
     var ws=DG.ws;if(!ws||ws.readyState!==1)return;
     var b=new Int16Array(s16.length);for(var i=0;i<s16.length;i++){var x=Math.max(-1,Math.min(1,s16[i]));b[i]=x<0?x*0x8000:x*0x7fff}
     try{ws.send(b.buffer);DG.sent=Date.now()}catch(e){}
+    if(ws.__sn){HOLD.ring.push([HOLD.sentN,b]);HOLD.sentN+=b.length;while(HOLD.ring.length>1&&(HOLD.ring[0][0]+HOLD.ring[0][1].length<=HOLD.finN||HOLD.sentN-HOLD.ring[0][0]>SR16*HOLD_SEC))HOLD.ring.shift()}
   }
   function dgMessage(m){
     if(m.type==='UtteranceEnd'){if(DG.seg.length){var u=DG.seg.join(' ');DG.seg=[];DG.interim='';dgFinal(u)}return}
@@ -2146,6 +2208,7 @@ body.running #en p .draft{opacity:1}
         if(bufLen>SR16*5){if(!replayEl)recPut(flatten());buf=[];bufLen=0}
         energy=[];speechSamples=0;chunkMs=0;sinceVoiceMs=0;return;
       }
+      if(HOLD.on){if(sinceVoiceMs<1200)holdPush(s16);buf=[];bufLen=0;energy=[];speechSamples=0;chunkMs=0;if(now-HOLD.since>HOLD_MAX)holdGiveUp();return} // the line is away: keep what is said (long silences are skipped) and resend it when the line returns
       var spoken=speechSamples/SR16*1000;liveStep();
       if(spoken>1000&&sinceVoiceMs>PAUSE_MS&&chunkMs>minChunk())cutChunk(false);           // natural pause (the minimum piece length tunes itself, see tunePause)
       else if(spoken>700&&chunkMs>MAXCHUNK_MS)cutChunk(true);                     // fast talker: cut at the quietest instant
