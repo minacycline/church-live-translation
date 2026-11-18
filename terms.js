@@ -1139,5 +1139,51 @@ window.COPTIC_TERMS = [
   ["الهيبوستاسيس","the hypostasis",true],
   ["الهيتينيات","the Hitenyat (intercessions)",true],
   ["يد بخور","a hand of incense",true],
-  ["يعاقبة","Jacobites",true]
+  ["يعاقبة","Jacobites",true],
+
+  // v73: names as people actually say them (spelling the hearing produces), from the 17 Nov 2026 test sermon
+  ["نقدموس","Nicodemus"],
+  ["نيقودموس","Nicodemus"],
+  ["نقوديموس","Nicodemus"],
+  ["اللاوي","Levi (Matthew the tax collector) when Jesus calls him or he follows Jesus; otherwise the Levite",true],
+  ["لاوي","Levi",true],
+  ["متى العشار","Matthew the tax collector"],
+  ["الأنبا أنطونيوس","Anba Antonious (St. Anthony the Great)"],
+  ["الوعظ","preaching; or the preacher (الواعظ misheard) when it is a person who speaks or does something",true],
+  ["الأب","the father (a dad); Father only as a priest's title before a name or for God the Father",true],
+  ["الدياكون","Deacon"],
+
+  // v73: fixed church phrases that end a sermon or a prayer
+  ["لإلهنا المجد من الآن وإلى الأبد","To our God be the glory, now and forever"],
+  ["ولإلهنا المجد دائما أبديا","And to our God be the glory forever"],
+  ["لإلهنا المجد","To our God be the glory"],
+  ["له المجد","to Him be the glory"],
+  ["من الآن وإلى الأبد","now and forever"],
+  ["إلى أبد الآبدين","unto the ages of ages"],
+
+  // v73: Egyptian everyday expressions the translator got wrong
+  ["على طول الخط","all the way, to the very end (never: right away)",true],
+  ["على طول","right away, or always / straight on: decide from the sentence",true],
+  ["مش قد كده","not that much, not that great",true],
+  ["ياما","so many, how often",true],
+  ["أوعى","be careful not to, do not ever",true],
+
+  // v73: English words said inside Arabic announcements (money, building, church life in America)
+  ["البيمنت","the payment"],
+  ["بيمنت","payment"],
+  ["داون بيمنت","down payment"],
+  ["المورجيدج","the mortgage"],
+  ["مورجيدج","mortgage"],
+  ["اللون","the loan (money from the bank) in a sentence about the bank, money or building; otherwise the color",true],
+  ["الكونتراكتور","the contractor"],
+  ["كونتراكتور","contractor"],
+  ["البيرمت","the permit"],
+  ["التاونشيب","the township"],
+  ["الإنشورنس","the insurance"],
+  ["الباركنج","the parking lot"],
+  ["البيزمنت","the basement"],
+  ["الفندريزر","the fundraiser"],
+  ["الدونيشن","the donation"],
+  ["الميتنج","the meeting"],
+  ["الرسومات","the drawings (the building plans) in a sentence about building; otherwise the drawings",true]
 ];
