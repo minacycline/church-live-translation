@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v104">
+<meta name="build" content="v106">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1665,8 +1665,8 @@ body.running #en p .draft{opacity:1}
   function txAll(){try{return JSON.parse(S.get('transcripts','[]'))||[]}catch(e){return []}}
   function txWrite(list){
     list.sort(function(a,b){return a.start-b.start});
-    while(list.length>10)list.shift();
-    for(;;){var str=JSON.stringify(list);if(str.length<800000||list.length<=1){try{localStorage.setItem('transcripts',str);break}catch(e){dbg('transcript save failed, trimming')}}if(list.length<=1)break;list.shift()}
+    while(list.length>10){var gone=list.shift();try{dbg('TRANSCRIPT from '+new Date(gone.start).toISOString().slice(0,10)+' removed from this device: only the last 10 are kept here (the Google Sheet keeps every one)')}catch(e){}} // v104: said in the log
+    for(;;){var str=JSON.stringify(list);if(str.length<800000||list.length<=1){try{localStorage.setItem('transcripts',str);break}catch(e){dbg('transcript save failed, trimming')}}if(list.length<=1)break;var g2=list.shift();try{dbg('TRANSCRIPT from '+new Date(g2.start).toISOString().slice(0,10)+' removed from this device to make room (the Google Sheet keeps every one)')}catch(e){}}
   }
   function txBegin(){
     var list=txAll(),last=list[list.length-1];
@@ -2241,7 +2241,7 @@ body.running #en p .draft{opacity:1}
   function recTrimFast(){ // during a long service: drop saved sound older than the limit, reading only the names of the pieces
     if(!REC.on)return;var cut=Date.now()-REC.max*1000;
     KEYDB.open().then(function(db){var st=db.transaction('kv','readwrite').objectStore('kv'),q=st.openKeyCursor?st.openKeyCursor():st.openCursor();
-      q.onsuccess=function(){var c=q.result;if(!c)return;var k=String(c.key);if(k.indexOf('rec:')===0){var t=parseInt(k.split(':')[1],10);if(t&&t<cut)st.delete(c.key)}c.continue()}}).catch(function(){});
+      q.onsuccess=function(){var c=q.result;if(!c)return;var k=String(c.key);if(k.indexOf('rec:')===0){var t=parseInt(k.split(':')[1],10);if(t&&t<cut){st.delete(c.key);if(!REC.told){REC.told=true;dbg('SOUND older than '+Math.round(REC.max/60)+' minutes is no longer kept on this device: only the newest '+Math.round(REC.max/60)+' minutes are saved for replay. The words are not affected')}}}c.continue()}}).catch(function(){});
   }
   function recDropAll(){KEYDB.open().then(function(db){var st=db.transaction('kv','readwrite').objectStore('kv'),q=st.openKeyCursor?st.openKeyCursor():st.openCursor();q.onsuccess=function(){var c=q.result;if(!c)return;if(String(c.key).indexOf('rec:')===0)st.delete(c.key);c.continue()}}).catch(function(){})}
   function storageGuard(){ // if the device is ever close to full, saved sound is the first thing to go: captions matter more than the recording
@@ -2588,10 +2588,10 @@ body.running #en p .draft{opacity:1}
     lastSpeechAt=Date.now();clearInterval(idleTimer);
     idleTimer=setInterval(function(){
       var ref=useWhisper()?lastSpeechAt:lastResult;
-      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){autoStop('Nothing was heard for '+num('idleMin',10)+' minutes, so listening stopped.')}
+      if(running&&!paused&&Date.now()-ref>num('idleMin',10)*60000){autoStop('Nothing was heard for '+num('idleMin',10)+(num('idleMin',10)===1?' minute':' minutes')+', so listening stopped.')}
     },15000);
     var mins=parseInt(S.get('maxMin','240'),10)||240;
-    maxTimer=setTimeout(function(){autoStop('Listening stopped by itself after '+mins+' minutes.')},mins*60000);
+    maxTimer=setTimeout(function(){autoStop('Listening stopped by itself after '+mins+(mins===1?' minute.':' minutes.'))},mins*60000);
     try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
   }
   function stop(){
