@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v105">
+<meta name="build" content="v106">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -245,11 +245,15 @@ body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:
 #admGo:disabled{opacity:.5}
 #admMsg{min-height:1.4em;font-size:16px;font-weight:600;color:#b45309}
 #admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
+#closing{position:fixed;top:0;left:0;right:0;bottom:0;z-index:120;background:#fff;color:#16171a;display:flex;align-items:center;justify-content:center;padding:6vw;text-align:center;font:700 clamp(38px,9vw,130px)/1.15 system-ui,sans-serif;cursor:pointer;-webkit-user-select:none;user-select:none}
+#closing[hidden]{display:none}
+body.closed #en{visibility:hidden}
 #admTag{position:fixed;right:0;bottom:0;z-index:99;background:#16171a;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:8px 0 0 0;pointer-events:none}
 </style>
 </head>
 <body>
 <div id="admTag">ADMIN</div>
+<div id="closing" hidden role="button" tabindex="0" aria-label="Glory be to God Forever, Amen! Tap to go back to the start screen">Glory be to God Forever, Amen!</div>
 <div id="alert"></div>
 <div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
 <div id="liveTag" aria-hidden="true">TRANSLATING</div>
@@ -2559,6 +2563,7 @@ body.running #en p .draft{opacity:1}
     setTimeout(function(){rejectedOnce=false;if(typeof LOCKED!=='undefined'&&LOCKED){try{if(running)stop()}catch(e){}askPassword()}},300);
   }
   async function start(){
+    try{closingHide();document.body.classList.remove('closed')}catch(e){}
     if(!roleChosen()){readyRefresh();return} // pick Main or Screen first
     if(isScreen()){viewStart(S.get('watchCode',''));return} // a screen never listens
     if(NO_BACKUP){
@@ -2610,7 +2615,12 @@ body.running #en p .draft{opacity:1}
     try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;setTimeout(function(){reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
-  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}running?stop():start()};
+  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else start()};
+  // v104: pressing Stop shows only the closing line on a clean white screen; one tap goes back to the start screen
+  function closingShow(){try{document.body.classList.add('closed');$('closing').hidden=false;dbg('CLOSING shown')}catch(e){}}
+  function closingHide(){try{$('closing').hidden=true}catch(e){}}
+  try{$('closing').onclick=closingHide;$('closing').onkeydown=function(e){if(e.key==='Enter'||e.key===' '||e.key==='Escape')closingHide()}}catch(e){}
+
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
   $('rstNo').onclick=function(){$('rstDlg').close()};
   $('rstYes').onclick=function(){$('rstDlg').close();doRestart()};
