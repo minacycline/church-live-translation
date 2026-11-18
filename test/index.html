@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v112">
+<meta name="build" content="v113">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -246,6 +246,14 @@ body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:
 #admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
 #closing{position:fixed;top:0;left:0;right:0;bottom:0;z-index:120;background:#fff;color:#16171a;display:flex;align-items:center;justify-content:center;padding:6vw;text-align:center;font:700 clamp(38px,9vw,130px)/1.15 system-ui,sans-serif;cursor:pointer;-webkit-user-select:none;user-select:none}
 #closing[hidden]{display:none}
+#closing{flex-direction:column;gap:5vh}
+#closing img{height:min(22vh,180px);width:auto;background:#101014;border-radius:16px;padding:8px 14px;pointer-events:none}
+body.running header,body.running footer{transition:opacity .4s}
+body.running.idle:not(.paused) header,body.running.idle:not(.paused) footer{opacity:0;pointer-events:none}
+body.running.idle:not(.paused){cursor:none}
+@media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
+@media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
+@media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
 body.closed #en{visibility:hidden}
 #admTag{position:fixed;right:0;bottom:0;z-index:99;background:#16171a;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:8px 0 0 0;pointer-events:none}
 </style>
@@ -2650,10 +2658,31 @@ body.running #en p .draft{opacity:1}
     try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;repSafe(rb,rr,snap,'Stop was pressed but the page closed before the report was sent');setTimeout(function(){try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
-  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else start()};
+  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else{goFull();start()}};
   // v104: pressing Stop shows only the closing line on a clean white screen; one tap goes back to the start screen
-  function closingShow(){try{document.body.classList.add('closed');$('closing').hidden=false;dbg('CLOSING shown')}catch(e){}}
-  function closingHide(){try{$('closing').hidden=true}catch(e){}}
+  // v113: the closing screen keeps the device awake (30 minutes at most) and carries the church logo above the line
+  var closeWake=null,closeWakeT=0;
+  function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
+  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown')}catch(e){}
+    try{closeWakeOff();if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;closeWakeT=setTimeout(closeWakeOff,30*60000)}).catch(function(){})}catch(e){}}
+  function closingHide(){try{$('closing').hidden=true}catch(e){}closeWakeOff()}
+  try{var cLogo=$('logo');if(cLogo&&cLogo.src){var cImg=new Image();cImg.alt='';cImg.src=cLogo.src;$('closing').insertBefore(cImg,$('closing').firstChild)}}catch(e){}
+  // v113: clean screen for the projector (user view only). Start goes full screen where the device allows it; while translating, the top bar and the buttons fade out after 4 seconds without a touch, and the first touch only brings them back
+  var CLEANVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')!=='admin';
+  function goFull(){try{if(!CLEANVIEW)return;var de=document.documentElement,rq=de.requestFullscreen||de.webkitRequestFullscreen;if(!rq||document.fullscreenElement||document.webkitFullscreenElement)return;if((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone)return;var r=rq.call(de,{navigationUI:'hide'});if(r&&r.catch)r.catch(function(){})}catch(e){}}
+  (function(){
+    if(!CLEANVIEW)return;
+    var last=Date.now(),revealAt=0,B=document.body;
+    function fsOn(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+    ['mousemove','pointerdown','touchstart','keydown'].forEach(function(ev){window.addEventListener(ev,function(){if(B.classList.contains('idle')&&B.classList.contains('running')&&!B.classList.contains('paused'))revealAt=Date.now()},true)});
+    window.addEventListener('click',function(e){if(Date.now()-revealAt>700)return;try{if(e.target&&e.target.closest&&e.target.closest('header,footer')){e.stopPropagation();e.preventDefault()}}catch(x){}},true);
+    ['mousemove','pointerdown','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,function(){last=Date.now();B.classList.remove('idle')},{passive:true})});
+    setInterval(function(){
+      if(!B.classList.contains('running')){if(!fsOn())B.classList.remove('idle');return}
+      if(B.classList.contains('paused')||document.querySelector('dialog[open]')||!$('resume').hidden){B.classList.remove('idle');return}
+      if(Date.now()-last>4000)B.classList.add('idle');
+    },500);
+  })();
   try{$('closing').onclick=closingHide;$('closing').onkeydown=function(e){if(e.key==='Enter'||e.key===' '||e.key==='Escape')closingHide()}}catch(e){}
 
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
