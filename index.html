@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v73">
+<meta name="build" content="v74">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -236,6 +236,22 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
   <div class="rule"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="#d8ad55" stroke-width="3.6" stroke-linecap="round"><path d="M20 5v30M5 20h30"/><circle cx="20" cy="20" r="7.5"/><path d="M20 3.5l-3 3h6zM20 36.5l-3-3h6zM3.5 20l3-3v6zM36.5 20l-3-3v6z" fill="#d8ad55" stroke="none"/></g></svg></div>
 </header>
 
+<style>
+body.running{background:#101014}
+body.running #title,body.running #status,body.running #lag{color:#8d8d92}
+body.running .icon{background:#1c1c22;color:#f4f4f2;border-color:#33333a}
+body.running #go.stop{background:#2b2b2e;border:1px solid #55555c}
+body.running #rst{color:#8d8d92;border-color:#33333a}
+body.running #en{justify-content:center;text-align:center;gap:.5em;line-height:1.35;font-weight:600;letter-spacing:0;padding-right:0}
+body.running #en.over{justify-content:flex-end;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 1.6em);mask-image:linear-gradient(to bottom,transparent 0,#000 1.6em)}
+body.running #en p,body.running #en p.cur,body.running #en p.prev,body.running #en p.next,body.running #en .interim,body.running #en p.interim.cur{font-size:1em;line-height:1.35;font-weight:600;font-style:normal;letter-spacing:0;opacity:1;margin:0;display:block;max-height:none}
+body.running #en p.out{opacity:0;max-height:0}
+body.running #en p.in{opacity:0}
+body.running #en p.prev,body.running #en p.pending{color:#77777d}
+body.running #en p.cur{color:#f4f4f2}
+body.running #en .interim,body.running #en p.interim.cur{color:#f2c94c}
+body.running #en p .draft{opacity:1}
+</style>
 <main>
   <div id="en"></div>
   <div id="ar"></div>
@@ -705,8 +721,8 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     else if(lastL&&!hasT(lastL)&&BIGHOLD){bigLive=BIGHOLD} // the sentence just ended and is still being translated: keep what was on screen
     else{BIGHOLD='';for(var q=lines.length-1;q>=0;q--){if(hasT(lines[q])){bigLine=lines[q];break}}}
     var upto=bigLine?lines.indexOf(bigLine):lines.length;
-    var prevs=lines.slice(0,upto).filter(hasT).slice(-3);
-    var shown=prevs.concat(bigLine?[bigLine]:[]);
+    // v74: three rows, one size. The sentence being said is yellow; the last finished one is white; the one before it is gray. With nothing being said, the last three finished sentences show
+    var shown=lines.filter(hasT).slice(bigLive?-2:-3),prevs=shown.slice(0,-1);bigLine=shown.length?shown[shown.length-1]:null;
     shown.forEach(function(l){if(!l.id)l.id='l'+(++lineSeq)});
     var keep={};shown.forEach(function(l){keep[l.id]=1});
     Array.prototype.slice.call(enEl.children).forEach(function(el){
@@ -838,7 +854,8 @@ body.listening.admin #lag,body.viewing.admin #lag{display:inline}
     var vw=window.innerWidth||1024,vh=window.innerHeight||768,k=Math.min(1,Math.min(vw,vh*1.2)/15/46);base=Math.max(16,Math.round(base*k));var fs=base;
     root.style.setProperty('--fs',fs+'px');
     function over(){var ps=enEl.querySelectorAll('p');if(!ps.length)return false;var f=ps[0],l=ps[ps.length-1];return (l.offsetTop+l.offsetHeight-f.offsetTop)>enEl.clientHeight+1} // layout positions, not on-screen ones: a new line slides in from slightly below, and counting that slide made every new line shrink all the text to the smallest size for half a second
-    while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
+    if(document.body.classList.contains('running')){enEl.classList.toggle('over',over());return} // v74: while captions run the text never changes size; when it does not fit, the oldest row slides off the top
+    enEl.classList.remove('over');while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
   }
   window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
   // The app tunes itself from what it observes and remembers it on this device (it cannot rewrite its own code, but it can adjust its settings)
