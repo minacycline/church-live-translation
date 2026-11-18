@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v117">
+<meta name="build" content="v116">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -771,12 +771,11 @@ body.running #en p .draft{opacity:1}
     HIDE.en=new RegExp('\\b(?:'+en.join('|')+')\\b','gi');
     HIDE.ar=new RegExp('(^|[^\\u0600-\\u06FF])(?:[وفلب])?(?:'+ar.join('|')+')(?![\\u0600-\\u06FF])','g');
   }
-  function cleanEn(t){if(!t)return t;try{hideBuild();var r=String(t).replace(HIDE.en,'…');if(HIDE.ar.test(r)){HIDE.ar.lastIndex=0;r=r.replace(HIDE.ar,'$1…')}HIDE.ar.lastIndex=0;return r.replace(/…(?:\s*…)+/g,'…').replace(/\\("|')/g,'$1').replace(/,?\s*\b(?:uh+|um+|uhm+|erm?|ah+|hmm+|eh+|mm+)\b,?/gi,function(m,off){if(off===0)return '';var a=/^,/.test(m),b=/,$/.test(m);return a&&b?'':(a||b?',':'')}).replace(/,\s*([.!?])/g,'$1').replace(/^[\s,]+/,'').replace(/^[a-z]/,function(c){return c.toUpperCase()})}catch(e){return t}}
+  function cleanEn(t){if(!t)return t;try{hideBuild();var r=String(t).replace(HIDE.en,'…');if(HIDE.ar.test(r)){HIDE.ar.lastIndex=0;r=r.replace(HIDE.ar,'$1…')}HIDE.ar.lastIndex=0;return r.replace(/…(?:\s*…)+/g,'…').replace(/\\("|')/g,'$1').replace(/,?\s*\b(?:uh+|um+|uhm+)\b,?/gi,function(m,off){return off===0?'':(/,/.test(m)?',':'')}).replace(/^[\s,]+/,'').replace(/^[a-z]/,function(c){return c.toUpperCase()})}catch(e){return t}}
   function cleanAr(t){if(!t)return t;try{hideBuild();HIDE.ar.lastIndex=0;var r=String(t).replace(HIDE.ar,'$1…');HIDE.ar.lastIndex=0;return r.replace(HIDE.en,'…')}catch(e){return t}}
   var MAXL=4,shownIds=[],BIGHOLD='',BIGLIVE='';
   var DOTS='<span class="dots" aria-label="listening"><i></i><i></i><i></i></span>';
-  function enOf(l){var t=cleanEn(l.en||'');return /^\s*(?:آ+|اا+|أه+|اه+|امم+|إمم+)[،,\s]/.test(l.ar||'')?t.replace(/^(?:well|i mean|so|now),\s*/i,'').replace(/^[a-z]/,function(c){return c.toUpperCase()}):t}
-  function lineHtml(l){return l.en?esc(enOf(l))+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(cleanEn(l.draft))+'</span>':DOTS}
+  function lineHtml(l){return l.en?esc(cleanEn(l.en))+(l.ref?' <span class="ref">'+esc(l.ref)+'</span>':''):l.draft?'<span class="draft">'+esc(cleanEn(l.draft))+'</span>':DOTS}
   function lineClass(l,idx,n){return (l.en||l.draft?'':'pending ')+(l.fixed?'fixed ':'')+(idx<n-2?'old':'')}
   function micMsg(e){var n=e&&e.name;
     if(n==='NotFoundError'||n==='OverconstrainedError'||n==='DevicesNotFoundError')return 'No microphone found on this device. Plug one in, or set this device to Screen only.';
@@ -946,7 +945,7 @@ body.running #en p .draft{opacity:1}
     if(running&&dotsOn){var dl=document.createElement('span');dl.className='dotrow';dl.innerHTML=DOTS;enEl.appendChild(dl)} // he is speaking: a small sign at the bottom, in its own reserved space, so nothing moves
     BIGLIVE=bigLive;
     lagShow();
-    SHARE.rows=shown.map(function(l,i){return {r:(bigLine&&l===bigLine)?'cur':'prev',t:enOf(l),d:l.en?'':cleanEn(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
+    SHARE.rows=shown.map(function(l,i){return {r:(bigLine&&l===bigLine)?'cur':'prev',t:cleanEn(l.en||''),d:l.en?'':cleanEn(l.draft||''),ref:l.ref||'',f:l.fixed?1:0}});shareQueue();
     fit();setTimeout(fit,520);
     if(txId)txSave(false);
   }
@@ -1139,7 +1138,7 @@ body.running #en p .draft{opacity:1}
   }
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else. He also drops English words and short English phrases into Arabic sentences, and every English word he says must appear on the screen exactly as that English word, spelled correctly. English that arrives in English letters is kept as it is, never translated or replaced. He also uses English words that the recognizer writes in Arabic letters: these are English, not Arabic, and the recognizer often writes them in Arabic letters, where they can look like a different Arabic word: فن or فان is usually the English word fun (not art) when he talks about enjoyment or says "as they say", and the same goes for words like ستريس (stress), بيزي (busy), ميتنج (meeting), ويك إند (weekend), أوكيه (okay). When an Arabic-looking word sounds like an English word and that English word fits the sentence better, write the English word he said.';
   var SYS='You translate a live Coptic Orthodox church service, spoken in Egyptian Arabic, into natural English for a screen. Most of it is a sermon, but the speaker also makes ordinary announcements (tickets, the festival, building repairs, money, dates, schedules): translate those plainly in everyday words and do not turn them into religious language. The Arabic comes from speech recognition and can have misheard words. Only when the sentence is about faith, Scripture, saints or prayer and a word makes no sense there, treat it as a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). In an announcement or an everyday sentence, keep the plain meaning of the words. Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Meaning comes before polish. Write what he means as clear, natural English that a listener can follow at once. Drop hesitation sounds and fillers (آآ, اه, امم, uh, um) and the filler يعني ("I mean", "that is", "you know") when it carries no meaning. Drop false starts and words he repeats by accident (ده ده, إن إن), and put the words in normal English order. Never translate word by word when that gives English that makes no sense: work out what he is saying from the whole sentence and the earlier ones, and say that plainly. This never allows adding, guessing or leaving out real content. When الوعظ does what a person does (says, tells, speaks), it is الواعظ, the preacher; and الواعظ يحل في الكلمة is يحلّي الكلمة, the preacher makes the talk pleasant. Keep every negation exactly (مش, ما...ش, لا, لم, لن, ولا, عمره ما): never turn "did not" into "did" or the reverse. Keep every number, amount of money, currency, date, day, time and percentage exactly as said, and whether money was collected, owed, promised or spent. Never write the name of a person that is not in the Arabic: a garbled or unknown word must never become a name (no Boaz, Judas or any other person he did not say), so leave that part out instead. When several people are named in a row (prayers, condolences, thanks), every word is part of a name: write each first name and family name in English letters and do not drop or translate any of them (ياسر سيدهم is Yasser Sedhom). Keep every name as said, never swap one person for another, and keep a title (Abouna, Anba, Pope, Saint) with the name it was said with; بابا can mean Dad or the Pope, so decide from the sentence. If the speaker corrects himself ("Friday, sorry, Saturday"), keep the correction. Keep repetition he uses for emphasis. In a story or quotation keep clear who is speaking: words said by a person in a story must not read as advice from the speaker himself. Do not add anything that was not said: no extra details, explanation, theology or verse. Scripture: when the speaker is clearly quoting a verse word for word, render it in NKJV wording; when he paraphrases, retells or only alludes to a passage, translate what he actually said and do not complete the verse. Never add a chapter and verse reference he did not say. If part of the sentence is garbled and you cannot tell what was said, leave that part out rather than invent a plausible sentence. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
-  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added. Filler sounds (آآ, أه, امم, إمم) are dropped completely: never write Uh, Um, Er, Ah or a 'Well,' for them.";SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
+  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added.";SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -1500,13 +1499,10 @@ body.running #en p .draft{opacity:1}
     if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
     return list;
   }
-  var DANGLE_RE=/(^|\s)(من|في|على|إلى|الى|عن|مع|و|أو|ان|أن|إن|اللي|الذي|التي|لكن|بس|يعني|زي|كان|ده|دي|لما|عشان|علشان|حتى|ثم|بعد|قبل)[،,]*\s*$/;
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
   // v116: the first sentence after Start waits less (3 more words, 0.8 s of quiet, at most 2.5 s) so the first caption comes sooner; later sentences are unchanged
   var sessFirst=false;
-  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?2500:4000,Q=f?800:1200;return new Promise(function(res){var t0=Date.now();
-    // v117: a finished sentence (7+ words ending in a full stop, not on a joining word) is translated at once; only short or unfinished pieces wait for what comes next
-    var fin=String(item.ar||'').replace(/\s+/g,' ').trim();if(fin.split(' ').length>=7&&/[.!?؟]["')\]]?$/.test(fin)&&!DANGLE_RE.test(fin.replace(/[.!?؟"')\]]+$/,''))){dbg('AHEAD skipped: finished sentence');res(aheadText(item));return}(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?2500:4000,Q=f?800:1200;return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
     if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
@@ -1973,7 +1969,7 @@ body.running #en p .draft{opacity:1}
   function sxClose(fa){SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=lastSxItem}
   // v110: English said fast used to come out in blocks of 26 words that could cut a word in half ("their l" / "ove for us"). A finished English sentence now goes up as soon as the next one has begun,
   // and a long run with no pause is cut at the end of a sentence when there is one, otherwise between whole words, never inside a word.
-  function sxCutAt(tk,forced,nf,soft){
+  function sxCutAt(tk,forced,nf){
     var acc='',best=-1,lastWord=-1,lat=0,let_=0,i,x;
     for(i=0;i<tk.length;i++){x=String(tk[i][0]);lat+=(x.match(/[A-Za-z]/g)||[]).length;let_+=(x.match(/[A-Za-z؀-ۿ]/g)||[]).length}
     var english=let_>0&&lat/let_>0.7;
@@ -1981,11 +1977,10 @@ body.running #en p .draft{opacity:1}
       if(!/^\s/.test(nx)&&!/\s$/.test(x))continue; // the next piece continues this word
       var head=acc.replace(/\s+/g,' ').trim();if(!head)continue;
       lastWord=i;
-      var comma=soft&&!english&&/[،,]$/.test(head)&&!DANGLE_RE.test(head.replace(/[،,]$/,''));
-      if(!comma&&!/[.!?؟]["')\]]?$/.test(head))continue;
+      if(!/[.!?؟]["')\]]?$/.test(head))continue;
       if(/(^|\s)(?:St|Fr|Dr|Mr|Mrs|Ms|vs|No|Rev|Jr|Sr|[A-Z])\.$/.test(head)||/\d\.$/.test(head))continue; // "St. George", "3.5": not the end of a sentence
       var words=head.split(' ').length;
-      if(english?words>=5:words>=7)best=i; // v117: Arabic also closes at a full stop as soon as the next sentence begins
+      if(english?words>=5:(forced&&words>=7))best=i;
     }
     if(best>=0)return best;
     if(forced&&lastWord>=0&&nf&&!/^\s/.test(nf)&&!/\s$/.test(String(tk[tk.length-1][0])))return lastWord; // the last word is still being heard: it goes with the next piece
@@ -2017,7 +2012,7 @@ body.running #en p .draft{opacity:1}
     var ar=(SX.ar+SX.nfAr).replace(/\s+/g,' ').trim(),en=(SX.en+SX.nfEn).replace(/\s+/g,' ').trim(),fa=SX.ar.replace(/\s+/g,' ').trim();
     if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
-    if(fa&&!end&&SX.tk&&SX.tk.length>3){var ci=sxCutAt(SX.tk,nw>=26,SX.nfAr,!!(SX.at&&Date.now()-SX.at>9000));if(ci>=0&&!/[.!?؟]["')\]]?$/.test(SX.tk.slice(0,ci+1).map(function(x){return x[0]}).join('').trim()))dbg('STREAM long sentence: first part shown at a comma');if(ci>=0&&sxSplit(ci)){if(tailR)render();return}}
+    if(fa&&!end&&SX.tk&&SX.tk.length>3){var ci=sxCutAt(SX.tk,nw>=26,SX.nfAr);if(ci>=0&&sxSplit(ci)){if(tailR)render();return}}
     if(fa&&(end||(nw>=7&&/[.!?؟]\s*$/.test(fa)&&!SX.nfAr.trim())||nw>=26)){ // a finished thought: at his pause, at the end of a sentence, or when it is getting long
       // v88: a pause in the middle of a thought must not put a stray piece on the screen ("From."): a piece of one or two words, or one that ends on a joining word, waits up to 3.5 s for the rest
       var dangling=nw<=2||/(^|\s)(من|في|على|إلى|الى|عن|مع|و|أو|ان|أن|إن|اللي|الذي|التي|لكن|بس|يعني|زي|كان|ده|دي|لما|عشان|علشان|حتى|ثم|بعد|قبل)[.،,؟!]*\s*$/.test(fa);
@@ -2463,12 +2458,12 @@ body.running #en p .draft{opacity:1}
     if(mode==='tab')return startTabAudio();
     var pre=new (window.AudioContext||window.webkitAudioContext)(); // created inside the tap so iOS allows sound; recreated after the mic is open so the rate matches
     try{if(pre.state==='suspended')pre.resume()}catch(e){}
-    var tMic=Date.now();try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:!direct,noiseSuppression:!direct,autoGainControl:!direct,channelCount:1}})}
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:!direct,noiseSuppression:!direct,autoGainControl:!direct,channelCount:1}})}
     catch(e){try{pre.close()}catch(e2){}if(retrying){dbg('mic open failed on retry: '+(e&&e.name));return false}running=false;ui();setStatus(micMsg(e));return false}
-    dbg('MIC opened in '+((Date.now()-tMic)/1000).toFixed(1)+' s');try{pre.close()}catch(e){}
+    try{pre.close()}catch(e){}
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     try{if(ctx.state==='suspended')ctx.resume()}catch(e){}
-    var tCtx=Date.now();if(ctx.state==='suspended')await resumeOrAsk(ctx);if(Date.now()-tCtx>300)dbg('SOUND engine waited '+((Date.now()-tCtx)/1000).toFixed(1)+' s to start');
+    if(ctx.state==='suspended')await resumeOrAsk(ctx);
     return wireAudio(ctx.createMediaStreamSource(stream));
   }
   // Test with a sermon playing in another tab (YouTube, a livestream): its sound is taken digitally, no speaker and no microphone
