@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v91">
+<meta name="build" content="v92">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -337,6 +337,8 @@ body.running #en p .draft{opacity:1}
   <div class="help">Stays on this device. Used only when the hearing engine above is set to Soniox. Soniox charges for the time the app is listening.</div>
   <label for="translator">Translator for finished sentences</label>
   <select id="translator"><option value="groq">Groq free models</option><option value="claude">Claude Haiku (paid, best)</option></select>
+  <label for="think">How the translator works</label>
+  <select id="think"><option value="ahead">Understand first: it hears what he says next, then writes (clearer, a few seconds later)</option><option value="fast">Fast: writes each sentence at once</option></select>
   <label for="claudeKey">Claude key (not needed, the church server holds it)</label>
   <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
   <div class="help">Stays on this device. With Claude Haiku chosen above, every finished sentence is translated by Claude; the quick live words stay on Groq. If Claude does not answer (no credit, wrong key, no connection), Groq translates instead, so the screen never stops.</div>
@@ -511,7 +513,7 @@ body.running #en p .draft{opacity:1}
   try{if(!S.get('shareMig58','')){if(S.get('share','1')==='0')S.set('share','1');S.set('shareMig58','1')}}catch(e){}
   try{if(!S.get('maxMig58','')){if(S.get('maxMin','120')==='120')S.set('maxMin','240');S.set('maxMig58','1')}}catch(e){} // v58: the automatic stop moves from 2 hours to 4
   try{if(!S.get('hearMig56','')){S.set('hearSpeed','accurate');S.set('hearMig56','1')}}catch(e){} // v56: accurate hearing is the default again (the fast model dropped words)
-  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','translator','claudeKey','share','room','role','watchCode','frame'],DEF={translator:'claude',frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
+  var FIELDS=['groqKey','engine','preview','micMode','noise','lang','autoRead','email','notes','terms','hideWords','reading','prayers','size','showAr','maxMin','idleMin','dailyCap','builtin','reviewKey','adminPin','hearSpeed','hearEngine','cohereKey','deepgramKey','sonioxKey','translator','think','claudeKey','share','room','role','watchCode','frame'],DEF={think:'ahead',translator:'claude',frame:'1',role:'main',share:'1',hearEngine:'whisper',hearSpeed:'accurate',preview:(!IOS&&SR&&/Chrome|Edg/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent))?'1':'0',size:'46',showAr:'0',maxMin:'240',idleMin:'10',dailyCap:'240',builtin:'1',engine:'whisper',micMode:'room',noise:'normal',lang:'mixed',autoRead:'1'};
   function applyView(){document.body.classList.toggle('noframe',S.get('frame','1')==='0');document.documentElement.style.setProperty('--fs',S.get('size','46')+'px');$('ar').hidden=S.get('showAr','0')!=='1';if(typeof fit==='function')fit()}
   applyView();
   var dlg=$('settings');
@@ -536,7 +538,7 @@ body.running #en p .draft{opacity:1}
       sec(basic,'Display',['display']);sec(basic,'Sound',['micMode','noise','lang']);sec(basic,'Today',['autoRead','notes','reading']);
       var gate=document.createElement('div');gate.id='ownerGate';gate.innerHTML='<button type="button" id="ownerBtn">Owner settings</button><div class="help">Keys, hearing engine, church terms, limits and tests. For the person who set the app up.</div>';
       var warn=document.createElement('div');warn.className='help warn';warn.id='ownerWarn';owner.appendChild(warn);
-      var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','translator','claudeKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
+      var hk=sec(owner,'Hearing and keys',['hearEngine','sonioxKey','translator','think','claudeKey','groqKey','hearSpeed','deepgramKey','cohereKey','engine','preview','email'],true);
       sec(owner,'Words and corrections',['terms','hideWords','builtin','Learned corrections','prayers','reviewKey']);
       if(MULTI)sec(owner,'Other screens',['role','watchCode','frame','share','room']);
       sec(owner,'Limits',['row']);
@@ -784,7 +786,7 @@ body.running #en p .draft{opacity:1}
   function unitQueue(){
     var now=Date.now();
     for(var i=0;i<lines.length;i++){var l=lines[i];if(l.q)continue;
-      if(!l.en){if(now-(l.t0||now)<9000)break;continue} // an earlier sentence is still being translated: keep the order (but never wait on it for long)
+      if(!l.en){if(now-(l.t0||now)<16000)break;continue} // an earlier sentence is still being translated: keep the order (but never wait on it for long)
       l.q=1;if(!l.id)l.id='l'+(++lineSeq);var pg=boxPages(cleanEn(l.en));
       pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length})})}
     // two short sentences waiting together share one page
@@ -1330,7 +1332,7 @@ body.running #en p .draft{opacity:1}
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
         {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name, never style changes; [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
@@ -1391,6 +1393,9 @@ body.running #en p .draft{opacity:1}
     if(S.get('builtin','1')==='1'){var seen={};list.forEach(function(p){seen[p.a]=1});(window.COPTIC_TERMS||[]).forEach(function(t){if(!seen[t[0]]){seen[t[0]]=1;list.push({a:t[0],b:t[1],c:!!t[2]})}})}
     return list;
   }
+  function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
+  function waitAhead(item){return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+    if(!running||w>=6||el>7000||(el>1200&&Date.now()-lastSpeechAt>2500)){res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function onFinal(ar,alts){
     if(!ar.trim())return;
@@ -1405,8 +1410,9 @@ body.running #en p .draft{opacity:1}
     if(NO_BACKUP){
       qDepth++;var laneN=laneI++%LANES.length;
       LANES[laneN]=LANES[laneN].then(function(){
-        var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5; // the hearing service's own English often lands a moment after the Arabic: give it a short moment
-          return (late?new Promise(function(x){setTimeout(x,400)}):Promise.resolve()).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
+        // v92: understand first. The sentence waits until he has said a little more (or paused), so the translator sees what comes next before it writes
+        var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
+          return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
       }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}var pe=prevItem&&prevItem.en?prevItem.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
