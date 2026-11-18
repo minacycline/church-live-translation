@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v114">
+<meta name="build" content="v115">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -248,6 +248,11 @@ body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:
 body.running header,body.running footer{transition:opacity .4s}
 body.running.idle:not(.paused) header,body.running.idle:not(.paused) footer{opacity:0;pointer-events:none}
 body.running.idle:not(.paused){cursor:none}
+/* v115: in full screen the buttons only fade while translating; on the start screen and while paused they stay */
+body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.viewing) footer,body.fs.idle.paused header,body.fs.idle.paused footer{opacity:1;pointer-events:auto}
+body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
+/* v115: a phone held sideways: the top bar starts below the Live Translation tag */
+@media (max-height:520px){body.running header{padding-top:22px}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
 @media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
 @media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
@@ -2659,9 +2664,12 @@ body.running #en p .draft{opacity:1}
   // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
-  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown')}catch(e){}
+  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown');closeShownAt=Date.now()}catch(e){}
     try{closeWakeOff();if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;closeWakeT=setTimeout(closeWakeOff,30*60000)}).catch(function(){})}catch(e){}}
   function closingHide(){try{$('closing').hidden=true}catch(e){}closeWakeOff()}
+  // v115: a screen lock is dropped whenever the page is hidden, so the closing screen takes it again when the page comes back (still 30 minutes in all)
+  var closeShownAt=0;
+  document.addEventListener('visibilitychange',function(){try{if(document.hidden||$('closing').hidden||(closeWake&&!closeWake.released)||!navigator.wakeLock||Date.now()-closeShownAt>30*60000)return;navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;clearTimeout(closeWakeT);closeWakeT=setTimeout(closeWakeOff,Math.max(1000,30*60000-(Date.now()-closeShownAt)))}).catch(function(){})}catch(e){}});
   // v113: clean screen for the projector (user view only). Start goes full screen where the device allows it; while translating, the top bar and the buttons fade out after 4 seconds without a touch, and the first touch only brings them back
   var CLEANVIEW=((document.querySelector('meta[name="view"]')||{}).content||'')!=='admin';
   function goFull(){try{if(!CLEANVIEW)return;var de=document.documentElement,rq=de.requestFullscreen||de.webkitRequestFullscreen;if(!rq||document.fullscreenElement||document.webkitFullscreenElement)return;if((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone)return;var r=rq.call(de,{navigationUI:'hide'});if(r&&r.catch)r.catch(function(){})}catch(e){}}
@@ -2669,7 +2677,7 @@ body.running #en p .draft{opacity:1}
     if(!CLEANVIEW)return;
     var last=Date.now(),revealAt=0,B=document.body;
     function fsOn(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
-    ['mousemove','pointerdown','touchstart','keydown'].forEach(function(ev){window.addEventListener(ev,function(){if(B.classList.contains('idle')&&B.classList.contains('running')&&!B.classList.contains('paused'))revealAt=Date.now()},true)});
+    ['pointerdown','touchstart'].forEach(function(ev){window.addEventListener(ev,function(){if(B.classList.contains('idle')&&B.classList.contains('running')&&!B.classList.contains('paused'))revealAt=Date.now()},true)}); // v115: a press only; moving a mouse first no longer blocks the click that follows
     window.addEventListener('click',function(e){if(Date.now()-revealAt>700)return;try{if(e.target&&e.target.closest&&e.target.closest('header,footer')){e.stopPropagation();e.preventDefault()}}catch(x){}},true);
     ['mousemove','pointerdown','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,function(){last=Date.now();B.classList.remove('idle')},{passive:true})});
     setInterval(function(){
