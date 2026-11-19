@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v124">
+<meta name="build" content="v127">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -316,6 +316,21 @@ body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:cen
 #gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#1f7a4d;border-radius:50%;animation:gspin 1s linear infinite}
 @keyframes gspin{to{transform:rotate(360deg)}}
 #costDlg .s{display:none}
+#balBox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+#balBox .bal{border:1.5px solid #e3ddd2;border-radius:12px;padding:10px 12px;background:#faf8f4}
+#balBox .bal.low{border-color:#b91c1c;background:#fef2f2}
+#balBox .bt{font-size:13px;font-weight:700;color:#4b4f58;text-transform:uppercase;letter-spacing:.04em}
+#balBox .bv{display:block;font-size:24px;font-weight:800;color:#16171a;text-decoration:none;margin:2px 0;font-variant-numeric:tabular-nums}
+#balBox .bal.low .bv{color:#b91c1c}
+#balBox a.bv:hover{text-decoration:underline}
+#balBox .bs{font-size:13px;color:#6e6a63;line-height:1.35}
+#balBox .bal.low .bs{color:#9a3412;font-weight:600}
+#balBox .bf{display:flex;gap:6px;margin-top:8px}
+#balBox .bf input{flex:1;min-width:0;font-size:16px;padding:8px 10px;border:1.5px solid #d6d0c4;border-radius:9px;background:#fff;color:#16171a}
+#balBox .bf button{min-height:38px}
+#balBox .lnk{background:none!important;border:0!important;color:#1d4ed8!important;text-decoration:underline;padding:0!important;min-height:auto!important;font:500 13px system-ui,sans-serif!important}
+#costBtn.low{background:#b91c1c!important;color:#fff!important;border-color:#b91c1c!important}
+@media (max-width:560px){#balBox{grid-template-columns:1fr}}
 #costKeys{border:2px solid #b45309;background:#fff7ed;border-radius:12px;padding:12px 14px;margin:0 0 14px}
 #costKeys h3{margin:0 0 4px;font-size:17px;color:#16171a}
 #costKeys p{margin:0 0 10px;font-size:14px;line-height:1.4;color:#4b4f58}
@@ -354,7 +369,7 @@ body.running.idle:not(.paused){cursor:none}
 body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.viewing) footer,body.fs.idle.paused header,body.fs.idle.paused footer{opacity:1;pointer-events:auto}
 body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
 /* v115: a phone held sideways: the top bar starts below the Live Translation tag */
-@media (max-height:520px){body.running header{padding-top:22px}}
+@media (max-height:520px){body.running header{padding-top:22px}html body.running #en #cbox{height:45vh}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
 @media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
 @media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
@@ -809,10 +824,20 @@ body.running #en p .draft{opacity:1}
     for(i=0;i<Math.min(3,nw.length);i++){if(nw[i]==='بسم'||nw[i]==='باسم'){b=i;break}}
     if(b<0)return null;
     for(i=b+1;i<Math.min(b+10,nw.length);i++){if(nw[i]==='القدس'&&(nw[i-1]==='الروح'||nw[i-1]==='والروح'||nw[i-1]==='روح')){q=i;break}}
-    if(q<0)return null;
+    if(q<0)return trinityLoose(nw,tok,b);
     var end=q;
     for(i=q+1;i<=Math.min(q+7,nw.length-1);i++){if(/^(ال)?امين$/.test(nw[i])){end=i;break}}
     if(end===q&&nw[q+1]&&/^(ال)?اله$/.test(nw[q+1])&&nw[q+2]&&/^(ال)?واحد$/.test(nw[q+2]))end=q+2;
+    var rest=tok.slice(end+1).join(' ').trim();
+    return {head:tok.slice(0,end+1).join(' '),rest:words(rest).length?rest:''};
+  }
+  // v126: when the hearing loses الروح القدس (heard: بسم الله. أبو الابن مرقس الأمين), a short sentence that opens with بسم الله/الآب,
+  // has the Son or the Spirit in it and ends in آمين within a few words is still the opening prayer, shown with its fixed English only
+  function trinityLoose(nw,tok,b){
+    var n1=nw[b+1]||'';if(!/^(الله|الاب|اب|للاب|ابونا)$/.test(n1))return null;
+    var end=-1,i,mark=false;
+    for(i=b+1;i<Math.min(b+9,nw.length);i++){if(/^(و)?(ال)?(ابن|روح|قدس)$/.test(nw[i]))mark=true;if(/^(ال)?امين$/.test(nw[i])){end=i;break}}
+    if(end<0||!mark)return null;
     var rest=tok.slice(end+1).join(' ').trim();
     return {head:tok.slice(0,end+1).join(' '),rest:words(rest).length?rest:''};
   }
@@ -985,9 +1010,9 @@ body.running #en p .draft{opacity:1}
     for(var i=0;i<lines.length;i++){var l=lines[i];if(l.q)continue;
       if(!l.en){if(now-(l.t0||now)<16000)break;continue} // an earlier sentence is still being translated: keep the order (but never wait on it for long)
       l.q=1;if(!l.id)l.id='l'+(++lineSeq);var pg=boxPages(cleanEn(l.en));
-      pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length})})}
+      pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length,lid:l.id,src:cleanEn(l.en)})})}
     // two short sentences waiting together share one page
-    for(var k=0;k<PEND.length-1;k++){var a=PEND[k],b=PEND[k+1];if(a.n===1&&b.n===1&&!a.ref&&wc(a.t)+wc(b.t)<=16){var mm=boxMeasure();if(mm&&boxFits(mm,a.t+' '+b.t)){a.t=a.t+' '+b.t;a.ref=b.ref;PEND.splice(k+1,1);k--}}}
+    for(var k=0;k<PEND.length-1;k++){var a=PEND[k],b=PEND[k+1];if(a.n===1&&b.n===1&&!a.ref&&wc(a.t)+wc(b.t)<=16){var mm=boxMeasure();if(mm&&boxFits(mm,a.t+' '+b.t)){a.t=a.t+' '+b.t;a.src=a.t;a.ref=b.ref;PEND.splice(k+1,1);k--}}}
   }
   function unitRelease(){
     unitQueue();clearTimeout(relTimer);
@@ -1000,7 +1025,7 @@ body.running #en p .draft{opacity:1}
   function renderBox(){
     var hist=$('hist'),box=$('cbox');
     if(!hist||!box||hist.parentNode!==enEl){enEl.innerHTML='';hist=document.createElement('div');hist.id='hist';box=document.createElement('div');box.id='cbox';enEl.appendChild(hist);enEl.appendChild(box);
-      UNITS=[];PEND=[];relAt=0;lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
+      UNITS=[];PEND=[];relAt=0;relayWH=(window.innerWidth||0)+'x'+(window.innerHeight||0);lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
     unitRelease();
     var cur=UNITS.length?UNITS[UNITS.length-1]:null,past=UNITS.slice(-7,-1);
     var before={},keep={};Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
@@ -1179,7 +1204,36 @@ body.running #en p .draft{opacity:1}
     if(document.body.classList.contains('running')){enEl.classList.toggle('over',over());return} // v74: while captions run the text never changes size; when it does not fit, the oldest row slides off the top
     enEl.classList.remove('over');while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
   }
-  window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
+  // v127: turning the device (or resizing the window) while captions run. Everything on the caption screen was measured for the old size:
+  // the pages of the sentence in the box, the width and letter size of each line in the history, and the place a rolling sentence was heading to.
+  // A roll caught by the turn froze half way, small, on top of the next sentence, and history lines made sideways were cut off at the edges.
+  // Now the screen is laid out again for the new size: any roll in progress is finished at once, the history is drawn again at the new width,
+  // and the sentence on screen and the ones waiting are cut into pages again for the new box. Nothing is dropped and nothing is played twice.
+  var relayT=null,relayWH='';
+  function boxRelayout(){
+    var box=$('cbox'),hist=$('hist');if(!running||!box||!hist)return;
+    var wh=(window.innerWidth||0)+'x'+(window.innerHeight||0);if(wh===relayWH)return;relayWH=wh;
+    Array.prototype.slice.call(box.children).forEach(function(el){if(el.classList.contains('out'))el.remove()});
+    hist.innerHTML='';
+    var cur=UNITS.length?UNITS[UNITS.length-1]:null;
+    if(cur&&cur.src){ // the sentence on screen and its waiting pages are cut again; its later pages go to the front of the queue
+      var rest=[];while(PEND.length&&PEND[0].lid===cur.lid)rest.push(PEND.shift());
+      var pg=boxPages(cur.src),done=0;
+      // pages of this sentence already shown are not shown again: skip the words they held
+      var shownW=0;UNITS.slice(0,-1).forEach(function(u){if(u.lid===cur.lid)shownW+=wc(String(u.t).replace(/ …$/,''))});
+      if(shownW){var left=String(cur.src).split(' ').slice(shownW).join(' ');pg=left?boxPages(left):[cur.t]}
+      cur.t=pg[0];cur.n=pg.length;var ref=(rest.length?rest[rest.length-1].ref:cur.ref)||'';cur.ref=pg.length===1?ref:'';
+      for(var i=pg.length-1;i>=1;i--)PEND.unshift({id:'u'+(++unitSeq),t:pg[i],ref:i===pg.length-1?ref:'',n:pg.length,lid:cur.lid,src:cur.src});
+    }
+    for(var k=0;k<PEND.length;k++){var a=PEND[k];if(!a.src||(cur&&a.lid===cur.lid))continue; // waiting sentences: cut again from their full text
+      var j=k;while(j+1<PEND.length&&PEND[j+1].lid===a.lid)j++;var rf=PEND[j].ref||'',pp=boxPages(a.src),nu=pp.map(function(t,x){return {id:'u'+(++unitSeq),t:t,ref:x===pp.length-1?rf:'',n:pp.length,lid:a.lid,src:a.src}});
+      PEND.splice.apply(PEND,[k,j-k+1].concat(nu));k+=nu.length-1}
+    box.innerHTML='';box.dataset.id=''; // the box is drawn fresh, with no roll from the old size
+    dbg('SCREEN turned or resized to '+wh+': caption screen laid out again');
+    render();
+  }
+  function onResize(){try{fit()}catch(e){}try{if(running)Array.prototype.slice.call(document.querySelectorAll('#cbox .bx.out')).forEach(function(el){el.remove()})}catch(e){}clearTimeout(relayT);relayT=setTimeout(function(){try{boxRelayout()}catch(e){dbg('SCREEN relayout failed: '+e.message)}},250)}
+  window.addEventListener('resize',onResize);window.addEventListener('orientationchange',function(){setTimeout(onResize,300)});
   // The app tunes itself from what it observes and remembers it on this device (it cannot rewrite its own code, but it can adjust its settings)
   var LEARN={};try{LEARN=JSON.parse(localStorage.getItem('learn')||'{}')||{}}catch(e){LEARN={}}
   function learnSave(){try{localStorage.setItem('learn',JSON.stringify(LEARN))}catch(e){}}
@@ -1686,6 +1740,7 @@ body.running #en p .draft{opacity:1}
   function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?2500:4000,Q=f?800:1200;return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
     if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
+  function enTidy(s){s=String(s||'').replace(/^[\s,;:.\u2014\u2013-]+/,'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s} // v126
   function onFinal(ar,alts){
     if(!ar.trim())return;
     var tsp=null;try{tsp=trinitySplit(ar)}catch(e){}
@@ -1705,8 +1760,8 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.length>3&&en.indexOf(pe)===0&&en.length>pe.length+3){en=en.slice(pe.length).trim();dbg('TRANSLATED: dropped a repeat of the previous sentence')}var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
-        if(nx&&nx.en&&!nx.q&&en.length>3&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=nx.en.slice(en.trim().length).trim();dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')} /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
+        if(nx&&nx.en&&!nx.q&&en.trim().split(/\s+/).length>=5&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=enTidy(nx.en.slice(en.trim().length));dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
         dbg('SENTENCE not translated ('+String(e&&e.message||e).slice(0,120)+')');try{MISSED.push({ar:String(ar).slice(0,4000),why:String(e&&e.message||e).slice(0,160)})}catch(x){}
@@ -1782,6 +1837,17 @@ body.running #en p .draft{opacity:1}
   function rvJ(k){try{return JSON.parse(S.get(k,'[]'))||[]}catch(e){return []}}
   function rvFixes(){return rvJ('reviewFix')}
   function rvNote(){var n=$('rvNote');if(n)n.textContent=(rvKey()?'Key saved on this device. ':(CFG.hasRv?'Using the key kept on the church server. ':'No key on this device. '))+rvJ('reviewQ').length+' line(s) waiting to send, '+rvFixes().length+' approved fix(es) loaded.'+(rvLast?' '+rvLast:'')}
+  // v126: an ordinary word that only sounds like a Bible name (إشارة "sign" next to سارة) is not a review item.
+  // A guess is kept when a naming word comes right before it (القديس, أبونا, النبي, اسمه...) or when the translator wrote that name.
+  var NAME_CUE=/^(و|ف)?(ال)?(قديس|قديسه|شهيد|انبا|ابونا|ابينا|مار|ماري|نبي|رسول|ملك|اسمه|اسمها|اسمهم|يا|ابن|بنت|ابو|ام|اخو|اخت|سيدنا|ستنا|الست|بولس|بطرس)$/;
+  function nameWorthReview(l){
+    if(!l.guesses||!l.guesses.length)return [];
+    var w=normAr(l.ar||'').split(' '),en=String(l.en||'').toLowerCase();
+    return l.guesses.filter(function(g){
+      if(g[2]&&en.indexOf(String(g[2]).toLowerCase())>=0)return true;
+      var i=w.indexOf(g[0]);return i>0&&NAME_CUE.test(w[i-1]);
+    });
+  }
   function rvQueue(ls){
     var q=rvJ('reviewQ'),sent=rvJ('reviewSent'),have={},fx={},add=0,over=0;q.forEach(function(r){have[r.key]=1});sent.forEach(function(k){have[k]=1});rvFixes().forEach(function(p){fx[rvHash(fixKey(p.ar))]=1});
     ls.forEach(function(l){
@@ -1789,7 +1855,7 @@ body.running #en p .draft{opacity:1}
       var why=[],shaky=typeof l.conf==='number'&&l.conf<-0.7;
       if(shaky)why.push('hearing confidence '+l.conf.toFixed(2));
       if(l.alt&&similarity(normAr(l.alt),normAr(l.ar))<0.6)why.push('the two hearings disagree (phone heard: '+l.alt+')');
-      if(l.guesses)why.push('possible misheard name: '+l.guesses.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
+      var gs=nameWorthReview(l);if(gs.length)why.push('possible misheard name: '+gs.map(function(x){return x[0]+' may be '+x[1]+' ('+x[2]+')'}).join(', '));
       if(l.fixes)why.push('translator changed words: '+l.fixes.join(' | '));
       if(!why.length)return;
       var key=rvHash(fixKey(l.ar));if(have[key]||fx[key])return;if(add>=500){over++;return}have[key]=1;add++;
@@ -1808,10 +1874,25 @@ body.running #en p .draft{opacity:1}
     }catch(e){rvLast='Sheet not reachable ('+(e.name==='AbortError'?'timeout':e.message)+'); will retry.';dbg('REVIEW pull failed: '+e.message)}
     rvNote();
   }
+  // v126: before flagged lines go to the sheet, Claude looks at each one once and writes a recommended English
+  // (or "Keep as shown"), so the Corrections tab has something to approve. A line it cannot judge is sent with the box empty.
+  async function rvRecommend(batch){
+    var need=batch.filter(function(x){return x&&x.rec===undefined}).slice(0,25);
+    if(!need.length||!aiOK())return;
+    var list=need.map(function(x,i){return (i+1)+'. Arabic heard: '+String(x.ar).slice(0,700)+'\n   English shown: '+String(x.en).slice(0,700)+'\n   Why flagged: '+String(x.why).slice(0,200)}).join('\n\n');
+    var res=await claudeCall([{role:'system',content:'You check live captions from a Coptic Orthodox church in Norristown. The speaker talks in Egyptian Arabic; speech recognition wrote the Arabic, sometimes with misheard words; a translator wrote the English shown. For each numbered line decide whether the English shown is right for what the speaker most likely said. Use Coptic Orthodox church wording; quoted Scripture uses NKJV wording; the opening prayer is "In the name of the Father, and the Son, and the Holy Spirit, one God. Amen." Never add a name the speaker did not say. Answer only with a JSON array, one object per line in the same order: {"n": number, "rec": "KEEP"} when the English shown is right, or {"n": number, "rec": "<the corrected full English line>"} when it should change, or {"n": number, "rec": "UNSURE"} when the Arabic is too garbled to judge.'},{role:'user',content:list}],2500,0,30000);
+    var arr=[];try{var t=res.text,a=t.indexOf('['),b=t.lastIndexOf(']');arr=JSON.parse(t.slice(a,b+1))}catch(e){throw new Error('the answer was not readable')}
+    var byN={};arr.forEach(function(o){if(o&&typeof o.n==='number'&&typeof o.rec==='string')byN[o.n]=o.rec.trim()});
+    var keys={};need.forEach(function(x,i){var r=byN[i+1];keys[x.key]=r===undefined?'':(/^KEEP$/i.test(r)||r.replace(/\W+/g,'').toLowerCase()===String(x.en).replace(/\W+/g,'').toLowerCase())?'Keep as shown':/^UNSURE$/i.test(r)?'':r.slice(0,1000)});
+    var q=rvJ('reviewQ');q.forEach(function(x){if(Object.prototype.hasOwnProperty.call(keys,x.key))x.rec=keys[x.key]});S.set('reviewQ',JSON.stringify(q));
+    dbg('REVIEW: recommendations written for '+need.length+' line(s)');
+  }
   async function rvFlush(){
     var k=rvKey();if(rvBusy||!navigator.onLine)return;
     var q=rvJ('reviewQ');if(!q.length){return rvPull()}
     rvBusy=true;
+    try{await rvRecommend(q.slice(0,60))}catch(e){dbg('REVIEW recommendation step: '+e.message)}
+    q=rvJ('reviewQ');
     try{var batch=q.slice(0,60),c=new AbortController();setTimeout(function(){c.abort()},25000);
       var r=k?await fetch(RV_BASE+'/church-review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:k,rows:batch}),signal:c.signal})
              :await fetch(CFG_URL+'/review-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:batch}),signal:c.signal});
@@ -3250,7 +3331,7 @@ body.running #en p .draft{opacity:1}
     function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
     function months(){var out=[],m=nowM();while(m>=FIRST){out.push(m);m=mStep(m,-1)}return out} // newest first
     var dlgC=document.createElement('dialog');dlgC.id='costDlg';
-    dlgC.innerHTML='<h2>$ Cost</h2>'
+    dlgC.innerHTML='<h2>$ Cost</h2><div id="balBox"><div class="bal" id="balS"></div><div class="bal" id="balC"></div></div>'
       +'<div id="costKeys" hidden><h3>Add the keys (one time)</h3><p>Paste each key and press Save. They are kept on the church server only, never on this device.</p>'
       +'<div id="ckS"><label for="ckSx">Soniox key<a href="https://console.soniox.com" target="_blank" rel="noopener">Get it</a></label><input id="ckSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Soniox API key"><div class="hint">Soniox console, My First Project, API keys.</div></div>'
       +'<div id="ckC"><label for="ckCa">Claude admin key<a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Get it</a></label><input id="ckCa" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Claude key"><div class="hint">Create key, Scope: Organization, Expires: Never, then Copy.</div></div>'
@@ -3309,8 +3390,8 @@ body.running #en p .draft{opacity:1}
     function toggle(tr){var m=tr&&tr.getAttribute('data-m');if(!m)return;OPEN[m]=!OPEN[m];draw()}
     $('costBody').addEventListener('click',function(e){toggle(e.target.closest('tr.mon'))});
     $('costBody').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(e.target.closest('tr.mon'))}});
-    b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false)};
-    $('costRef').onclick=function(){load(true)};
+    b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false);BAL.load()};
+    $('costRef').onclick=function(){load(true);BAL.load()};
     $('costChg').onclick=function(){KEYS.all=!KEYS.all;draw()};
     $('costSave').onclick=function(){
       var sx=$('ckSx').value.trim(),ca=$('ckCa').value.trim(),tk=cfgTok(),msg=$('ckMsg');
@@ -3325,6 +3406,45 @@ body.running #en p .draft{opacity:1}
       },function(){$('costSave').disabled=false;msg.style.color='#9a3412';msg.textContent='Not saved: no connection. Try again.'});
     };
     $('costClose').onclick=function(){dlgC.close()};
+    // ---- v125: money left. Soniox: its real prepaid balance. Claude: Anthropic gives apps no balance, so the admin types what the
+    // Claude billing page shows and the church server subtracts the Haiku spend it counted since then (an estimate). Tap a balance to open that billing site. ----
+    var BAL=(function(){
+      var last=null,edit={};
+      function m2(v){return '$'+(+v||0).toFixed(2)}
+      function card(id,title,html,low){var el=$(id);el.className='bal'+(low?' low':'');el.innerHTML='<div class="bt">'+title+'</div>'+html}
+      function draw(j){
+        last=j||last;j=last;if(!j){card('balS','Soniox (hearing)','<span class="bv">…</span>');card('balC','Claude (translating)','<span class="bv">…</span>');return}
+        var low=+j.low||5,s=j.soniox||{},c=j.claude||{},h,sl=false,cl=false;
+        if(s.ok){sl=s.exhausted||s.usd<low;h='<a class="bv" href="'+esc(s.url)+'" target="_blank" rel="noopener">'+m2(s.usd)+'</a><div class="bs">'+(s.exhausted?'Used up: hearing will stop. Tap to add money.':sl?'Low: tap to add money.':'Left. Tap to open Soniox billing.')+(s.autopay?' Auto top-up is on.':'')+'</div>'}
+        else if(s.error==='needs_org_key'||s.error==='no_key'||edit.s){h='<a class="bv" href="'+esc(s.url||'https://console.soniox.com')+'" target="_blank" rel="noopener">–</a><div class="bs">To show the balance, paste a Soniox <b>organization</b> key once (Soniox console, Organization, API keys).</div><div class="bf"><input id="balSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Organization key"><button type="button" id="balSxSave">Save</button></div>'}
+        else h='<a class="bv" href="'+esc(s.url)+'" target="_blank" rel="noopener">–</a><div class="bs">Could not be read right now ('+esc(String(s.error||'unknown').replace('answer_','server answered '))+'). Tap to open Soniox.</div>';
+        card('balS','Soniox (hearing)',h,sl);
+        if(c.ok&&!edit.c){cl=c.usd<low;var when='';try{when=new Date(c.setAt).toLocaleString([], {month:'short',day:'numeric'})}catch(e){}
+          h='<a class="bv" href="'+esc(c.url)+'" target="_blank" rel="noopener">about '+m2(c.usd)+'</a><div class="bs">'+(cl?'Low: tap to add credit. ':'')+'Estimate: '+m2(c.setUsd)+' typed on '+esc(when)+', minus '+m2(c.spent)+' the app used since. Other Claude use is not counted. <button type="button" class="lnk" id="balCEd">Update</button></div>'}
+        else h='<a class="bv" href="'+esc(c.url||'https://console.anthropic.com/settings/billing')+'" target="_blank" rel="noopener">'+(c.ok?'about '+m2(c.usd):'–')+'</a><div class="bs">Type the credit balance the Claude billing page shows (tap above to open it). Do this again after each purchase.</div><div class="bf"><input id="balCa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 18.50"><button type="button" id="balCaSave">Save</button></div>';
+        card('balC','Claude (translating)',h,cl);
+        var bt=$('costBtn');if(bt){bt.classList.toggle('low',sl||cl);bt.title=(sl||cl)?'A balance is low':''}
+        var e1=$('balSxSave');if(e1)e1.onclick=function(){var v=$('balSx').value.trim();if(v)save({sonioxOrg:v},'s')};
+        var e2=$('balCaSave');if(e2)e2.onclick=function(){var v=$('balCa').value.trim();if(v!==''&&isFinite(+v)&&+v>=0)save({claude:+v},'c');else $('balCa').focus()};
+        var e3=$('balCEd');if(e3)e3.onclick=function(){edit.c=true;draw()};
+      }
+      function save(body,which){
+        var tk=cfgTok();if(!tk){try{dlgC.close()}catch(e){}admSignOut();return}
+        var btn=$(which==='s'?'balSxSave':'balCaSave');if(btn){btn.disabled=true;btn.textContent='Saving…'}
+        cfgFetch('/balance-set',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(body)},20000).then(function(x){
+          if(x.s===401){try{dlgC.close()}catch(e){}admSignOut();return}
+          if(x.s===200){edit={};draw(x.j);return}
+          if(btn){btn.disabled=false;btn.textContent='Save'}$('costMsg').className='cnote bad';$('costMsg').textContent='Not saved (the server answered '+x.s+'). Try again.';
+        },function(){if(btn){btn.disabled=false;btn.textContent='Save'}});
+      }
+      function load(){
+        var tk=cfgTok();if(!tk)return;draw();
+        cfgFetch('/balance',{headers:{'Authorization':'Bearer '+tk}},20000).then(function(x){if(x.s===200)draw(x.j)},function(){});
+      }
+      // the $ button turns red when a balance is low, checked after sign-in and every 30 minutes
+      setTimeout(load,6000);setInterval(function(){if(!document.hidden&&!document.body.classList.contains('running'))load()},1800000);
+      return {load:load};
+    })();
   })();
 
   // ---- v122: Devices. Every device gets its own id (kept on the device). It checks in with the church server when the page
