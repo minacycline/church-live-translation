@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v118">
+<meta name="build" content="v119">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -231,6 +231,35 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 #readyDots button:focus-visible{outline:2px solid var(--fg)}
 #dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:normal;width:max-content;max-width:min(78vw,340px);z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 
+/* v119: Cost table (admin link only) */
+#costBtn{display:none;font-weight:700}
+body.adminview.adminok:not(.running) #costBtn{display:inline-flex;align-items:center;justify-content:center}
+#costDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#costDlg h2{margin:0;font-size:24px;color:#16171a;font-family:inherit}
+#costDlg .ch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+#costDlg .ch .sp{flex:1}
+#costDlg .mn{display:flex;align-items:center;gap:6px}
+#costDlg .mn b{min-width:132px;text-align:center;font-size:17px}
+#costDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}
+#costDlg button:disabled{opacity:.35;cursor:default}
+#costDlg .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+#costDlg .tile{border:1px solid #e3ddd2;border-radius:12px;padding:10px 12px;background:#faf8f4}
+#costDlg .tile span{display:block;font-size:13px;color:#6e6a63;font-weight:600}
+#costDlg .tile strong{display:block;font-size:22px;margin-top:2px;font-variant-numeric:tabular-nums}
+#costDlg .tile.big{background:#16171a;border-color:#16171a;color:#fff}
+#costDlg .tile.big span{color:#c9c6c0}
+#costWrap{overflow:auto;max-height:52vh;border:1px solid #e3ddd2;border-radius:12px}
+#costDlg table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+#costDlg th,#costDlg td{padding:8px 12px;text-align:right;border-bottom:1px solid #efeae0;white-space:nowrap}
+#costDlg th:first-child,#costDlg td:first-child{text-align:left}
+#costDlg thead th{position:sticky;top:0;background:#f4f1ea;font-size:13px;color:#4b4f58;z-index:1}
+#costDlg tr.zero td{color:#a8a39b}
+#costDlg tfoot td{position:sticky;bottom:0;background:#f4f1ea;font-weight:700;border-top:2px solid #d6d0c4}
+#costDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
+#costDlg .cnote.bad{color:#9a3412;font-weight:600}
+@media (max-width:640px){body.adminview .titlerow{flex-wrap:wrap;row-gap:8px}}
+@media (max-width:560px){#costDlg{padding:14px}#costDlg .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}#costDlg th,#costDlg td{padding:7px 6px;font-size:13.5px}#costDlg .mn b{min-width:110px}#costDlg .u{display:none}}
+
 /* v102: user view and admin view */
 body.userview #ownerGate,body.adminview #ownerGate,#ownerWarn{display:none!important}
 body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:none!important}
@@ -281,6 +310,7 @@ body.closed #en{visibility:hidden}
     <button class="icon" id="fsUp" aria-label="Bigger text">A+</button>
     <button class="icon" id="fsBtn" aria-label="Full screen">⛶</button>
     <button class="icon" id="reviewBtn" aria-label="Review and correct">✎</button>
+    <button class="icon" id="costBtn" aria-label="Cost">$</button>
     <button class="icon" id="clear" aria-label="Clear captions">⌫</button>
     <button class="icon" id="gear" aria-label="Settings">⚙</button>
   </div>
@@ -3066,6 +3096,65 @@ body.running #en p .draft{opacity:1}
     }else cfgPull();
     setInterval(function(){if(!document.hidden)cfgPull()},120000);
     document.addEventListener('visibilitychange',function(){if(!document.hidden)cfgPull()});
+  })();
+
+  // ---- v119: the Cost table of the admin link: this month's spend, a row per day (minutes heard, Soniox, Claude Haiku, total) ----
+  (function(){
+    if(!ADMINVIEW)return;
+    var b=$('costBtn');if(!b)return;
+    var COST={m:new Date().toISOString().slice(0,7)};
+    var FIRST='2026-11'; // the church app started paying for hearing and translating this month
+    function money(v){v=+v||0;return v>0&&v<0.01?'<$0.01':'$'+v.toFixed(2)}
+    function mins(v,u){v=Math.round(+v||0);return v.toLocaleString()+(u?' min':'<span class="u"> min</span>')}
+    function mName(m){var y=+m.slice(0,4),mo=+m.slice(5,7);return new Date(Date.UTC(y,mo-1,15)).toLocaleString([], {month:'long',year:'numeric',timeZone:'UTC'})}
+    function mStep(m,d){var y=+m.slice(0,4),mo=+m.slice(5,7)-1+d;y+=Math.floor(mo/12);mo=((mo%12)+12)%12;return y+'-'+String(mo+1).padStart(2,'0')}
+    function dName(d){var x=new Date(d+'T12:00:00Z');return '<span class="u">'+x.toLocaleString([], {weekday:'short',timeZone:'UTC'})+', </span>'+x.toLocaleString([], {month:'short',day:'numeric',timeZone:'UTC'})}
+    function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+    var dlgC=document.createElement('dialog');dlgC.id='costDlg';
+    dlgC.innerHTML='<div class="ch"><h2>$ Cost</h2><span class="sp"></span><div class="mn"><button type="button" id="costPrev" aria-label="Previous month">‹</button><b id="costMon"></b><button type="button" id="costNext" aria-label="Next month">›</button></div></div>'
+      +'<div class="tiles"><div class="tile big"><span>Total</span><strong id="cT">…</strong></div><div class="tile"><span>Minutes</span><strong id="cM">…</strong></div><div class="tile"><span>Soniox (hearing)</span><strong id="cS">…</strong></div><div class="tile"><span>Haiku (translating)</span><strong id="cH">…</strong></div></div>'
+      +'<div id="costWrap"><table><thead><tr><th>Day</th><th>Minutes</th><th>Soniox</th><th>Haiku</th><th>Total</th></tr></thead><tbody id="costBody"></tbody><tfoot id="costFoot"></tfoot></table></div>'
+      +'<div id="costMsg" class="cnote" role="status"></div>'
+      +'<div class="actions" style="margin-top:12px"><button type="button" id="costRef">Refresh</button><span class="sp" style="flex:1"></span><button type="button" id="costClose">Close</button></div>';
+    document.body.appendChild(dlgC);
+    function load(fresh){
+      var m=COST.m,tk=cfgTok();
+      $('costMon').textContent=mName(m);
+      $('costPrev').disabled=m<=FIRST;$('costNext').disabled=m>=new Date().toISOString().slice(0,7);
+      if(!tk){dlgC.close();admSignOut();return}
+      $('costMsg').className='cnote';$('costMsg').textContent='Loading…';$('costRef').disabled=true;
+      cfgFetch('/cost?month='+m+(fresh?'&fresh=1':''),{headers:{'Authorization':'Bearer '+tk}},25000).then(function(x){
+        $('costRef').disabled=false;if(m!==COST.m)return;
+        if(x.s===401){dlgC.close();admSignOut();return}
+        if(x.s!==200||!x.j.days){$('costMsg').className='cnote bad';$('costMsg').textContent='The server could not get the cost (answer '+x.s+(x.j.error?' '+x.j.error:'')+'). Try Refresh in a minute.';return}
+        show(x.j);
+      },function(){$('costRef').disabled=false;$('costMsg').className='cnote bad';$('costMsg').textContent='Could not reach the server. Check the connection and press Refresh.'});
+    }
+    function show(j){
+      var sOk=j.soniox&&j.soniox.ok,cOk=j.claude&&j.claude.ok,t=j.total||{};
+      var na='<span title="not available">–</span>';
+      $('cS').textContent=sOk?money(t.soniox):'–';$('cM').textContent=sOk?mins(t.min,1):'–';$('cH').textContent=cOk?money(t.haiku):'–';
+      $('cT').textContent=money((sOk?t.soniox:0)+(cOk?t.haiku:0))+((sOk&&cOk)?'':'*');
+      var rows=(j.days||[]).slice().reverse(),h='';
+      rows.forEach(function(r){var tot=(sOk?r.soniox:0)+(cOk?r.haiku:0),z=!(r.min>0.5||tot>0);
+        h+='<tr'+(z?' class="zero"':'')+'><td>'+dName(r.d)+'</td><td>'+(sOk?mins(r.min):na)+'</td><td>'+(sOk?money(r.soniox):na)+'</td><td>'+(cOk?money(r.haiku):na)+'</td><td>'+money(tot)+'</td></tr>'});
+      $('costBody').innerHTML=h||'<tr><td colspan="5">No days in this month yet.</td></tr>';
+      $('costFoot').innerHTML='<tr><td>Total</td><td>'+(sOk?mins(t.min):na)+'</td><td>'+(sOk?money(t.soniox):na)+'</td><td>'+(cOk?money(t.haiku):na)+'</td><td>'+money((sOk?t.soniox:0)+(cOk?t.haiku:0))+'</td></tr>';
+      var notes=[],bad=false;
+      function why(e,who,key){if(e==='no_key')return who+' is not shown yet: the '+key+' has not been added on the church server.';return who+' could not be read right now ('+String(e||'unknown').replace('answer_','server answered ')+').'}
+      if(!sOk){notes.push(why(j.soniox&&j.soniox.error,'Soniox','Soniox key (SONIOX_KEY)'));bad=true}
+      if(!cOk){notes.push(why(j.claude&&j.claude.error,'Haiku','Claude admin key (ANTHROPIC_ADMIN_KEY)'));bad=true}
+      if(!(sOk&&cOk))notes.push('* The total leaves out what could not be read.');
+      if(cOk&&t.other>=0.005)notes.push('Other Claude use on the same account this month (not the church app): '+money(t.other)+', not counted above.');
+      var when='';try{when=new Date(j.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}catch(e){}
+      notes.push('Days follow UTC time, so a day here ends at 7 PM (8 PM in summer) Eastern time. Figures as of '+when+'; Soniox and Claude can take a little while to post the newest use.');
+      $('costMsg').className='cnote'+(bad?' bad':'');$('costMsg').innerHTML=notes.map(esc).join('<br>');
+    }
+    b.onclick=function(){COST.m=new Date().toISOString().slice(0,7);try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}load(false)};
+    $('costPrev').onclick=function(){if(COST.m>FIRST){COST.m=mStep(COST.m,-1);load(false)}};
+    $('costNext').onclick=function(){var now=new Date().toISOString().slice(0,7);if(COST.m<now){COST.m=mStep(COST.m,1);load(false)}};
+    $('costRef').onclick=function(){load(true)};
+    $('costClose').onclick=function(){dlgC.close()};
   })();
 })();
 </script>
