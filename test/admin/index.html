@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v120">
+<meta name="build" content="v121">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -256,6 +256,17 @@ body.adminview.adminok:not(.running) #costBtn{display:inline-flex;align-items:ce
 #costDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
 #costDlg .cnote.bad{color:#9a3412;font-weight:600}
 #costDlg .s{display:none}
+#costKeys{border:2px solid #b45309;background:#fff7ed;border-radius:12px;padding:12px 14px;margin:0 0 14px}
+#costKeys h3{margin:0 0 4px;font-size:17px;color:#16171a}
+#costKeys p{margin:0 0 10px;font-size:14px;line-height:1.4;color:#4b4f58}
+#costKeys label{display:block;font-weight:700;font-size:15px;margin:10px 0 4px}
+#costKeys label a{font-weight:600;font-size:14px;margin-left:8px;color:#1d4ed8}
+#costKeys input{width:100%;box-sizing:border-box;font-size:17px;padding:11px 12px;border:1.5px solid #d6d0c4;border-radius:10px;background:#fff;color:#16171a}
+#costKeys .hint{font-size:13px;color:#6e6a63;margin-top:4px}
+#costKeys .row{display:flex;gap:10px;align-items:center;margin-top:12px}
+#costKeys #costSave{background:#16171a;color:#fff;border-color:#16171a}
+#costKeys #ckMsg{font-size:14px;font-weight:600}
+#costChg{background:none!important;border:0!important;color:#6e6a63!important;text-decoration:underline;padding:0 4px!important;min-height:auto!important;font-weight:500!important}
 @media (max-width:640px){body.adminview .titlerow{flex-wrap:wrap;row-gap:8px}}
 @media (max-width:560px){#costDlg{padding:14px}#costDlg th,#costDlg td{padding:9px 5px;font-size:13.5px}#costDlg tr.day td:first-child,#costDlg tr.none td{padding-left:22px}#costDlg .u{display:none}#costDlg .s{display:inline}}
 
@@ -3099,11 +3110,12 @@ body.running #en p .draft{opacity:1}
   })();
 
   // ---- v120: the Cost table of the admin link: one line per month with its totals; tap a month to see only the days that were used ----
+  // v121: the two keys the cost needs are pasted here (Save sends them to the church server, which never sends them back)
   (function(){
     if(!ADMINVIEW)return;
     var b=$('costBtn');if(!b)return;
     var FIRST='2026-11'; // the church app started paying for hearing and translating this month
-    var DATA={},OPEN={},busy=false;
+    var DATA={},OPEN={},busy=false,KEYS={all:false};
     function nowM(){return new Date().toISOString().slice(0,7)}
     function money(v){v=+v||0;return v>0&&v<0.01?'<$0.01':'$'+v.toFixed(2)}
     function mins(v){v=Math.round(+v||0);return v.toLocaleString()+'<span class="u"> min</span>'}
@@ -3114,9 +3126,13 @@ body.running #en p .draft{opacity:1}
     function months(){var out=[],m=nowM();while(m>=FIRST){out.push(m);m=mStep(m,-1)}return out} // newest first
     var dlgC=document.createElement('dialog');dlgC.id='costDlg';
     dlgC.innerHTML='<h2>$ Cost</h2>'
+      +'<div id="costKeys" hidden><h3>Add the keys (one time)</h3><p>Paste each key and press Save. They are kept on the church server only, never on this device.</p>'
+      +'<div id="ckS"><label for="ckSx">Soniox key<a href="https://console.soniox.com" target="_blank" rel="noopener">Get it</a></label><input id="ckSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Soniox API key"><div class="hint">Soniox console, My First Project, API keys.</div></div>'
+      +'<div id="ckC"><label for="ckCa">Claude admin key<a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Get it</a></label><input id="ckCa" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Claude key"><div class="hint">Create key, Scope: Organization, Expires: Never, then Copy.</div></div>'
+      +'<div class="row"><button type="button" id="costSave">Save keys</button><span id="ckMsg" role="status"></span></div></div>'
       +'<div id="costWrap"><table><thead><tr><th>Month</th><th><span class="u">Minutes</span><span class="s">Min</span></th><th>Soniox</th><th>Haiku</th><th>Total</th></tr></thead><tbody id="costBody"></tbody></table></div>'
       +'<div id="costMsg" class="cnote" role="status"></div>'
-      +'<div class="actions" style="margin-top:12px"><button type="button" id="costRef">Refresh</button><span style="flex:1"></span><button type="button" id="costClose">Close</button></div>';
+      +'<div class="actions" style="margin-top:12px"><button type="button" id="costRef">Refresh</button><button type="button" id="costChg">Change keys</button><span style="flex:1"></span><button type="button" id="costClose">Close</button></div>';
     document.body.appendChild(dlgC);
     function load(fresh){
       var tk=cfgTok();if(!tk){dlgC.close();admSignOut();return}
@@ -3153,10 +3169,11 @@ body.running #en p .draft{opacity:1}
         }
       });
       $('costBody').innerHTML=h;
-      function why(e,who,key){if(e==='no_key')return who+' is not shown yet: the '+key+' has not been added on the church server.';return who+' could not be read right now ('+String(e).replace('answer_','server answered ')+').'}
+      if(last){var needS=noS==='no_key'||KEYS.all,needC=noC==='no_key'||KEYS.all;$('ckS').hidden=!needS;$('ckC').hidden=!needC;$('costKeys').hidden=!(needS||needC)}
+      function why(e,who,key){if(e==='no_key')return who+' is not shown yet: paste the '+key+' in the box above.';return who+' could not be read right now ('+String(e).replace('answer_','server answered ')+').'}
       if(fail)notes.push(fail);
-      if(noS)notes.push(why(noS,'Soniox','Soniox key (SONIOX_KEY)'));
-      if(noC)notes.push(why(noC,'Haiku','Claude admin key (ANTHROPIC_ADMIN_KEY)'));
+      if(noS)notes.push(why(noS,'Soniox','Soniox key'));
+      if(noC)notes.push(why(noC,'Haiku','Claude admin key'));
       if(noS||noC)notes.push('* That total leaves out what could not be read.');
       var bad=!!(fail||noS||noC);
       if(other>=0.005)notes.push('Other Claude use on the same account (not the church app): '+money(other)+', not counted above.');
@@ -3169,6 +3186,19 @@ body.running #en p .draft{opacity:1}
     $('costBody').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(e.target.closest('tr.mon'))}});
     b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false)};
     $('costRef').onclick=function(){load(true)};
+    $('costChg').onclick=function(){KEYS.all=!KEYS.all;draw()};
+    $('costSave').onclick=function(){
+      var sx=$('ckSx').value.trim(),ca=$('ckCa').value.trim(),tk=cfgTok(),msg=$('ckMsg');
+      if(!sx&&!ca){msg.style.color='#9a3412';msg.textContent='Paste a key first.';return}
+      if(!tk){dlgC.close();admSignOut();return}
+      $('costSave').disabled=true;msg.style.color='#4b4f58';msg.textContent='Saving\u2026';
+      cfgFetch('/cost-keys',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({soniox:sx,claude:ca})},12000).then(function(x){
+        $('costSave').disabled=false;
+        if(x.s===200&&x.j.ok){$('ckSx').value='';$('ckCa').value='';KEYS.all=false;msg.style.color='#166534';msg.textContent='Saved \u2713 Checking the numbers\u2026';DATA={};load(true);return}
+        if(x.s===401){dlgC.close();admSignOut();return}
+        msg.style.color='#9a3412';msg.textContent='Not saved (the server answered '+x.s+'). Try again.';
+      },function(){$('costSave').disabled=false;msg.style.color='#9a3412';msg.textContent='Not saved: no connection. Try again.'});
+    };
     $('costClose').onclick=function(){dlgC.close()};
   })();
 })();
