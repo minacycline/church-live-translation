@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v128">
+<meta name="build" content="v129">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2993,7 +2993,7 @@ body.running #en p .draft{opacity:1}
     var log=snap.log.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
     var ls=snap.lines.filter(function(l){return l.en&&(!l.t0||l.t0>=began-2000)}), /* v118: earlier sessions' captions brought back on screen are not this session */lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
-      device:navigator.userAgent,sentences:ls.length,
+      device:navigator.userAgent,devCode:devCode(),sentences:ls.length, /* v129 */
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
       drops:cnt(/HOLD line lost/),longDrops:cnt(/HOLD no line for/),stalls:cnt(/STREAM line stalled/),down:log.filter(function(x){return /\sDOWN /.test(x)}).map(function(x){return x.slice(0,300)}),
       translateFails:cnt(/TRANSLATE hiccup|careful translator failed|Translation problem/),claude:{requests:snap.use.req,inTokens:snap.use.inTok,outTokens:snap.use.outTok},missed:(snap.missed||[]).slice(),
@@ -3555,7 +3555,7 @@ body.running #en p .draft{opacity:1}
         today+=s.today;month+=s.month;if(s.today>0)usedToday++;
         var title=d.name||(d.req&&d.req.name)||d.kind||'Device',pend=pending(d);
         h+='<div class="dv'+(open?' open':'')+(pend?' rq':'')+'" data-id="'+esc(d.id)+'">'
-          +'<button type="button" class="dvh" aria-expanded="'+open+'"><span class="dvt">'+esc(title)+(mine?' <i>(this device)</i>':'')+'</span><span class="pill '+st[1]+'">'+st[0]+'</span>'
+          +'<button type="button" class="dvh" aria-expanded="'+open+'"><span class="dvt">'+esc(title)+' \u00b7 '+esc(String(d.id).slice(0,6).toUpperCase())+(mine?' <i>(this device)</i>':'')+'</span><span class="pill '+st[1]+'">'+st[0]+'</span>'
           +(d.req?'<span class="dvl">'+esc(d.req.phone)+' · '+esc(d.kind||'')+'</span>':'')
           +'<span class="dvl">'+esc(place(d))+' · '+esc(d.ip||'')+'</span>'
           +'<span class="dvl">Last seen '+esc(when(d.last))+' \u00b7 '+mins((d.use||{}).today!=null?d.use.today:s.today)+(lim(d)?' of '+lim(d):'')+' min today \u00b7 '+mins(s.month)+' this month</span></button>';
