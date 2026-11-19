@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v124">
+<meta name="build" content="v125">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -316,6 +316,21 @@ body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:cen
 #gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#1f7a4d;border-radius:50%;animation:gspin 1s linear infinite}
 @keyframes gspin{to{transform:rotate(360deg)}}
 #costDlg .s{display:none}
+#balBox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+#balBox .bal{border:1.5px solid #e3ddd2;border-radius:12px;padding:10px 12px;background:#faf8f4}
+#balBox .bal.low{border-color:#b91c1c;background:#fef2f2}
+#balBox .bt{font-size:13px;font-weight:700;color:#4b4f58;text-transform:uppercase;letter-spacing:.04em}
+#balBox .bv{display:block;font-size:24px;font-weight:800;color:#16171a;text-decoration:none;margin:2px 0;font-variant-numeric:tabular-nums}
+#balBox .bal.low .bv{color:#b91c1c}
+#balBox a.bv:hover{text-decoration:underline}
+#balBox .bs{font-size:13px;color:#6e6a63;line-height:1.35}
+#balBox .bal.low .bs{color:#9a3412;font-weight:600}
+#balBox .bf{display:flex;gap:6px;margin-top:8px}
+#balBox .bf input{flex:1;min-width:0;font-size:16px;padding:8px 10px;border:1.5px solid #d6d0c4;border-radius:9px;background:#fff;color:#16171a}
+#balBox .bf button{min-height:38px}
+#balBox .lnk{background:none!important;border:0!important;color:#1d4ed8!important;text-decoration:underline;padding:0!important;min-height:auto!important;font:500 13px system-ui,sans-serif!important}
+#costBtn.low{background:#b91c1c!important;color:#fff!important;border-color:#b91c1c!important}
+@media (max-width:560px){#balBox{grid-template-columns:1fr}}
 #costKeys{border:2px solid #b45309;background:#fff7ed;border-radius:12px;padding:12px 14px;margin:0 0 14px}
 #costKeys h3{margin:0 0 4px;font-size:17px;color:#16171a}
 #costKeys p{margin:0 0 10px;font-size:14px;line-height:1.4;color:#4b4f58}
@@ -3251,7 +3266,7 @@ body.running #en p .draft{opacity:1}
     function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
     function months(){var out=[],m=nowM();while(m>=FIRST){out.push(m);m=mStep(m,-1)}return out} // newest first
     var dlgC=document.createElement('dialog');dlgC.id='costDlg';
-    dlgC.innerHTML='<h2>$ Cost</h2>'
+    dlgC.innerHTML='<h2>$ Cost</h2><div id="balBox"><div class="bal" id="balS"></div><div class="bal" id="balC"></div></div>'
       +'<div id="costKeys" hidden><h3>Add the keys (one time)</h3><p>Paste each key and press Save. They are kept on the church server only, never on this device.</p>'
       +'<div id="ckS"><label for="ckSx">Soniox key<a href="https://console.soniox.com" target="_blank" rel="noopener">Get it</a></label><input id="ckSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Soniox API key"><div class="hint">Soniox console, My First Project, API keys.</div></div>'
       +'<div id="ckC"><label for="ckCa">Claude admin key<a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Get it</a></label><input id="ckCa" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Claude key"><div class="hint">Create key, Scope: Organization, Expires: Never, then Copy.</div></div>'
@@ -3310,8 +3325,8 @@ body.running #en p .draft{opacity:1}
     function toggle(tr){var m=tr&&tr.getAttribute('data-m');if(!m)return;OPEN[m]=!OPEN[m];draw()}
     $('costBody').addEventListener('click',function(e){toggle(e.target.closest('tr.mon'))});
     $('costBody').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(e.target.closest('tr.mon'))}});
-    b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false)};
-    $('costRef').onclick=function(){load(true)};
+    b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false);BAL.load()};
+    $('costRef').onclick=function(){load(true);BAL.load()};
     $('costChg').onclick=function(){KEYS.all=!KEYS.all;draw()};
     $('costSave').onclick=function(){
       var sx=$('ckSx').value.trim(),ca=$('ckCa').value.trim(),tk=cfgTok(),msg=$('ckMsg');
@@ -3326,6 +3341,45 @@ body.running #en p .draft{opacity:1}
       },function(){$('costSave').disabled=false;msg.style.color='#9a3412';msg.textContent='Not saved: no connection. Try again.'});
     };
     $('costClose').onclick=function(){dlgC.close()};
+    // ---- v125: money left. Soniox: its real prepaid balance. Claude: Anthropic gives apps no balance, so the admin types what the
+    // Claude billing page shows and the church server subtracts the Haiku spend it counted since then (an estimate). Tap a balance to open that billing site. ----
+    var BAL=(function(){
+      var last=null,edit={};
+      function m2(v){return '$'+(+v||0).toFixed(2)}
+      function card(id,title,html,low){var el=$(id);el.className='bal'+(low?' low':'');el.innerHTML='<div class="bt">'+title+'</div>'+html}
+      function draw(j){
+        last=j||last;j=last;if(!j){card('balS','Soniox (hearing)','<span class="bv">…</span>');card('balC','Claude (translating)','<span class="bv">…</span>');return}
+        var low=+j.low||5,s=j.soniox||{},c=j.claude||{},h,sl=false,cl=false;
+        if(s.ok){sl=s.exhausted||s.usd<low;h='<a class="bv" href="'+esc(s.url)+'" target="_blank" rel="noopener">'+m2(s.usd)+'</a><div class="bs">'+(s.exhausted?'Used up: hearing will stop. Tap to add money.':sl?'Low: tap to add money.':'Left. Tap to open Soniox billing.')+(s.autopay?' Auto top-up is on.':'')+'</div>'}
+        else if(s.error==='needs_org_key'||s.error==='no_key'||edit.s){h='<a class="bv" href="'+esc(s.url||'https://console.soniox.com')+'" target="_blank" rel="noopener">–</a><div class="bs">To show the balance, paste a Soniox <b>organization</b> key once (Soniox console, Organization, API keys).</div><div class="bf"><input id="balSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Organization key"><button type="button" id="balSxSave">Save</button></div>'}
+        else h='<a class="bv" href="'+esc(s.url)+'" target="_blank" rel="noopener">–</a><div class="bs">Could not be read right now ('+esc(String(s.error||'unknown').replace('answer_','server answered '))+'). Tap to open Soniox.</div>';
+        card('balS','Soniox (hearing)',h,sl);
+        if(c.ok&&!edit.c){cl=c.usd<low;var when='';try{when=new Date(c.setAt).toLocaleString([], {month:'short',day:'numeric'})}catch(e){}
+          h='<a class="bv" href="'+esc(c.url)+'" target="_blank" rel="noopener">about '+m2(c.usd)+'</a><div class="bs">'+(cl?'Low: tap to add credit. ':'')+'Estimate: '+m2(c.setUsd)+' typed on '+esc(when)+', minus '+m2(c.spent)+' the app used since. Other Claude use is not counted. <button type="button" class="lnk" id="balCEd">Update</button></div>'}
+        else h='<a class="bv" href="'+esc(c.url||'https://console.anthropic.com/settings/billing')+'" target="_blank" rel="noopener">'+(c.ok?'about '+m2(c.usd):'–')+'</a><div class="bs">Type the credit balance the Claude billing page shows (tap above to open it). Do this again after each purchase.</div><div class="bf"><input id="balCa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 18.50"><button type="button" id="balCaSave">Save</button></div>';
+        card('balC','Claude (translating)',h,cl);
+        var bt=$('costBtn');if(bt){bt.classList.toggle('low',sl||cl);bt.title=(sl||cl)?'A balance is low':''}
+        var e1=$('balSxSave');if(e1)e1.onclick=function(){var v=$('balSx').value.trim();if(v)save({sonioxOrg:v},'s')};
+        var e2=$('balCaSave');if(e2)e2.onclick=function(){var v=$('balCa').value.trim();if(v!==''&&isFinite(+v)&&+v>=0)save({claude:+v},'c');else $('balCa').focus()};
+        var e3=$('balCEd');if(e3)e3.onclick=function(){edit.c=true;draw()};
+      }
+      function save(body,which){
+        var tk=cfgTok();if(!tk){try{dlgC.close()}catch(e){}admSignOut();return}
+        var btn=$(which==='s'?'balSxSave':'balCaSave');if(btn){btn.disabled=true;btn.textContent='Saving…'}
+        cfgFetch('/balance-set',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(body)},20000).then(function(x){
+          if(x.s===401){try{dlgC.close()}catch(e){}admSignOut();return}
+          if(x.s===200){edit={};draw(x.j);return}
+          if(btn){btn.disabled=false;btn.textContent='Save'}$('costMsg').className='cnote bad';$('costMsg').textContent='Not saved (the server answered '+x.s+'). Try again.';
+        },function(){if(btn){btn.disabled=false;btn.textContent='Save'}});
+      }
+      function load(){
+        var tk=cfgTok();if(!tk)return;draw();
+        cfgFetch('/balance',{headers:{'Authorization':'Bearer '+tk}},20000).then(function(x){if(x.s===200)draw(x.j)},function(){});
+      }
+      // the $ button turns red when a balance is low, checked after sign-in and every 30 minutes
+      setTimeout(load,6000);setInterval(function(){if(!document.hidden&&!document.body.classList.contains('running'))load()},1800000);
+      return {load:load};
+    })();
   })();
 
   // ---- v122: Devices. Every device gets its own id (kept on the device). It checks in with the church server when the page
