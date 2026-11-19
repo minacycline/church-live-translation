@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v130">
+<meta name="build" content="v131">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -369,6 +369,8 @@ body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.
 body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
 /* v115: a phone held sideways: the top bar starts below the Live Translation tag */
 @media (max-height:520px){body.running header{padding-top:22px}html body.running #en #cbox{height:45vh}}
+/* v131: upright phone. The Pause and Stop row no longer keeps an empty band under the yellow box: it lies over the bottom edge and shows on a touch, the box is taller and its side margins thinner, so more words fit on a page. */
+@media (max-width:640px) and (orientation:portrait){body.userview.running:not(.viewing) footer{position:fixed;left:0;right:0;bottom:0;z-index:55;margin:0;padding:10px max(22px,env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left));background:#101014;box-sizing:border-box}html body.userview.running:not(.viewing) #en #cbox{height:42vh;margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))}html body.running #en #cbox .bx,html body.running #en #cmeas{padding-left:.4em;padding-right:.4em}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
 @media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
 @media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
@@ -991,17 +993,28 @@ body.running #en p .draft{opacity:1}
   function unitHtml(u){return esc(u.t)+(u.ref?' <span class="ref">'+esc(u.ref)+'</span>':'')}
   function boxMeasure(){var m=$('cmeas'),box=$('cbox');if(!box)return null;if(!m||m.parentNode!==enEl){m=document.createElement('div');m.id='cmeas';enEl.appendChild(m)}m.style.width=box.clientWidth+'px';m.style.height=box.clientHeight+'px';return m}
   function boxFits(m,t){m.innerHTML='<span class="bt">'+esc(t)+'</span>';return m.scrollHeight<=m.clientHeight+1}
-  function boxPages(text){ // split a sentence into pages that fit the box at the one fixed letter size, breaking at punctuation where possible
+  // v131: pages cut the way a captioner would. Before, a long sentence was filled page by page and whatever was left went alone on the last page
+  // (seen on an iPhone: a page holding only "we" and one holding "that we deserve."), and a cut page ended in dots.
+  // Now the words are shared evenly over the pages the sentence needs, no page has fewer than four words when the box can hold four,
+  // a page ends at a comma or full stop when one is near, never on a small joining word (the, of, that, we ...) when that can be avoided, and there are no dots.
+  var PG_WEAK=/^(a|an|the|of|to|in|on|at|for|from|with|by|and|or|but|that|which|who|whom|whose|is|are|was|were|be|been|as|if|so|than|we|he|she|they|i|you|it|his|her|their|our|my|your|its|this|these|those|not|no|will|would|can|could|shall|should|may|might|must|has|have|had|do|does|did|into|about|over|under|when|where|while|because|until|unless)$/i;
+  function boxPages(text){
     var m=boxMeasure(),t=String(text||'').replace(/\s+/g,' ').trim();if(!m||!t||boxFits(m,t))return [t];
-    var w=t.split(' '),out=[],i=0,guard=0;
-    while(i<w.length&&guard++<12){
-      var lo=1,hi=w.length-i;if(boxFits(m,w.slice(i).join(' '))){out.push(w.slice(i).join(' '));i=w.length;break}
-      while(lo<hi){var mid=Math.ceil((lo+hi)/2);if(boxFits(m,w.slice(i,i+mid).join(' ')+' …'))lo=mid;else hi=mid-1}
-      var n=Math.max(1,lo),left=w.length-i-n;
-      if(left>0&&left<4&&n>8)n-=4-left; // never leave a tiny tail alone on the last page
-      for(var k=n;k>Math.max(3,Math.floor(n*0.55));k--){if(/[.,;:!?]["”’)]?$/.test(w[i+k-1])){n=k;break}} // prefer to end a page at a comma or a full stop
-      out.push(w.slice(i,i+n).join(' ')+(i+n<w.length?' …':''));i+=n}
-    if(i<w.length)out.push(w.slice(i).join(' '));
+    var w=t.split(' '),W=w.length,memo={};
+    function fits(i,n){return boxFits(m,w.slice(i,i+n).join(' '))}
+    function cap(i){if(memo[i])return memo[i];var lo=1,hi=W-i;if(fits(i,hi))lo=hi;else{while(lo<hi){var mid=Math.ceil((lo+hi)/2);if(fits(i,mid))lo=mid;else hi=mid-1}}return memo[i]=Math.max(1,lo)}
+    var N=0,i=0,g=0;while(i<W&&g++<80){i+=cap(i);N++} // the fewest pages the sentence needs
+    var out=[];i=0;g=0;
+    while(i<W&&g++<80){
+      var left=W-i,c=cap(i);if(c>=left){out.push(w.slice(i).join(' '));i=W;break}
+      var pl=Math.max(2,N-out.length),MIN=Math.min(4,c),target=Math.max(MIN,Math.min(c,Math.ceil(left/pl))),loK=MIN,hiK=Math.min(c,left-4),n;
+      if(hiK<loK)n=Math.max(1,Math.min(c,Math.ceil(left/2))); // too few words left for two full pages: share them
+      else{target=Math.max(loK,Math.min(hiK,target));var best=1e9;n=target;
+        for(var k=Math.min(hiK,target+3);k>=Math.max(loK,target-3);k--){var last=w[i+k-1],sc=Math.abs(k-target);
+          if(/[.!?]["”’)]?$/.test(last))sc-=4;else if(/[,;:]["”’)]?$/.test(last))sc-=3;else if(PG_WEAK.test(last.replace(/[^A-Za-z']/g,'')))sc+=3;
+          if(sc<best){best=sc;n=k}}}
+      out.push(w.slice(i,i+n).join(' '));i+=n}
+    if(i<W)out.push(w.slice(i).join(' '));
     return out}
   function unitDwell(u){return Math.max(2500,Math.min(9000,1200+wc(u.t)*330))} // about three words a second, plus a moment to find the line
   function unitQueue(){
@@ -1026,7 +1039,7 @@ body.running #en p .draft{opacity:1}
     if(!hist||!box||hist.parentNode!==enEl){enEl.innerHTML='';hist=document.createElement('div');hist.id='hist';box=document.createElement('div');box.id='cbox';enEl.appendChild(hist);enEl.appendChild(box);
       UNITS=[];PEND=[];relAt=0;relayWH=(window.innerWidth||0)+'x'+(window.innerHeight||0);lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
     unitRelease();
-    var cur=UNITS.length?UNITS[UNITS.length-1]:null,past=UNITS.slice(-7,-1);
+    var cur=UNITS.length?UNITS[UNITS.length-1]:null,histN=Math.min(window.innerWidth||9999,window.innerHeight||9999)<=500?2:6,past=UNITS.slice(-(histN+1),-1); // v131: on a phone only the last two sentences stay above the box
     // v130: the history is only touched when a sentence joins or leaves it. Before, every redraw (they come many times a second while he speaks)
     // took each history line out and put it back, which stopped the roll half way (reported from an iPhone): lines jumped, sat on top of each other
     // or were cut off by the yellow box. Lines already in place are now left alone, so a roll always runs to its end.
