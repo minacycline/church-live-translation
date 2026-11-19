@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v126">
+<meta name="build" content="v127">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -368,7 +368,7 @@ body.running.idle:not(.paused){cursor:none}
 body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.viewing) footer,body.fs.idle.paused header,body.fs.idle.paused footer{opacity:1;pointer-events:auto}
 body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
 /* v115: a phone held sideways: the top bar starts below the Live Translation tag */
-@media (max-height:520px){body.running header{padding-top:22px}}
+@media (max-height:520px){body.running header{padding-top:22px}html body.running #en #cbox{height:45vh}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
 @media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
 @media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
@@ -1009,9 +1009,9 @@ body.running #en p .draft{opacity:1}
     for(var i=0;i<lines.length;i++){var l=lines[i];if(l.q)continue;
       if(!l.en){if(now-(l.t0||now)<16000)break;continue} // an earlier sentence is still being translated: keep the order (but never wait on it for long)
       l.q=1;if(!l.id)l.id='l'+(++lineSeq);var pg=boxPages(cleanEn(l.en));
-      pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length})})}
+      pg.forEach(function(t,j){PEND.push({id:'u'+(++unitSeq),t:t,ref:j===pg.length-1?(l.ref||''):'',n:pg.length,lid:l.id,src:cleanEn(l.en)})})}
     // two short sentences waiting together share one page
-    for(var k=0;k<PEND.length-1;k++){var a=PEND[k],b=PEND[k+1];if(a.n===1&&b.n===1&&!a.ref&&wc(a.t)+wc(b.t)<=16){var mm=boxMeasure();if(mm&&boxFits(mm,a.t+' '+b.t)){a.t=a.t+' '+b.t;a.ref=b.ref;PEND.splice(k+1,1);k--}}}
+    for(var k=0;k<PEND.length-1;k++){var a=PEND[k],b=PEND[k+1];if(a.n===1&&b.n===1&&!a.ref&&wc(a.t)+wc(b.t)<=16){var mm=boxMeasure();if(mm&&boxFits(mm,a.t+' '+b.t)){a.t=a.t+' '+b.t;a.src=a.t;a.ref=b.ref;PEND.splice(k+1,1);k--}}}
   }
   function unitRelease(){
     unitQueue();clearTimeout(relTimer);
@@ -1024,7 +1024,7 @@ body.running #en p .draft{opacity:1}
   function renderBox(){
     var hist=$('hist'),box=$('cbox');
     if(!hist||!box||hist.parentNode!==enEl){enEl.innerHTML='';hist=document.createElement('div');hist.id='hist';box=document.createElement('div');box.id='cbox';enEl.appendChild(hist);enEl.appendChild(box);
-      UNITS=[];PEND=[];relAt=0;lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
+      UNITS=[];PEND=[];relAt=0;relayWH=(window.innerWidth||0)+'x'+(window.innerHeight||0);lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
     unitRelease();
     var cur=UNITS.length?UNITS[UNITS.length-1]:null,past=UNITS.slice(-7,-1);
     var before={},keep={};Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
@@ -1203,7 +1203,36 @@ body.running #en p .draft{opacity:1}
     if(document.body.classList.contains('running')){enEl.classList.toggle('over',over());return} // v74: while captions run the text never changes size; when it does not fit, the oldest row slides off the top
     enEl.classList.remove('over');while(fs>16&&over()){fs-=2;root.style.setProperty('--fs',fs+'px')}
   }
-  window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
+  // v127: turning the device (or resizing the window) while captions run. Everything on the caption screen was measured for the old size:
+  // the pages of the sentence in the box, the width and letter size of each line in the history, and the place a rolling sentence was heading to.
+  // A roll caught by the turn froze half way, small, on top of the next sentence, and history lines made sideways were cut off at the edges.
+  // Now the screen is laid out again for the new size: any roll in progress is finished at once, the history is drawn again at the new width,
+  // and the sentence on screen and the ones waiting are cut into pages again for the new box. Nothing is dropped and nothing is played twice.
+  var relayT=null,relayWH='';
+  function boxRelayout(){
+    var box=$('cbox'),hist=$('hist');if(!running||!box||!hist)return;
+    var wh=(window.innerWidth||0)+'x'+(window.innerHeight||0);if(wh===relayWH)return;relayWH=wh;
+    Array.prototype.slice.call(box.children).forEach(function(el){if(el.classList.contains('out'))el.remove()});
+    hist.innerHTML='';
+    var cur=UNITS.length?UNITS[UNITS.length-1]:null;
+    if(cur&&cur.src){ // the sentence on screen and its waiting pages are cut again; its later pages go to the front of the queue
+      var rest=[];while(PEND.length&&PEND[0].lid===cur.lid)rest.push(PEND.shift());
+      var pg=boxPages(cur.src),done=0;
+      // pages of this sentence already shown are not shown again: skip the words they held
+      var shownW=0;UNITS.slice(0,-1).forEach(function(u){if(u.lid===cur.lid)shownW+=wc(String(u.t).replace(/ …$/,''))});
+      if(shownW){var left=String(cur.src).split(' ').slice(shownW).join(' ');pg=left?boxPages(left):[cur.t]}
+      cur.t=pg[0];cur.n=pg.length;var ref=(rest.length?rest[rest.length-1].ref:cur.ref)||'';cur.ref=pg.length===1?ref:'';
+      for(var i=pg.length-1;i>=1;i--)PEND.unshift({id:'u'+(++unitSeq),t:pg[i],ref:i===pg.length-1?ref:'',n:pg.length,lid:cur.lid,src:cur.src});
+    }
+    for(var k=0;k<PEND.length;k++){var a=PEND[k];if(!a.src||(cur&&a.lid===cur.lid))continue; // waiting sentences: cut again from their full text
+      var j=k;while(j+1<PEND.length&&PEND[j+1].lid===a.lid)j++;var rf=PEND[j].ref||'',pp=boxPages(a.src),nu=pp.map(function(t,x){return {id:'u'+(++unitSeq),t:t,ref:x===pp.length-1?rf:'',n:pp.length,lid:a.lid,src:a.src}});
+      PEND.splice.apply(PEND,[k,j-k+1].concat(nu));k+=nu.length-1}
+    box.innerHTML='';box.dataset.id=''; // the box is drawn fresh, with no roll from the old size
+    dbg('SCREEN turned or resized to '+wh+': caption screen laid out again');
+    render();
+  }
+  function onResize(){try{fit()}catch(e){}try{if(running)Array.prototype.slice.call(document.querySelectorAll('#cbox .bx.out')).forEach(function(el){el.remove()})}catch(e){}clearTimeout(relayT);relayT=setTimeout(function(){try{boxRelayout()}catch(e){dbg('SCREEN relayout failed: '+e.message)}},250)}
+  window.addEventListener('resize',onResize);window.addEventListener('orientationchange',function(){setTimeout(onResize,300)});
   // The app tunes itself from what it observes and remembers it on this device (it cannot rewrite its own code, but it can adjust its settings)
   var LEARN={};try{LEARN=JSON.parse(localStorage.getItem('learn')||'{}')||{}}catch(e){LEARN={}}
   function learnSave(){try{localStorage.setItem('learn',JSON.stringify(LEARN))}catch(e){}}
