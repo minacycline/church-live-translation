@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v127">
+<meta name="build" content="v128">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1244,8 +1244,24 @@ body.running #en p .draft{opacity:1}
   var testFixes=[],fixCount=0;
   function fixKey(a){return normAr(a).replace(/\s+/g,' ').trim()}
   function knownTerm(k){var hit=false;(window.COPTIC_TERMS||[]).forEach(function(x){if(!hit&&normAr(x[0])===k)hit=true});pairs('terms').forEach(function(p){if(!hit&&AR.test(p.a)&&normAr(p.a)===k)hit=true});return hit}
-  function learnFix(heard,to,ar){
+  // v128: a fix is learned only when it is safe. Seen in report 15: the translator "fixed" الهادية (calm) to الهاوية (Sheol), الصح (right) to الفصح (Passover),
+  // تلوم (blame) to شلوم (Shallum) and افتكره ضعيف to its opposite, while its English kept the right meaning. Learned twice, such a pair is applied to the
+  // Arabic automatically and would have turned "the calm spirit" into "the abyss". Now a pair is refused when the corrected part holds English, slashes
+  // or brackets, when it adds a negation the speaker did not say, or when it turns a word into a Bible name that the English never uses.
+  var NEG_RE=/(^| )(ما|مش|مو|لا|لم|لن|ليس|مافيش)( |$)|(^| )ما[^ ]+ش( |$)/;
+  function fixSafe(heard,to,en){
+    if(/[A-Za-z/\\()\[\]]/.test(to))return 'it holds English, a slash or brackets';
+    var nh=fixKey(heard),nt=fixKey(to);
+    if(NEG_RE.test(' '+nt+' ')&&!NEG_RE.test(' '+nh+' '))return 'it adds a negation';
+    var ix=nameIdx(),hw=nh.split(' ');
+    var bad=nt.split(' ').filter(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(!k||hw.indexOf(w)>=0)return false;
+      if(en===undefined)return true;var e=String(k.en||'').toLowerCase().split(/[^a-z]+/).filter(function(x){return x.length>2});return !e.some(function(x){return String(en).toLowerCase().indexOf(x)>=0})});
+    if(bad.length)return 'it turns a word into the Bible name '+bad.join(' ')+(en===undefined?'':' that the English does not use');
+    return '';
+  }
+  function learnFix(heard,to,ar,en){
     heard=(heard||'').trim();to=(to||'').trim();if(!heard||!to||!AR.test(heard)||!AR.test(to))return false;
+    var why=fixSafe(heard,to,en);if(why){dbg('FIX refused '+heard+' -> '+to+': '+why);return false}
     var k=fixKey(heard),kt=fixKey(to);
     if(k===kt||k.length<4||k.split(' ').length>3||kt.split(' ').length>4)return false;
     if((' '+fixKey(ar)+' ').indexOf(' '+k+' ')<0)return false; // must be a phrase that really was in the heard sentence
@@ -1257,6 +1273,8 @@ body.running #en p .draft{opacity:1}
     if(replayEl)testFixes.push(heard+' \u2192 '+to+(e.n>=2?' (now applied automatically)':' (seen once, applied after it is confirmed again)'));
     dbg('LEARNED fix '+heard+' -> '+to+' x'+e.n);return true;
   }
+  (function(){try{var f=LEARN.fix||{},gone=[];Object.keys(f).forEach(function(k){var e=f[k];if(!e||!e.to)return;var w=fixSafe(k,e.to,e.n>=2?e.to:undefined);if(w&&!(e.n>=2&&/Bible name/.test(w))){gone.push(k+' -> '+e.to);delete f[k]}});
+    if(gone.length){learnSave();setTimeout(function(){dbg('FIX cleanup: removed '+gone.length+' unsafe learned correction(s): '+gone.join(' | ').slice(0,300))},0)}}catch(e){}})(); // v128
   function activeFixes(){var f=LEARN.fix||{};return Object.keys(f).filter(function(k){return f[k].n>=2}).sort(function(a,b){return f[b].n-f[a].n})}
   function applyFixes(txt){
     if(!txt)return txt;var f=LEARN.fix||{},keys=activeFixes();if(!keys.length)return txt;
@@ -1673,13 +1691,13 @@ body.running #en p .draft{opacity:1}
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en); // with two lanes the previous line may still be in flight: then it is simply not revised
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
-        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name, never style changes; [] if none.'},
+        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say; Arabic only in both parts, one answer each (no slashes, no brackets); [] if none.'},
         {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
       if(canRevise&&typeof o.previous==='string'&&o.previous.trim()&&o.previous.trim()!==prevItem.en){var pr=o.previous.trim(),pi=lines.indexOf(prevItem),pp=pi>0&&lines[pi-1].en?lines[pi-1].en.trim():'';if(pp.length>3&&pr.indexOf(pp)===0){pr=pr.slice(pp.length).trim();dbg('REVISE: dropped a repeat of the sentence before')}var ow=prevItem.en.split(/\s+/).length,nw2=pr.split(/\s+/).length;if(pr&&nw2<=ow*1.5+3){prevItem.en=pr;prevItem.revised=true}else dbg('REVISE rejected: the previous sentence would grow from '+ow+' to '+nw2+' words')} // v118
-      if(Array.isArray(o.fixes))o.fixes.slice(0,4).forEach(function(fx){if(Array.isArray(fx)&&fx.length===2&&learnFix(String(fx[0]),String(fx[1]),ar)&&item)item.fixes=(item.fixes||[]).concat([fx[0]+' \u2192 '+fx[1]])});
+      if(Array.isArray(o.fixes))o.fixes.slice(0,4).forEach(function(fx){if(Array.isArray(fx)&&fx.length===2&&learnFix(String(fx[0]),String(fx[1]),ar,o.new)&&item)item.fixes=(item.fixes||[]).concat([fx[0]+' \u2192 '+fx[1]])});
       return o.new.trim();
     }}catch(e){}}
     var m2=/"new"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(out);if(m2)return m2[1].replace(/\\"/g,'"').trim();
