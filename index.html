@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v129">
+<meta name="build" content="v130">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1025,16 +1025,19 @@ body.running #en p .draft{opacity:1}
       UNITS=[];PEND=[];relAt=0;relayWH=(window.innerWidth||0)+'x'+(window.innerHeight||0);lines.forEach(function(l){if(l.en)l.q=1})} // a fresh screen starts clean: sentences from before are not played again
     unitRelease();
     var cur=UNITS.length?UNITS[UNITS.length-1]:null,past=UNITS.slice(-7,-1);
-    var before={},keep={};Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
-    past.forEach(function(l){keep['h'+l.id]=1});
+    // v130: the history is only touched when a sentence joins or leaves it. Before, every redraw (they come many times a second while he speaks)
+    // took each history line out and put it back, which stopped the roll half way (reported from an iPhone): lines jumped, sat on top of each other
+    // or were cut off by the yellow box. Lines already in place are now left alone, so a roll always runs to its end.
+    var before={},keep={};past.forEach(function(l){keep['h'+l.id]=1});
+    var histHave=Array.prototype.filter.call(hist.children,function(el){return !el.classList.contains('out')}).map(function(el){return el.id}).join(','),histNeed=past.map(function(l){return 'h'+l.id}).join(','),histSame=histHave===histNeed;
+    if(!histSame)Array.prototype.forEach.call(hist.children,function(el){before[el.id]=el.getBoundingClientRect().top});
     Array.prototype.slice.call(hist.children).forEach(function(el){if(!keep[el.id]&&!el.classList.contains('out')){el.classList.add('out');setTimeout(function(){el.remove()},520)}});
     var HR=0.58,mm0=boxMeasure(),mcs=mm0?getComputedStyle(mm0):null,HW=mcs?Math.max(60,mm0.clientWidth-parseFloat(mcs.paddingLeft)-parseFloat(mcs.paddingRight)):300,HFS=mcs?parseFloat(mcs.fontSize):30;
     past.forEach(function(l){var id='h'+l.id,el=document.getElementById(id);
       if(!el){el=document.createElement('p');el.id=id;el.className='hw in'; // v90: the same line breaks as in the box (the box layout, scaled down), so a sentence leaves the box as one solid block
         el.innerHTML='<span class="hi" style="width:'+HW+'px;margin-left:'+(-HW/2)+'px;font-size:'+HFS+'px;transform:scale('+HR+')">'+unitHtml(l)+'</span>';hist.appendChild(el);
-        el.style.height=Math.ceil(el.firstChild.offsetHeight*HR)+'px';requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})})}
-      hist.appendChild(el)});
-    past.forEach(function(l){var el=document.getElementById('h'+l.id),b=before['h'+l.id];if(!el||b===undefined)return;var d=b-el.getBoundingClientRect().top;if(Math.abs(d)<1)return;
+        el.style.height=Math.ceil(el.firstChild.offsetHeight*HR)+'px';requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('in')})});setTimeout(function(){el.classList.remove('in')},400)}});
+    if(!histSame)past.forEach(function(l){var el=document.getElementById('h'+l.id),b=before['h'+l.id];if(!el||b===undefined)return;var d=b-el.getBoundingClientRect().top;if(Math.abs(d)<1)return;
       el.style.transition='none';el.style.transform='translateY('+d+'px)';void el.offsetHeight;el.style.transition='';el.style.transform=''});
     var want=cur?cur.id:(dotsOn?'dots':'');
     if(box.dataset.id!==want){var prevId=box.dataset.id,oldBx=box.lastElementChild,oldR=null,oldF=0,glide=null;
