@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v118">
+<meta name="build" content="v124">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -230,6 +230,104 @@ body.running #readyDots,body.viewing #readyDots{display:none}
 #readyDots button:focus-visible{outline:2px solid var(--fg)}
 #dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:normal;width:max-content;max-width:min(78vw,340px);z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 
+/* v120: Cost table (admin link only): one line per month, tap a month for the days used */
+#costBtn{display:none;font-weight:700}
+body.adminview.adminok:not(.running) #costBtn{display:inline-flex;align-items:center;justify-content:center}
+#costDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#costDlg h2{margin:0 0 14px;font-size:24px;color:#16171a;font-family:inherit}
+#costDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}
+#costDlg button:disabled{opacity:.35;cursor:default}
+#costWrap{overflow:auto;max-height:62vh;border:1px solid #e3ddd2;border-radius:12px}
+#costDlg table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+#costDlg th,#costDlg td{padding:10px 12px;text-align:right;border-bottom:1px solid #efeae0;white-space:nowrap}
+#costDlg th:first-child,#costDlg td:first-child{text-align:left}
+#costDlg thead th{position:sticky;top:0;background:#f4f1ea;font-size:13px;color:#4b4f58;z-index:1}
+#costDlg tr.mon{cursor:pointer;font-weight:700}
+#costDlg tr.mon:hover td{background:#faf8f4}
+#costDlg tr.mon td:first-child::before{content:"\25B8";display:inline-block;width:1.1em;color:#6e6a63;transition:transform .15s}
+#costDlg tr.mon.open td:first-child::before{transform:rotate(90deg)}
+#costDlg tr.mon.open td{background:#16171a;color:#fff}
+#costDlg tr.mon.open td:first-child::before{color:#c9c6c0}
+#costDlg tr.day td{font-size:14px;color:#4b4f58;background:#faf8f4}
+#costDlg tr.day td:first-child{padding-left:30px}
+#costDlg tr.none td{font-size:14px;color:#8a857d;background:#faf8f4;text-align:left;padding-left:30px}
+#costDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
+#costDlg .cnote.bad{color:#9a3412;font-weight:600}
+#devBtn{display:none}
+body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:center;justify-content:center}
+#devDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#devDlg h2{margin:0 0 14px;font-size:24px;color:#16171a;font-family:inherit}
+#devDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}
+#devDlg button:disabled{opacity:.35;cursor:default}
+#devDlg button.warn{border-color:#b91c1c;color:#b91c1c}
+#devDlg button.quiet{border-color:transparent;color:#6e6a63}
+#devDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
+#devDlg .cnote.bad{color:#9a3412;font-weight:600}
+#devDlg small{color:#6e6a63;font-size:13px}
+#devDlg .dvsw{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid #e3ddd2;border-radius:12px;background:#faf8f4;cursor:pointer;font-size:15px;line-height:1.4}
+#devDlg .dvsw input{width:22px;height:22px;margin-top:2px;flex:none}
+#dvList{margin-top:12px;display:flex;flex-direction:column;gap:8px;overflow:auto;max-height:56vh}
+#devDlg .dv{flex:none;border:1px solid #e3ddd2;border-radius:12px;overflow:hidden}
+#devDlg .dvh{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;width:100%;min-height:0;padding:12px;border:0;border-radius:0;background:#fff;text-align:left;font:15px system-ui,sans-serif}
+#devDlg .dv.open .dvh{background:#16171a;color:#fff}
+#devDlg .dvt{font-weight:700;flex:1;min-width:0}
+#devDlg .dvt i{font-weight:400;font-style:normal;opacity:.7}
+#devDlg .dvl{flex-basis:100%;font-size:13px;opacity:.8;overflow-wrap:anywhere}
+#devDlg .pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+#devDlg .pill.ok{background:#dcfce7;color:#166534}#devDlg .pill.bl{background:#fee2e2;color:#991b1b}#devDlg .pill.wt{background:#fef3c7;color:#92400e}#devDlg .pill.nw{background:#eef0f3;color:#4b4f58}
+#devDlg .dvb{padding:12px;background:#faf8f4;font-size:14px;line-height:1.45}
+#devDlg .dvb p{margin:6px 0}
+#devDlg .dvb ul{margin:4px 0 8px;padding-left:20px;max-height:160px;overflow:auto;overflow-wrap:anywhere}
+#devDlg .dvb label{display:flex;gap:8px;align-items:center;font-weight:600}
+#devDlg .dvb input[type=text]{flex:1;min-width:0;min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif}
+#devDlg .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+#devDlg .pill.rq{background:#dbeafe;color:#1e40af}
+#devDlg .pill.tu{background:#fef3c7;color:#92400e}
+#devDlg .lims{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0}
+#devDlg .lims label{flex-direction:column;align-items:stretch;gap:4px;font-weight:600}
+#devDlg .lims input{min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif;width:100%;box-sizing:border-box}
+#devDlg .lims small{font-weight:400}
+#devDlg .dvdef{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:14px}
+#devDlg .dvdef input{width:90px;min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif}
+#devDlg .bar{display:block;height:6px;border-radius:3px;background:#e7e2d8;overflow:hidden;margin-top:4px}#devDlg .bar>i{display:block;height:100%;background:#1f7a4d}
+#devDlg .bar.hot>i{background:#d97706}
+#devDlg .dv.rq{border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe}
+#devDlg .dvb a{color:#1d4ed8}
+#devBtn{position:relative}
+#devBadge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font:700 12px/20px system-ui,sans-serif;text-align:center;display:none}
+#devBadge.on{display:block}
+#gateScr{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;padding:24px;background:#f7f4ee;color:#16171a;font-family:-apple-system,"Segoe UI",system-ui,sans-serif;overflow:auto}
+#gateScr.on{display:flex}
+#gateScr [hidden]{display:none!important}
+#gateScr .gbox{width:min(440px,100%);text-align:center}
+#gateScr .glock{font-size:44px;line-height:1;margin-bottom:12px}
+#gateScr h1{font-size:28px;margin:0 0 10px;font-family:inherit;color:#16171a}
+#gateScr p{font-size:17px;line-height:1.5;color:#4b4f58;margin:0 0 16px}
+#gateScr form{display:flex;flex-direction:column;gap:12px;text-align:left}
+#gateScr label{font-weight:600;font-size:15px;display:flex;flex-direction:column;gap:6px}
+#gateScr input{min-height:48px;padding:0 14px;border:1px solid #d6d0c4;border-radius:12px;font:17px system-ui,sans-serif;background:#fff;color:#16171a}
+#gateScr button{min-height:50px;border:0;border-radius:12px;background:#1f7a4d;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
+#gateScr button.lnk{background:none;color:#1f7a4d;min-height:40px;font-weight:600}
+#gateScr button:disabled{opacity:.5}
+#gateScr .gmsg{min-height:22px;font-size:15px;color:#9a3412;text-align:center}
+#gateScr .gcode{font-size:13px;color:#8a857d;margin-top:18px}
+#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#1f7a4d;border-radius:50%;animation:gspin 1s linear infinite}
+@keyframes gspin{to{transform:rotate(360deg)}}
+#costDlg .s{display:none}
+#costKeys{border:2px solid #b45309;background:#fff7ed;border-radius:12px;padding:12px 14px;margin:0 0 14px}
+#costKeys h3{margin:0 0 4px;font-size:17px;color:#16171a}
+#costKeys p{margin:0 0 10px;font-size:14px;line-height:1.4;color:#4b4f58}
+#costKeys label{display:block;font-weight:700;font-size:15px;margin:10px 0 4px}
+#costKeys label a{font-weight:600;font-size:14px;margin-left:8px;color:#1d4ed8}
+#costKeys input{width:100%;box-sizing:border-box;font-size:17px;padding:11px 12px;border:1.5px solid #d6d0c4;border-radius:10px;background:#fff;color:#16171a}
+#costKeys .hint{font-size:13px;color:#6e6a63;margin-top:4px}
+#costKeys .row{display:flex;gap:10px;align-items:center;margin-top:12px}
+#costKeys #costSave{background:#16171a;color:#fff;border-color:#16171a}
+#costKeys #ckMsg{font-size:14px;font-weight:600}
+#costChg{background:none!important;border:0!important;color:#6e6a63!important;text-decoration:underline;padding:0 4px!important;min-height:auto!important;font-weight:500!important}
+@media (max-width:640px){body.adminview .titlerow{flex-wrap:wrap;row-gap:8px}}
+@media (max-width:560px){#costDlg{padding:14px}#costDlg th,#costDlg td{padding:9px 5px;font-size:13.5px}#costDlg tr.day td:first-child,#costDlg tr.none td{padding-left:22px}#costDlg .u{display:none}#costDlg .s{display:inline}}
+
 /* v102: user view and admin view */
 body.userview #ownerGate,body.adminview #ownerGate,#ownerWarn{display:none!important}
 body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:none!important}
@@ -279,6 +377,8 @@ body.closed #en{visibility:hidden}
     <button class="icon" id="fsUp" aria-label="Bigger text">A+</button>
     <button class="icon" id="fsBtn" aria-label="Full screen">⛶</button>
     <button class="icon" id="reviewBtn" aria-label="Review and correct">✎</button>
+    <button class="icon" id="costBtn" aria-label="Cost">$</button>
+    <button class="icon" id="devBtn" aria-label="Devices">📍<span id="devBadge"></span></button>
     <button class="icon" id="clear" aria-label="Clear captions">⌫</button>
     <button class="icon" id="gear" aria-label="Settings">⚙</button>
   </div>
@@ -1278,6 +1378,69 @@ body.running #en p .draft{opacity:1}
   // v79 Claude Haiku: when it is chosen in Settings and its key is saved, every careful call (finished sentences, the sermon memo) goes to Claude.
   // The quick live words stay on Groq. Any Claude failure falls back to Groq for that call, and a rejected key or empty balance pauses Claude for 10 minutes.
   var CLAUDE_PROXY='https://church-captions.minaypharmd.workers.dev';
+  // v122: this device's own id (made once, kept on the device). The church server uses it to show the admin which devices use the app and to refuse a blocked one.
+  var DEVSTATE=null,devTold=false;
+  function devId(){var v=S.get('devId','');if(/^[a-z0-9]{20}$/.test(v))return v;var a='abcdefghijklmnopqrstuvwxyz0123456789',r=new Uint8Array(20),o='';try{crypto.getRandomValues(r)}catch(e){for(var i=0;i<20;i++)r[i]=Math.floor(Math.random()*256)}for(var j=0;j<20;j++)o+=a[r[j]%36];S.set('devId',o);return o}
+  function devCode(){return devId().slice(0,6).toUpperCase()}
+
+  // ---- v123: "This app is restricted". With "Approved devices only" on for this link, a device that is not approved
+  // sees a short form (name and phone), then "Please wait for approval", which checks every 30 seconds and opens by itself.
+  // A blocked device sees no form. The admin link never shows this screen (the admin approves devices there). ----
+  var gateTimer=0,gateMode='',gateWhy='';
+  function gateEl(){
+    var g=document.getElementById('gateScr');if(g)return g;
+    g=document.createElement('div');g.id='gateScr';g.setAttribute('role','dialog');g.setAttribute('aria-modal','true');
+    g.innerHTML='<div class="gbox"><div class="glock" aria-hidden="true">🔒</div><h1 id="gTitle"></h1><p id="gText"></p>'
+      +'<div id="gSpin" class="gspin" hidden></div>'
+      +'<form id="gForm" hidden novalidate><label>Your name<input id="gName" autocomplete="name" maxlength="80" required></label>'
+      +'<label>Phone number<input id="gPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" required></label>'
+      +'<button type="submit" id="gSend">Request access</button><div class="gmsg" id="gMsg" role="status"></div></form>'
+      +'<button type="button" class="lnk" id="gEdit" hidden>Change my name or phone</button>'
+      +'<div class="gcode" id="gCode"></div></div>';
+    document.body.appendChild(g);
+    $('gForm').addEventListener('submit',function(e){e.preventDefault();gateSend()});
+    $('gEdit').onclick=function(){gateRender('form')};
+    return g;
+  }
+  function gateRender(mode){
+    gateMode=mode;var g=gateEl();g.classList.add('on');
+    $('gCode').textContent='Device code '+devCode();
+    $('gForm').hidden=mode!=='form';$('gSpin').hidden=mode!=='wait';$('gEdit').hidden=mode!=='wait';
+    if(mode==='form'&&gateWhy==='total'){$('gTitle').textContent='Your time is used up';$('gText').textContent='This device has used the time it was given. To ask for more, send your name and phone number.';$('gMsg').textContent='';$('gSend').textContent='Ask for more time'}
+    else if(mode==='form'){$('gTitle').textContent='This app is restricted';$('gText').textContent='To use Live Translation on this device, send your name and phone number. You can use it as soon as the admin approves.';$('gMsg').textContent='';$('gSend').textContent='Request access'}
+    if(mode==='daily'){$('gTitle').textContent='Today\u2019s time is used up';$('gText').textContent='This device has used its time for today. It works again tomorrow.'}
+    if(mode==='wait'){$('gTitle').textContent='Please wait for approval';$('gText').textContent='Your request was sent. This screen opens by itself once the admin approves this device.'}
+    if(mode==='blocked'){$('gTitle').textContent='This app is restricted';$('gText').textContent='This device does not have access.'}
+  }
+  function gateShow(j){
+    if(!j||ADMINVIEW)return;
+    if(j.allowed){if(gateMode){gateMode='';var g=document.getElementById('gateScr');if(g)g.classList.remove('on');setStatus('Approved. Press Start when ready.')}clearInterval(gateTimer);gateTimer=0;return}
+    gateWhy=j.out||'';
+    gateRender(j.status==='blocked'?'blocked':(j.out==='daily'?'daily':(j.requested&&gateMode!=='form'?'wait':(gateMode==='form'?'form':(j.requested?'wait':'form')))));
+    try{if(running)stop()}catch(e){}
+    if(!gateTimer)gateTimer=setInterval(gateCheck,30000);
+  }
+  function gateCheck(){
+    if(document.visibilityState==='hidden')return;
+    fetch(CFG_URL+'/status',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({id:devId(),ns:CFG_NS}),cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&gateMode!=='form'||j&&j.allowed)gateShow(j)},function(){});
+  }
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&gateMode)gateCheck()});
+  function gateSend(){
+    var n=$('gName').value.trim(),p=$('gPhone').value.trim(),m=$('gMsg');
+    if(n.length<2){m.textContent='Please type your name.';$('gName').focus();return}
+    if(p.replace(/\D/g,'').length<7){m.textContent='Please type a phone number.';$('gPhone').focus();return}
+    $('gSend').disabled=true;m.style.color='#4b4f58';m.textContent='Sending…';
+    fetch(CFG_URL+'/request',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({id:devId(),name:n,phone:p,ns:CFG_NS}),cache:'no-store'}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {s:r.status,j:j}})}).then(function(x){
+      $('gSend').disabled=false;m.style.color='';
+      if(x.s===200&&x.j.ok){gateMode='wait';gateShow(x.j);return}
+      if(x.s===403){gateRender('blocked');return}
+      if(x.s===409&&x.j.out==='daily'){gateWhy='daily';gateRender('daily');return}
+      m.textContent=x.s===429?'Too many tries. Please wait a few minutes and try again.':'Not sent (the server answered '+x.s+'). Please try again.';
+    },function(){$('gSend').disabled=false;m.style.color='';m.textContent='Not sent: no internet connection. Please try again.'});
+  }
+  function devDenied(type){if(devTold)return;devTold=true;setTimeout(function(){devTold=false},60000);dbg('DEVICE refused: '+type);
+    serviceDown('device',({device_blocked:'THIS DEVICE IS BLOCKED. Ask the admin',device_not_approved:'THIS DEVICE IS NOT APPROVED YET. Ask the admin to approve it',device_daily_limit:'THIS DEVICE HAS USED ITS TIME FOR TODAY. It works again tomorrow',device_time_used:'THIS DEVICE HAS USED THE TIME IT WAS GIVEN. Ask the admin for more'}[type]||'THIS DEVICE IS NOT ALLOWED')+' (device '+devCode()+').');
+    setTimeout(function(){try{if(running)stop()}catch(e){}if(ADMINVIEW){try{showAlert(problemText+'\n(tap to hide)',false,0,true)}catch(e){}}else gateCheck()},300)}
   // v83: NO BACKUPS. Hearing is Soniox only and translating is Claude only. When either one fails, the screen says so plainly
   // (for example that an account needs more credit) instead of switching to Groq, Whisper, the browser's recognizer or a basic translator.
   var NO_BACKUP=true,downAt={};
@@ -1302,10 +1465,11 @@ body.running #en p .draft{opacity:1}
   function sxHaveKey(){return !!CLAUDE_PROXY||!!S.get('sonioxKey','')}
   async function sxKey(){
     if(!CLAUDE_PROXY)return S.get('sonioxKey','');
-    var r,j=null;try{var kc=typeof AbortController!=='undefined'?new AbortController():null,kt=setTimeout(function(){try{kc&&kc.abort()}catch(x){}},6000);try{r=await fetch(CLAUDE_PROXY+'/soniox-key',{method:'POST',signal:kc?kc.signal:undefined})}finally{clearTimeout(kt)}}catch(e){if(S.get('sonioxKey',''))return S.get('sonioxKey','');var ne=new Error('cannot reach the church server');ne.net=true;throw ne}
+    var r,j=null;try{var kc=typeof AbortController!=='undefined'?new AbortController():null,kt=setTimeout(function(){try{kc&&kc.abort()}catch(x){}},6000);try{r=await fetch(CLAUDE_PROXY+'/soniox-key?d='+devId()+'&ns='+CFG_NS,{method:'POST',signal:kc?kc.signal:undefined})}finally{clearTimeout(kt)}}catch(e){if(S.get('sonioxKey',''))return S.get('sonioxKey','');var ne=new Error('cannot reach the church server');ne.net=true;throw ne}
     try{j=await r.json()}catch(e){}
     if(r.ok&&j&&j.api_key)return j.api_key;
     if(j&&j.error&&j.error.type==='daily_limit'){limitHit(j.error.message);var lm=new Error('daily limit');lm.limit=true;throw lm}
+    if(j&&j.error&&/^device_/.test(j.error.type||'')){devDenied(j.error.type);var dn=new Error('device not allowed');dn.limit=true;throw dn}
     if(S.get('sonioxKey',''))return S.get('sonioxKey','');
     var m=(j&&((j.error&&j.error.message)||j.error_message||j.message))||('server answered '+r.status);var er=new Error(String(m).slice(0,120));er.status=r.status;throw er
   }
@@ -1315,10 +1479,11 @@ body.running #en p .draft{opacity:1}
     if(!conv.length||conv[0].role!=='user')conv.unshift({role:'user',content:'Translate.'});
     var body={model:CLAUDE_MODEL,max_tokens:Math.max(64,maxTok||300),messages:conv};if(sys)body.system=sys; /* claude-haiku-5-5 refuses a temperature setting */
     var ownKey=S.get('claudeKey','');
-    var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
+    var r=ownKey?await fetchT('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ownKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)},ms||12000):await fetchT(CLAUDE_PROXY+'/?d='+devId()+'&ns='+CFG_NS,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},ms||12000);
     if(!r.ok){var em='',et='';try{var ej=await r.json();em=(ej.error&&ej.error.message)||'';et=(ej.error&&ej.error.type)||''}catch(e){}
       if(et==='rate_limit')dbg('RATE LIMIT the church server refused a request: too many in one minute');
       if(et==='daily_limit'){claudeBlockedUntil=Date.now()+3600000;limitHit(em);var le=new Error('Claude is stopped (daily limit)');le.kind='credit';throw le}
+      if(/^device_/.test(et)){claudeBlockedUntil=Date.now()+60000;devDenied(et);var de=new Error('This device is not allowed');de.kind='credit';throw de}
       var credit=/credit|balance|billing|payment/i.test(em)||r.status===402,keyBad=r.status===401||r.status===403||/key is not set/i.test(em);
       if(credit||keyBad){claudeBlockedUntil=Date.now()+(NO_BACKUP?20000:600000);
         if(NO_BACKUP)serviceDown('claude',credit?'TRANSLATION STOPPED: the Claude account is out of credit. Add credit at platform.claude.com (Billing), then press Restart.':'TRANSLATION STOPPED: the Claude key on the church server was refused. A new key is needed.');
@@ -3064,6 +3229,270 @@ body.running #en p .draft{opacity:1}
     }else cfgPull();
     setInterval(function(){if(!document.hidden)cfgPull()},120000);
     document.addEventListener('visibilitychange',function(){if(!document.hidden)cfgPull()});
+  })();
+
+  // ---- v120: the Cost table of the admin link: one line per month with its totals; tap a month to see only the days that were used ----
+  // v121: the two keys the cost needs are pasted here (Save sends them to the church server, which never sends them back)
+  (function(){
+    if(!ADMINVIEW)return;
+    var b=$('costBtn');if(!b)return;
+    var FIRST='2026-11'; // the church app started paying for hearing and translating this month
+    var DATA={},OPEN={},busy=false,KEYS={all:false};
+    function nowM(){return new Date().toISOString().slice(0,7)}
+    function money(v){v=+v||0;return v>0&&v<0.01?'<$0.01':'$'+v.toFixed(2)}
+    function mins(v){v=Math.round(+v||0);return v.toLocaleString()+'<span class="u"> min</span>'}
+    function mName(m){var x=new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7)-1,15));return '<span class="u">'+esc(x.toLocaleString([], {month:'long',year:'numeric',timeZone:'UTC'}))+'</span><span class="s">'+esc(x.toLocaleString([], {month:'short',year:'numeric',timeZone:'UTC'}))+'</span>'}
+    function mStep(m,d){var y=+m.slice(0,4),mo=+m.slice(5,7)-1+d;y+=Math.floor(mo/12);mo=((mo%12)+12)%12;return y+'-'+String(mo+1).padStart(2,'0')}
+    function dName(d){var x=new Date(d+'T12:00:00Z');return '<span class="u">'+x.toLocaleString([], {weekday:'short',timeZone:'UTC'})+', </span>'+x.toLocaleString([], {month:'short',day:'numeric',timeZone:'UTC'})}
+    function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+    function months(){var out=[],m=nowM();while(m>=FIRST){out.push(m);m=mStep(m,-1)}return out} // newest first
+    var dlgC=document.createElement('dialog');dlgC.id='costDlg';
+    dlgC.innerHTML='<h2>$ Cost</h2>'
+      +'<div id="costKeys" hidden><h3>Add the keys (one time)</h3><p>Paste each key and press Save. They are kept on the church server only, never on this device.</p>'
+      +'<div id="ckS"><label for="ckSx">Soniox key<a href="https://console.soniox.com" target="_blank" rel="noopener">Get it</a></label><input id="ckSx" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Soniox API key"><div class="hint">Soniox console, My First Project, API keys.</div></div>'
+      +'<div id="ckC"><label for="ckCa">Claude admin key<a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Get it</a></label><input id="ckCa" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the Claude key"><div class="hint">Create key, Scope: Organization, Expires: Never, then Copy.</div></div>'
+      +'<div class="row"><button type="button" id="costSave">Save keys</button><span id="ckMsg" role="status"></span></div></div>'
+      +'<div id="costWrap"><table><thead><tr><th>Month</th><th><span class="u">Minutes</span><span class="s">Min</span></th><th>Soniox</th><th>Haiku</th><th>Total</th></tr></thead><tbody id="costBody"></tbody></table></div>'
+      +'<div id="costMsg" class="cnote" role="status"></div>'
+      +'<div class="actions" style="margin-top:12px"><button type="button" id="costRef">Refresh</button><button type="button" id="costChg">Change keys</button><span style="flex:1"></span><button type="button" id="costClose">Close</button></div>';
+    document.body.appendChild(dlgC);
+    function load(fresh){
+      var tk=cfgTok();if(!tk){dlgC.close();admSignOut();return}
+      if(busy)return;busy=true;$('costRef').disabled=true;
+      var list=months(),i=0,fail='';
+      $('costMsg').className='cnote';$('costMsg').textContent='Loading…';
+      (function next(){
+        if(i>=list.length){busy=false;$('costRef').disabled=false;draw(fail);return}
+        var m=list[i++];
+        cfgFetch('/cost?month='+m+(fresh?'&fresh=1':''),{headers:{'Authorization':'Bearer '+tk}},25000).then(function(x){
+          if(x.s===401){busy=false;dlgC.close();admSignOut();return}
+          if(x.s===200&&x.j.days)DATA[m]=x.j;else fail='The server could not get the cost (answer '+x.s+(x.j.error?' '+x.j.error:'')+'). Try Refresh in a minute.';
+          draw();next();
+        },function(){fail='Could not reach the server. Check the connection and press Refresh.';next()});
+      })();
+    }
+    function used(r,sOk,cOk){return (sOk&&(r.min>=0.5||r.soniox>0))||(cOk&&r.haiku>0)}
+    function draw(fail){
+      var h='',notes=[],noS='',noC='',other=0,last=null;
+      months().forEach(function(m){
+        var j=DATA[m];
+        if(!j){h+='<tr class="mon"><td>'+mName(m)+'</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>';return}
+        last=last||j;
+        var sOk=j.soniox&&j.soniox.ok,cOk=j.claude&&j.claude.ok,t=j.total||{},na='–';
+        if(!sOk&&!noS)noS=(j.soniox&&j.soniox.error)||'unknown';
+        if(!cOk&&!noC)noC=(j.claude&&j.claude.error)||'unknown';
+        if(cOk)other+=t.other||0;
+        var tot=(sOk?t.soniox:0)+(cOk?t.haiku:0),open=!!OPEN[m];
+        h+='<tr class="mon'+(open?' open':'')+'" data-m="'+m+'" tabindex="0" aria-expanded="'+open+'"><td>'+mName(m)+'</td><td>'+(sOk?mins(t.min):na)+'</td><td>'+(sOk?money(t.soniox):na)+'</td><td>'+(cOk?money(t.haiku):na)+'</td><td>'+money(tot)+((sOk&&cOk)?'':'*')+'</td></tr>';
+        if(open){
+          var ds=(j.days||[]).filter(function(r){return used(r,sOk,cOk)}).reverse();
+          if(!ds.length)h+='<tr class="none"><td colspan="5">'+((sOk||cOk)?'No days used this month.':'Nothing can be read until the keys are added.')+'</td></tr>';
+          ds.forEach(function(r){h+='<tr class="day"><td>'+dName(r.d)+'</td><td>'+(sOk?mins(r.min):na)+'</td><td>'+(sOk?money(r.soniox):na)+'</td><td>'+(cOk?money(r.haiku):na)+'</td><td>'+money((sOk?r.soniox:0)+(cOk?r.haiku:0))+'</td></tr>'});
+        }
+      });
+      $('costBody').innerHTML=h;
+      if(last){var needS=noS==='no_key'||KEYS.all,needC=noC==='no_key'||KEYS.all;$('ckS').hidden=!needS;$('ckC').hidden=!needC;$('costKeys').hidden=!(needS||needC)}
+      function why(e,who,key){if(e==='no_key')return who+' is not shown yet: paste the '+key+' in the box above.';return who+' could not be read right now ('+String(e).replace('answer_','server answered ')+').'}
+      if(fail)notes.push(fail);
+      if(noS)notes.push(why(noS,'Soniox','Soniox key'));
+      if(noC)notes.push(why(noC,'Haiku','Claude admin key'));
+      if(noS||noC)notes.push('* That total leaves out what could not be read.');
+      var bad=!!(fail||noS||noC);
+      if(other>=0.005)notes.push('Other Claude use on the same account (not the church app): '+money(other)+', not counted above.');
+      if(last){var when='';try{when=new Date(last.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}catch(e){}
+        notes.push('Tap a month to see the days it was used. Days follow UTC time, so a day here ends at 7 PM (8 PM in summer) Eastern time. Figures as of '+when+'; Soniox and Claude can take a little while to post the newest use.')}
+      $('costMsg').className='cnote'+(bad?' bad':'');$('costMsg').innerHTML=notes.map(esc).join('<br>');
+    }
+    function toggle(tr){var m=tr&&tr.getAttribute('data-m');if(!m)return;OPEN[m]=!OPEN[m];draw()}
+    $('costBody').addEventListener('click',function(e){toggle(e.target.closest('tr.mon'))});
+    $('costBody').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(e.target.closest('tr.mon'))}});
+    b.onclick=function(){OPEN={};OPEN[nowM()]=false;try{dlgC.showModal()}catch(e){dlgC.setAttribute('open','')}draw();load(false)};
+    $('costRef').onclick=function(){load(true)};
+    $('costChg').onclick=function(){KEYS.all=!KEYS.all;draw()};
+    $('costSave').onclick=function(){
+      var sx=$('ckSx').value.trim(),ca=$('ckCa').value.trim(),tk=cfgTok(),msg=$('ckMsg');
+      if(!sx&&!ca){msg.style.color='#9a3412';msg.textContent='Paste a key first.';return}
+      if(!tk){dlgC.close();admSignOut();return}
+      $('costSave').disabled=true;msg.style.color='#4b4f58';msg.textContent='Saving\u2026';
+      cfgFetch('/cost-keys',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({soniox:sx,claude:ca})},12000).then(function(x){
+        $('costSave').disabled=false;
+        if(x.s===200&&x.j.ok){$('ckSx').value='';$('ckCa').value='';KEYS.all=false;msg.style.color='#166534';msg.textContent='Saved \u2713 Checking the numbers\u2026';DATA={};load(true);return}
+        if(x.s===401){dlgC.close();admSignOut();return}
+        msg.style.color='#9a3412';msg.textContent='Not saved (the server answered '+x.s+'). Try again.';
+      },function(){$('costSave').disabled=false;msg.style.color='#9a3412';msg.textContent='Not saved: no connection. Try again.'});
+    };
+    $('costClose').onclick=function(){dlgC.close()};
+  })();
+
+  // ---- v122: Devices. Every device gets its own id (kept on the device). It checks in with the church server when the page
+  // opens, when Start is pressed, every 2 minutes of translating (v124; was 5) and at the end, so the admin sees which phones and computers
+  // use the app, roughly where (by internet address) and for how many minutes. Minutes not yet sent are kept and sent later. ----
+  (function(){
+    var PEND_KEY='devMinPending',BEAT_MIN=2,wasRun=false,acc=0,lastTick=Date.now();
+    function pend(){return parseFloat(S.get(PEND_KEY,'0'))||0}
+    function setPend(v){S.set(PEND_KEY,String(Math.round(v*100)/100))}
+    function seen(ev,min,beacon){
+      var body=JSON.stringify({id:devId(),ev:ev,min:min||0,ns:CFG_NS,view:ADMINVIEW?'admin':'user',touch:(navigator.maxTouchPoints||0)>1,build:(document.querySelector('meta[name="build"]')||{}).content||''});
+      try{
+        if(beacon&&navigator.sendBeacon){return Promise.resolve(navigator.sendBeacon(CFG_URL+'/seen',new Blob([body],{type:'text/plain'})))}
+        return fetch(CFG_URL+'/seen',{method:'POST',headers:{'Content-Type':'text/plain'},body:body,keepalive:true,cache:'no-store'}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){return r.ok?j:null})},function(){return null});
+      }catch(e){return Promise.resolve(null)}
+    }
+    function sendMin(ev,beacon){ // the minutes go out with this check-in; if it does not arrive they stay on the device for the next one
+      var m=pend();if(m<0.05&&ev==='min')return;
+      if(beacon){if(seen(ev,m,true))setPend(0);return}
+      setPend(0);
+      seen(ev,m).then(function(j){if(!j){setPend(pend()+m);dbg('DEVICE minutes kept for later: '+m.toFixed(1))}});
+    }
+    seen('open').then(function(j){
+      if(!j)return;DEVSTATE=j;
+      if(pend()>=0.05)sendMin('min'); // minutes left over from last time
+      gateShow(j);
+    });
+    setInterval(function(){
+      var now=Date.now(),dt=Math.min(now-lastTick,60000);lastTick=now;
+      if(running&&!wasRun){wasRun=true;acc=0;seen('start')}
+      if(running&&!paused){setPend(pend()+dt/60000);acc+=dt/60000}
+      if(running&&acc>=BEAT_MIN){acc=0;sendMin('min')}
+      if(!running&&wasRun){wasRun=false;acc=0;sendMin('stop')}
+    },15000);
+    function bye(){if(pend()>=0.05)sendMin(running?'min':'stop',true)}
+    window.addEventListener('pagehide',bye);
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')bye()});
+  })();
+
+  // ---- v122: the Devices window of the admin link: every device that opened the app, where it was (approximate, from its
+  // internet address), its minutes, and Approve / Block. With "Approved devices only" on, a device that is not approved
+  // cannot hear or translate (the church server refuses it), even if someone forwards the link. ----
+  (function(){
+    if(!ADMINVIEW)return;
+    var b=$('devBtn');if(!b)return;
+    var LIST=[],CFGD={approvedOnly:false,dailyDefault:120},OPEN={},busy=false;
+    function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+    function when(iso){if(!iso)return '';var d=new Date(iso),s=(Date.now()-d.getTime())/1000;if(s<90)return 'just now';if(s<3600)return Math.round(s/60)+' min ago';
+      var t=d.toLocaleString([], {hour:'numeric',minute:'2-digit'});if(new Date().toDateString()===d.toDateString())return 'today '+t;
+      return d.toLocaleString([], {month:'short',day:'numeric'})+', '+t}
+    function place(x){var a=[x.city,x.region].filter(Boolean).join(', ');if(x.country&&x.country!=='US')a+=(a?', ':'')+x.country;return a||'Unknown place'}
+    function mins(v){v=+v||0;return v<1&&v>0?'<1':String(Math.round(v))}
+    function times(n){n=+n||0;return n===1?'once':n+' times'}
+    function sums(d){var t=new Date().toISOString().slice(0,10),m=t.slice(0,7),o={today:0,month:0,all:0};for(var k in (d.days||{})){var v=+d.days[k]||0;o.all+=v;if(k===t)o.today+=v;if(k.slice(0,7)===m)o.month+=v}return o}
+    function pending(d){return !!(d.req&&d.status!=='blocked')} // v124: the server removes a request once it is answered, so any request left is waiting
+    function lim(d){var u=d.use||{};return u.daily>0?u.daily:0}
+    function limBox(d){var u=d.use||{},L=d.limits||{},dl=lim(d),pc=dl?Math.min(100,Math.round(100*(u.today||0)/dl)):0,
+        al=u.allow!=null?u.allow:null,pa=al?Math.min(100,Math.round(100*(u.used||0)/al)):0;
+      return '<p><b>Today:</b> '+mins(u.today)+(dl?' of '+dl+' min':' min (no daily limit)')+(dl?'<span class="bar'+(pc>=90?' hot':'')+'"><i style="width:'+pc+'%"></i></span>':'')+'</p>'
+        +(al!=null?'<p><b>Time given:</b> '+mins(u.used)+' of '+al+' min used<span class="bar'+(pa>=90?' hot':'')+'"><i style="width:'+pa+'%"></i></span></p>':'')
+        +'<div class="lims"><label>Daily limit (minutes)<input type="number" class="dvDaily" min="0" max="1440" inputmode="numeric" value="'+(L.daily!=null?L.daily:'')+'" placeholder="Default ('+CFGD.dailyDefault+')"><small>Empty = default. 0 = no daily limit.</small></label>'
+        +'<label>Total time given (minutes)<input type="number" class="dvAllow" min="0" inputmode="numeric" value="'+(L.allow!=null?L.allow:'')+'" placeholder="No limit"><small>When used up, they must ask again.</small></label></div>'
+        +'<div class="row"><button type="button" data-act="limits">Save limits</button></div>'}
+    function stLabel(d){var u=d.use||{};if(d.status==='blocked')return ['Blocked','bl'];if(d.req)return [d.status==='approved'?'Asked for more time':'Requested access','rq'];if(u.out==='daily')return ['Done for today','tu'];if(u.out==='total')return ['Time used up','tu'];if(d.status==='approved')return ['Approved','ok'];return CFGD.approvedOnly?['Not approved','wt']:['Allowed','nw']}
+    var dlgD=document.createElement('dialog');dlgD.id='devDlg';
+    dlgD.innerHTML='<h2>📍 Devices</h2>'
+      +'<label class="dvsw"><input type="checkbox" id="dvOnly"><span><b>Approved devices only ('+(CFG_NS==='test'?'test link':'church link')+')</b><br><small>When on, only devices you approve below can hear and translate on the '+(CFG_NS==='test'?'test':'church')+' link. Anyone else sees "This app is restricted" and can ask for access with their name and phone. Approve the church device first.</small></span></label>'
+      +'<div class="dvdef"><label for="dvDef"><b>Daily limit for each device:</b></label><input id="dvDef" type="number" min="0" max="1440" inputmode="numeric"> minutes <button type="button" id="dvDefSave">Save</button><small>0 = no daily limit. A device can have its own limit below.</small></div>'
+      +'<div id="dvSum" class="cnote"></div>'
+      +'<div id="dvList"></div>'
+      +'<div id="dvMsg" class="cnote" role="status"></div>'
+      +'<div class="actions" style="margin-top:12px"><button type="button" id="dvRef">Refresh</button><span style="flex:1"></span><button type="button" id="dvClose">Close</button></div>';
+    document.body.appendChild(dlgD);
+    function msg(t,bad){$('dvMsg').className='cnote'+(bad?' bad':'');$('dvMsg').textContent=t||''}
+    function load(){
+      var tk=cfgTok();if(!tk){dlgD.close();admSignOut();return}
+      if(busy)return;busy=true;$('dvRef').disabled=true;msg('Loading…');
+      cfgFetch('/devices?ns='+CFG_NS,{headers:{'Authorization':'Bearer '+tk}},25000).then(function(x){
+        busy=false;$('dvRef').disabled=false;
+        if(x.s===401){dlgD.close();admSignOut();return}
+        if(x.s!==200||!x.j.devices){msg('The server could not list the devices (answer '+x.s+'). Press Refresh.',true);return}
+        LIST=x.j.devices;CFGD.approvedOnly=!!x.j.approvedOnly;if(typeof x.j.dailyDefault==='number')CFGD.dailyDefault=x.j.dailyDefault;msg('');draw();devBadge(LIST);
+      },function(){busy=false;$('dvRef').disabled=false;msg('Could not reach the server. Check the connection and press Refresh.',true)});
+    }
+    function draw(){
+      $('dvOnly').checked=CFGD.approvedOnly;if(document.activeElement!==$('dvDef'))$('dvDef').value=CFGD.dailyDefault;
+      LIST.sort(function(a,b){return (pending(b)-pending(a))||String(b.last||'').localeCompare(String(a.last||''))});
+      var me=devId(),today=0,month=0,usedToday=0,h='';
+      LIST.forEach(function(d){
+        var s=sums(d),st=stLabel(d),open=!!OPEN[d.id],mine=d.id===me;
+        today+=s.today;month+=s.month;if(s.today>0)usedToday++;
+        var title=d.name||(d.req&&d.req.name)||d.kind||'Device',pend=pending(d);
+        h+='<div class="dv'+(open?' open':'')+(pend?' rq':'')+'" data-id="'+esc(d.id)+'">'
+          +'<button type="button" class="dvh" aria-expanded="'+open+'"><span class="dvt">'+esc(title)+(mine?' <i>(this device)</i>':'')+'</span><span class="pill '+st[1]+'">'+st[0]+'</span>'
+          +(d.req?'<span class="dvl">'+esc(d.req.phone)+' · '+esc(d.kind||'')+'</span>':'')
+          +'<span class="dvl">'+esc(place(d))+' · '+esc(d.ip||'')+'</span>'
+          +'<span class="dvl">Last seen '+esc(when(d.last))+' \u00b7 '+mins((d.use||{}).today!=null?d.use.today:s.today)+(lim(d)?' of '+lim(d):'')+' min today \u00b7 '+mins(s.month)+' this month</span></button>';
+        if(open){
+          var pl=(d.places||[]).map(function(p){return '<li>'+esc(place(p))+' · '+esc(p.ip)+(p.isp?' · '+esc(p.isp):'')+' · last '+esc(when(p.at))+'</li>'}).join('');
+          h+='<div class="dvb">'
+            +'<label>Name <input type="text" class="dvName" maxlength="60" value="'+esc(d.name||'')+'" placeholder="e.g. Church iPad"></label>'
+            +((d.req||d.contact)?'<p><b>'+(d.req?(d.status==='approved'?'Asked for more time:':'Asked for access:'):'Contact:')+'</b> '+esc((d.req||d.contact).name)+' \u00b7 <a href="tel:'+esc(String((d.req||d.contact).phone).replace(/[^0-9+]/g,''))+'">'+esc((d.req||d.contact).phone)+'</a> \u00b7 '+esc(when((d.req||d.contact).at))+'</p>':'')
+            +limBox(d)
+            +'<p><b>Device:</b> '+esc(d.kind||'')+' · code '+esc(String(d.id).slice(0,6).toUpperCase())+(d.view==='admin'?' · admin link':'')+(d.ns==='test'?' · test link':'')+'</p>'
+            +'<p><b>Used:</b> '+mins(s.all)+' min in total · opened '+times(d.opens)+' · started '+times(d.starts)+' · first seen '+esc(when(d.first))+'</p>'
+            +'<p><b>Places it connected from</b> ('+((d.places||[]).length)+'):</p><ul>'+pl+'</ul>'
+            +'<div class="row">'
+            +(d.status==='blocked'?'<button type="button" data-act="approved">Unblock</button>'
+              :(d.status!=='approved'?'<button type="button" data-act="approved">Approve</button>':((pend||(d.use&&d.use.out==='total'))?'<button type="button" data-act="more">Give more time</button>':''))+'<button type="button" data-act="blocked" class="warn">'+(pend?'Deny':'Block')+'</button>')
+            +(d.status==='approved'?'<button type="button" data-act="new">Remove approval</button>':'')
+            +'<button type="button" data-act="name">Save name</button>'
+            +'<span style="flex:1"></span><button type="button" data-act="forget" class="quiet">Forget</button></div>'
+            +'</div>';
+        }
+        h+='</div>';
+      });
+      $('dvList').innerHTML=h||'<p class="cnote">No device has opened the app since tracking started.</p>';
+      var nreq=LIST.filter(pending).length;
+      $('dvSum').innerHTML=(nreq?'<b style="color:#1e40af">'+nreq+' waiting for your approval (shown first)</b><br>':'')+esc(LIST.length+' device'+(LIST.length===1?'':'s')+' · '+usedToday+' used today · '+mins(today)+' min today · '+mins(month)+' min this month')
+        +'<br><small>Places come from each internet address and are approximate (usually the right city; phones on cell data can show a far-away city). Minutes are counted by the app while it translates.</small>';
+    }
+    function setDev(id,body,okText,reload){
+      var tk=cfgTok();if(!tk){dlgD.close();admSignOut();return}
+      body.id=id;msg('Saving…');
+      cfgFetch('/device',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(body)},12000).then(function(x){
+        if(x.s===401){dlgD.close();admSignOut();return}
+        if(x.s!==200||!x.j.ok){msg('Not saved (the server answered '+x.s+'). Try again.',true);return}
+        if(body.forget){LIST=LIST.filter(function(d){return d.id!==id})}
+        else LIST.forEach(function(d){if(d.id===id){if(body.status!==undefined)d.status=body.status;if(body.name!==undefined)d.name=body.name}});
+        msg(okText);draw();devBadge(LIST);if(reload||body.status==='approved'||body.status==='blocked')setTimeout(function(){var keep=$('dvMsg').textContent;load();setTimeout(function(){if(!$('dvMsg').textContent)msg(keep)},1500)},300);
+      },function(){msg('Not saved: no connection. Try again.',true)});
+    }
+    $('dvList').addEventListener('click',function(e){
+      var card=e.target.closest('.dv');if(!card)return;var id=card.getAttribute('data-id');
+      if(e.target.closest('.dvh')){OPEN[id]=!OPEN[id];draw();return}
+      var a=e.target.closest('button[data-act]');if(!a)return;var act=a.getAttribute('data-act');
+      if(act==='name'){setDev(id,{name:card.querySelector('.dvName').value},'Name saved \u2713');return}
+      if(act==='limits'){var dv=card.querySelector('.dvDaily').value.trim(),av=card.querySelector('.dvAllow').value.trim(),dn=dv===''?null:Number(dv),an=av===''?null:Number(av);
+        if((dn!==null&&!(dn>=0&&dn<=1440))||(an!==null&&!(an>=0))){msg('Type minutes as a number (daily up to 1440).',true);return}
+        setDev(id,{daily:dn,allow:an},'Limits saved \u2713 They apply within about a minute.',true);return}
+      if(act==='more'){setDev(id,{status:'approved',reset:true},'More time given \u2713 Their allowance starts again from now.',true);return}
+      if(act==='forget'){
+        if(a.getAttribute('data-sure')!=='1'){a.setAttribute('data-sure','1');a.textContent='Tap again to forget';return}
+        setDev(id,{forget:true},'Removed from the list. If it opens the app again it comes back as a new device.');return}
+      setDev(id,{status:act},act==='blocked'?'Blocked ✓ It is stopped within about a minute and cannot ask again.':act==='approved'?'Approved ✓ Their screen opens by itself within about a minute.':'Approval removed ✓');
+    });
+    $('dvOnly').onchange=function(){
+      var on=$('dvOnly').checked,tk=cfgTok();if(!tk){dlgD.close();admSignOut();return}
+      if(on){var mine=LIST.filter(function(d){return d.id===devId()})[0];
+        if(!LIST.some(function(d){return d.status==='approved'})){ $('dvOnly').checked=false;msg('Approve at least one device first (the one the church uses), then turn this on.',true);return}
+        if(mine&&mine.status!=='approved')msg('Note: this device is not approved, so it would not be able to translate. Approve it too if you use it.',true)}
+      cfgFetch('/devcfg',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({approvedOnly:on,ns:CFG_NS})},12000).then(function(x){
+        if(x.s===401){dlgD.close();admSignOut();return}
+        if(x.s!==200||!x.j.ok){$('dvOnly').checked=!on;msg('Not changed (the server answered '+x.s+').',true);return}
+        CFGD.approvedOnly=on;draw();msg(on?'On ✓ Only approved devices can translate on the '+(CFG_NS==='test'?'test':'church')+' link (takes up to a minute).':'Off ✓ Every device that is not blocked can translate on the '+(CFG_NS==='test'?'test':'church')+' link.');
+      },function(){$('dvOnly').checked=!on;msg('Not changed: no connection.',true)});
+    };
+    function devBadge(list){var n=(list||[]).filter(pending).length,e=$('devBadge');if(!e)return;e.textContent=n>99?'99+':String(n);e.classList.toggle('on',n>0);b.setAttribute('aria-label',n?'Devices, '+n+' waiting for approval':'Devices')}
+    function badgeCheck(){var tk=cfgTok();if(!tk||running||busy||!document.body.classList.contains('adminok')||document.visibilityState==='hidden')return;
+      cfgFetch('/devices?ns='+CFG_NS,{headers:{'Authorization':'Bearer '+tk}},25000).then(function(x){if(x.s===200&&x.j.devices){if(!dlgD.open){LIST=x.j.devices;CFGD.approvedOnly=!!x.j.approvedOnly}devBadge(x.j.devices)}},function(){})}
+    setTimeout(badgeCheck,4000);setInterval(badgeCheck,120000);
+    b.onclick=function(){OPEN={};try{dlgD.showModal()}catch(e){dlgD.setAttribute('open','')}draw();load()};
+    $('dvRef').onclick=load;
+    $('dvDefSave').onclick=function(){var v=$('dvDef').value.trim(),n=Number(v),tk=cfgTok();if(!tk){dlgD.close();admSignOut();return}
+      if(v===''||!(n>=0&&n<=1440)){msg('Type the daily minutes as a number from 0 to 1440.',true);return}
+      cfgFetch('/devcfg',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({dailyDefault:Math.round(n),ns:CFG_NS})},12000).then(function(x){
+        if(x.s===401){dlgD.close();admSignOut();return}
+        if(x.s!==200||!x.j.ok){msg('Not saved (the server answered '+x.s+').',true);return}
+        CFGD.dailyDefault=x.j.dailyDefault;msg('Saved \u2713 Each device now gets '+(CFGD.dailyDefault?CFGD.dailyDefault+' minutes a day':'no daily limit')+' unless it has its own limit.');var kept=$('dvMsg').textContent;load();setTimeout(function(){if(!$('dvMsg').textContent)msg(kept)},1500);
+      },function(){msg('Not saved: no connection.',true)})};
+    $('dvClose').onclick=function(){dlgD.close()};
   })();
 })();
 </script>
