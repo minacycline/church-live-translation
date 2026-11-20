@@ -1,0 +1,61 @@
+name: Build and test
+# The pages are built from src/. Tests run first; a page is written only when every test passes.
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tools/**', 'tests/**', 'publish.txt', '.github/workflows/build.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: church-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Browser for the tests
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: First run only, cut the page into parts and prove the parts give back the same four pages
+        run: |
+          if [ ! -f src/parts.txt ]; then
+            python tools/split.py
+            python tools/build.py check
+            python tools/build.py live
+          fi
+      - name: Stop if a page was edited by hand
+        run: python tools/build.py guard
+      - name: Test build or publish
+        run: |
+          V=$(python tools/build.py version)
+          echo "V=$V" >> $GITHUB_ENV
+          if git diff --name-only HEAD~1 HEAD | grep -qx publish.txt && [ "$(tr -d ' \n\r' < publish.txt)" = "$V" ]; then
+            echo "MODE=live" >> $GITHUB_ENV
+          else
+            echo "MODE=test" >> $GITHUB_ENV
+          fi
+      - name: Build the test page
+        run: python tools/build.py test
+      - name: Tests (nothing is saved if one fails)
+        run: python tests/run.py test/index.html
+      - name: Write the pages
+        run: python tools/build.py $MODE
+      - name: Save
+        run: |
+          git config user.name "church-build"
+          git config user.email "church-build@users.noreply.github.com"
+          git add -A src test index.html admin
+          if ! git diff --cached --quiet; then
+            git commit -m "Built $V ($MODE) from src: all tests passed"
+            git pull --rebase
+            git push
+          fi
