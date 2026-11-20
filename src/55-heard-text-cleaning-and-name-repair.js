@@ -105,6 +105,10 @@
   }
   function fixNames(txt){return hardNames(fixNames0(txt))}
   function fixNames0(txt){
+    // v144: mishearings from the 2026-11-20 sermon (the first one also on 2026-11-18)
+    txt=txt.replace(/(^|\s)(?:ه[اآأ]|ل[اآأ]|[آأ])رس(\s+الحيا[ةه]\s+ال[أا]بدي[ةه])/g,function(m,a,b){dbg('WORD repaired: inherit eternal life');return a+'لأرث'+b});
+    txt=txt.replace(/(^|\s)[اإ]تكتبوا\s+و?(الفريسي[يو]ن)/g,function(m,a,b){dbg('WORD repaired: the scribes and Pharisees');return a+'الكتبة و'+b});
+    txt=txt.replace(/(^|\s)لا\s+تركي(?=\s*(?:$|[.,،!؟?:]))/g,function(m,a){dbg('WORD repaired: do not weep');return a+'لا تبكي'});
     txt=txt.replace(/((?:^|\s)(?:ال)?(?:قديس|[أا]نبا|بابا)\s+)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(?=\s|$|[.,،!؟?])/g,function(m,a){dbg('NAME repaired: a saint called Synaxarium is Athanasius');return a+'أثناسيوس'}); // v137
     txt=txt.replace(/(^|\s)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(\s+الرسول[يى])(?=\s|$|[.,،!؟?])/g,function(m,a,b){dbg('NAME repaired: Synaxarium the Apostolic is Athanasius');return a+'أثناسيوس'+b}); // v140
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady

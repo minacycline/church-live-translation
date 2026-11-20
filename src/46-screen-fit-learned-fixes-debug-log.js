@@ -61,10 +61,14 @@
   // Arabic automatically and would have turned "the calm spirit" into "the abyss". Now a pair is refused when the corrected part holds English, slashes
   // or brackets, when it adds a negation the speaker did not say, or when it turns a word into a Bible name that the English never uses.
   var NEG_RE=/(^| )(ما|مش|مو|لا|لم|لن|ليس|مافيش)( |$)|(^| )ما[^ ]+ش( |$)/;
+  function soundAlike(a,b){var m=a.length,n=b.length;if(!m||!n)return 0;var p=[],i,j;for(j=0;j<=n;j++)p[j]=j;for(i=1;i<=m;i++){var q=[i];for(j=1;j<=n;j++)q[j]=Math.min(p[j]+1,q[j-1]+1,p[j-1]+(a.charAt(i-1)===b.charAt(j-1)?0:1));p=q}return 1-p[n]/Math.max(m,n)}
   function fixSafe(heard,to,en){
     if(/[A-Za-z/\\()\[\]]/.test(to))return 'it holds English, a slash or brackets';
     var nh=fixKey(heard),nt=fixKey(to);
     if(NEG_RE.test(' '+nt+' ')&&!NEG_RE.test(' '+nh+' '))return 'it adds a negation';
+    var ch=nh.replace(/ /g,''),ct=nt.replace(/ /g,''); // v144: a mishearing sounds like what was said. Seen 2026-11-20: مرشد (guide) 'fixed' to راعي (shepherd), a real word swapped for another meaning
+    if(/^[وف]/.test(ch)&&ch.slice(1)===ct||/^[وف]/.test(ct)&&ct.slice(1)===ch)return 'it only adds or drops and/so at the start';
+    if(soundAlike(ch,ct)<0.6)return 'the two do not sound alike, so it is a change of meaning, not a mishearing';
     var ix=nameIdx(),hw=nh.split(' ');
     var bad=nt.split(' ').filter(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(!k||hw.indexOf(w)>=0)return false;
       if(en===undefined)return true;var e=String(k.en||'').toLowerCase().split(/[^a-z]+/).filter(function(x){return x.length>2});return !e.some(function(x){return String(en).toLowerCase().indexOf(x)>=0})});

@@ -1,4 +1,4 @@
-  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(!f&&/[\u060C,]\s*$/.test(item.ar||'')){W=4;MX=2500} /* v137: a piece cut at a comma has more coming right behind it */if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(!f&&/[\u060C,]\s*$/.test(item.ar||'')){W=4;MX=2500} /* v137: a piece cut at a comma has more coming right behind it */if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */if(!f&&/[.!?\u061F]\s*$/.test(item.ar||'')){W=3;MX=1200} /* v144: a short finished sentence (He wept over Jerusalem.) used to wait up to 4 s for what comes next; now 3 words or 1.2 s */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
     if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function endStartOverlap(a,b){ // v137: how many words at the start of b repeat the end of a (4 or more counts)
@@ -17,6 +17,7 @@
     if(curUnsure&&curUnsure.length){var un=curUnsure.filter(function(w){return ar.indexOf(w)>=0});if(un.length)item.unsure=un}
     if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
     var p=matchPrayer(ar);
+    if(p&&verseTail(ar,p)){item.verse={b:p.b,ref:p.ref||''};dbg('VERSE part only, not from its start'+(p.ref?' ('+p.ref+')':'')+': translated with the verse as a wording guide, the whole verse is not shown');p=null} // v144
     if(p){var pf=lines[lines.length-2]; // v137: a verse or prayer heard in two pieces used to put the same fixed English on the screen twice
       if(pf&&pf!==item&&pf.fixed&&pf.en&&Date.now()-(pf.t0||0)<30000&&String(p.b).split(/\s+/).length>=3&&wordsIn(ar,pf.ar,true)<0.5){
         if(wordsIn(p.b,pf.en)>=0.85){pf.ar=pf.ar+' '+ar;lines.splice(lines.indexOf(item),1);dbg('FIXED text already on the screen, not shown twice: '+String(p.b).slice(0,60));render();return}
