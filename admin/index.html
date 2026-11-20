@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v134">
+<meta name="build" content="v137">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -138,7 +138,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 .rv .saved{color:#2f6b4a}
 </style>
 <style>
-#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#1f7a4d;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#d92d20;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
 body.listening.admin #sideMeter{display:block}
 body.listening:not(.admin) #status,body.listening:not(.admin) #meter{visibility:hidden}
 .dot.on.voice{box-shadow:0 0 0 4px rgba(47,143,91,.28)}.dot.warn.voice{box-shadow:0 0 0 3px rgba(224,160,48,.25)}
@@ -178,12 +178,12 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 .rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
-#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
-body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#1f7a4d;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
-/* a screen shows a green frame and "Live Translation" while captions are arriving from the main device */
+body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
+/* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
 body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
-#viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+#viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.viewing.livecap:not(.noframe) #viewTag{display:block}
 .rolebadge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--fg);border-radius:999px;padding:6px 14px}
 .pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px}.pick button{flex:1 1 200px;min-height:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;padding:9px 14px;border:1.5px solid var(--fg);border-radius:12px;background:#fff;color:var(--fg);font-size:15px}.pick button span{font-size:12px;color:var(--dim);font-weight:400;line-height:1.3}.keylock{display:block;margin-top:6px;padding:6px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--fg);font-size:14px}input[readonly].locked,#groqKey[readonly],#sonioxKey[readonly],#deepgramKey[readonly],#cohereKey[readonly]{background:#f1f1f2;color:var(--dim)}.linkbtn{background:none;border:none;color:var(--dim);text-decoration:underline;font-size:inherit;padding:4px}
@@ -206,7 +206,7 @@ details.sec{border:1px solid var(--line);border-radius:12px;margin-top:10px;padd
 details.sec>summary{cursor:pointer;font-weight:700;padding:14px 0;font-size:17px;list-style-position:inside}
 details.sec[open]{padding-bottom:14px}
 details.sec>label:first-of-type{margin-top:4px}
-.ref{display:inline-block;font-size:.42em;font-weight:700;letter-spacing:.02em;color:var(--green);border:2px solid var(--green);border-radius:.5em;padding:.12em .5em;margin-left:.35em;vertical-align:middle;white-space:nowrap;line-height:1.3}
+.ref{display:inline-block;font-size:.42em;font-weight:700;letter-spacing:.02em;color:#d92d20;border:2px solid #d92d20;border-radius:.5em;padding:.12em .5em;margin-left:.35em;vertical-align:middle;white-space:nowrap;line-height:1.3}
 #en p.prev .ref{font-size:.7em;border-width:1px}
 .dots{display:inline-flex;gap:.28em;align-items:center;height:1em;vertical-align:middle}
 .dots i{width:.26em;height:.26em;border-radius:50%;background:currentColor;opacity:.3;animation:dotp 1.2s ease-in-out infinite}
@@ -308,12 +308,12 @@ body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:cen
 #gateScr form{display:flex;flex-direction:column;gap:12px;text-align:left}
 #gateScr label{font-weight:600;font-size:15px;display:flex;flex-direction:column;gap:6px}
 #gateScr input{min-height:48px;padding:0 14px;border:1px solid #d6d0c4;border-radius:12px;font:17px system-ui,sans-serif;background:#fff;color:#16171a}
-#gateScr button{min-height:50px;border:0;border-radius:12px;background:#1f7a4d;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
-#gateScr button.lnk{background:none;color:#1f7a4d;min-height:40px;font-weight:600}
+#gateScr button{min-height:50px;border:0;border-radius:12px;background:#d92d20;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
+#gateScr button.lnk{background:none;color:#d92d20;min-height:40px;font-weight:600}
 #gateScr button:disabled{opacity:.5}
 #gateScr .gmsg{min-height:22px;font-size:15px;color:#9a3412;text-align:center}
 #gateScr .gcode{font-size:13px;color:#8a857d;margin-top:18px}
-#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#1f7a4d;border-radius:50%;animation:gspin 1s linear infinite}
+#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#d92d20;border-radius:50%;animation:gspin 1s linear infinite}
 @keyframes gspin{to{transform:rotate(360deg)}}
 #costDlg .s{display:none}
 #balBox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
@@ -422,9 +422,9 @@ body.running #stat{color:#f4f4f2}
 @media (max-width:640px){.sl{display:none}#stat{gap:11px;margin-right:4px}}
 #logo{height:58px;width:auto;flex:none;background:#101014;border-radius:12px;padding:5px 9px;display:block}
 @media (max-height:520px){#logo{height:30px;padding:3px 5px}}
-#go:not(.stop){font-size:22px;padding:15px 34px 15px 28px;border-radius:999px;background:#1f7a4d;color:#fff;display:inline-flex;align-items:center;gap:12px;margin-left:auto;order:9;border:0;cursor:pointer;transition:background .15s}
+#go:not(.stop){font-size:22px;padding:15px 34px 15px 28px;border-radius:999px;background:#d92d20;color:#fff;display:inline-flex;align-items:center;gap:12px;margin-left:auto;order:9;border:0;cursor:pointer;transition:background .15s}
 #go:not(.stop)::before{content:'';flex:none;border-left:15px solid #fff;border-top:9px solid transparent;border-bottom:9px solid transparent}
-#go:not(.stop):hover{background:#18643f}
+#go:not(.stop):hover{background:#b42318}
 #go:not(.stop):active{transform:scale(.98)}
 #go.stop{display:inline-flex;align-items:center;gap:10px;border-radius:999px;padding:12px 26px}
 #go.stop::before{content:'';flex:none;width:13px;height:13px;border-radius:2px;background:#fff}
@@ -558,7 +558,7 @@ body.running #en p .draft{opacity:1}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Green with "Live Translation" at the top and the beta notice at the bottom on the main device, green with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Red with "Live Translation" at the top and the beta notice at the bottom on the main device, red with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
@@ -814,7 +814,7 @@ body.running #en p .draft{opacity:1}
       else ok=sc.contain>=0.72&&wl<=A.length*2.5+2;
       if(e.k==='user'&&A.length>3)ok=ok||sc.contain>=0.65&&wl<=A.length*3;
       var total=sc.contain+0.3*sc.cover+(e.k==='user'?0.2:e.k==='reading'?0.1:0);
-      if(ok&&total>bs){bs=total;best={b:en,ref:e.k==='bible'?ref:'',k:e.k}}
+      if(ok&&total>bs){bs=total;best={b:en,ref:e.k==='bible'?ref:'',k:e.k,n:wl}}
     });
     return best;
   }
@@ -1342,7 +1342,8 @@ body.running #en p .draft{opacity:1}
   }
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else. He also drops English words and short English phrases into Arabic sentences, and every English word he says must appear on the screen exactly as that English word, spelled correctly. English that arrives in English letters is kept as it is, never translated or replaced. He also uses English words that the recognizer writes in Arabic letters: these are English, not Arabic, and the recognizer often writes them in Arabic letters, where they can look like a different Arabic word: فن or فان is usually the English word fun (not art) when he talks about enjoyment or says "as they say", and the same goes for words like ستريس (stress), بيزي (busy), ميتنج (meeting), ويك إند (weekend), أوكيه (okay). When an Arabic-looking word sounds like an English word and that English word fits the sentence better, write the English word he said.';
   var SYS='You translate a live Coptic Orthodox church service, spoken in Egyptian Arabic, into natural English for a screen. Most of it is a sermon, but the speaker also makes ordinary announcements (tickets, the festival, building repairs, money, dates, schedules): translate those plainly in everyday words and do not turn them into religious language. The Arabic comes from speech recognition and can have misheard words. Only when the sentence is about faith, Scripture, saints or prayer and a word makes no sense there, treat it as a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). In an announcement or an everyday sentence, keep the plain meaning of the words. Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Meaning comes before polish. Write what he means as clear, natural English that a listener can follow at once. Drop hesitation sounds and fillers (آآ, اه, امم, uh, um) and the filler يعني ("I mean", "that is", "you know") when it carries no meaning. Drop false starts and words he repeats by accident (ده ده, إن إن), and put the words in normal English order. Never translate word by word when that gives English that makes no sense: work out what he is saying from the whole sentence and the earlier ones, and say that plainly. This never allows adding, guessing or leaving out real content. When الوعظ does what a person does (says, tells, speaks), it is الواعظ, the preacher; and الواعظ يحل في الكلمة is يحلّي الكلمة, the preacher makes the talk pleasant. Keep every negation exactly (مش, ما...ش, لا, لم, لن, ولا, عمره ما): never turn "did not" into "did" or the reverse. Keep every number, amount of money, currency, date, day, time and percentage exactly as said, and whether money was collected, owed, promised or spent. Never write the name of a person that is not in the Arabic: a garbled or unknown word must never become a name (no Boaz, Judas or any other person he did not say), so leave that part out instead. When several people are named in a row (prayers, condolences, thanks), every word is part of a name: write each first name and family name in English letters and do not drop or translate any of them (ياسر سيدهم is Yasser Sedhom). Keep every name as said, never swap one person for another, and keep a title (Abouna, Anba, Pope, Saint) with the name it was said with; بابا can mean Dad or the Pope, so decide from the sentence. If the speaker corrects himself ("Friday, sorry, Saturday"), keep the correction. Keep repetition he uses for emphasis. In a story or quotation keep clear who is speaking: words said by a person in a story must not read as advice from the speaker himself. Do not add anything that was not said: no extra details, explanation, theology or verse. Scripture: when the speaker is clearly quoting a verse word for word, render it in NKJV wording; when he paraphrases, retells or only alludes to a passage, translate what he actually said and do not complete the verse. Never add a chapter and verse reference he did not say. If part of the sentence is garbled and you cannot tell what was said, leave that part out rather than invent a plausible sentence. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
-  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added. Never add a word the Arabic does not contain: when a phrase sounds garbled, translate only the clear words and never guess a church word (baptize, communion, confession and the like) that was not said. Never give alternatives in brackets or slashes; write one plain wording. بسم الآب والابن والروح القدس الإله الواحد آمين is always: In the name of the Father, and the Son, and the Holy Spirit, one God. Amen. (the hearing often writes it as بسم الله). تيموثاوس is Timothy, one person (St. Paul wrote two letters to him): لأهل تيموثاوس or إلى تيموثاوس = to Timothy. Never turn a word you do not recognize into a new English name or place that does not exist (no 'Zimsius'): if a name is not a real person, place or Bible book you know, leave that word out of the English.";SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
+  var LITURGY_RULES=" Liturgy and prayers: parts of the talk can be prayers from the Coptic liturgy, said quickly and sometimes misheard. When the Arabic is plainly a standard church prayer and a word is missing or misheard, write the standard wording of that prayer. Fixed wording: أيها السيد الرب الإله ضابط الكل = O Master, Lord God the Pantocrator; ضابط الكل = the Pantocrator (Almighty); ابنك الوحيد / ابنك الوحيد الجنس = Your only-begotten Son, and in a prayer to the Father, الوحيد on its own (the Only-begotten) means His only Son, never 'You alone'; أبو ربنا وإلهنا ومخلصنا يسوع المسيح = the Father of our Lord, God and Savior Jesus Christ; المجد للآب والابن والروح القدس = Glory be to the Father and to the Son and to the Holy Spirit; الآن وكل أوان وإلى دهر الدهور آمين = now and forever and unto the ages of all ages, Amen; كيرياليصون = Lord have mercy; السلام لجميعكم = Peace be with you all; ومع روحك أيضا = And with your spirit; قدوس قدوس قدوس = Holy, Holy, Holy; الإنجيل المقدس = the Holy Gospel; الناموس = the Law. Only restore a word when you are sure which prayer it is; never add a line of prayer that was not said. Translate only what the NEW sentence itself says: when the prayer goes on in the text given as coming AFTER, stop where the NEW sentence stops and never finish the prayer ahead of the speaker."; // v136: standard prayer wording, so a word the hearing drops (ابنك) is put back
+  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added. Never add a word the Arabic does not contain: when a phrase sounds garbled, translate only the clear words and never guess a church word (baptize, communion, confession and the like) that was not said. Never give alternatives in brackets or slashes; write one plain wording. بسم الآب والابن والروح القدس الإله الواحد آمين is always: In the name of the Father, and the Son, and the Holy Spirit, one God. Amen. (the hearing often writes it as بسم الله). تيموثاوس is Timothy, one person (St. Paul wrote two letters to him): لأهل تيموثاوس or إلى تيموثاوس = to Timothy. Never turn a word you do not recognize into a new English name or place that does not exist (no 'Zimsius'): if a name is not a real person, place or Bible book you know, leave that word out of the English."+LITURGY_RULES;SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -1771,9 +1772,14 @@ body.running #en p .draft{opacity:1}
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
   // v116: the first sentence after Start waits less (3 more words, 0.8 s of quiet, at most 2.5 s) so the first caption comes sooner; later sentences are unchanged
   var sessFirst=false;
-  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(!f&&/[\u060C,]\s*$/.test(item.ar||'')){W=4;MX=2500} /* v137: a piece cut at a comma has more coming right behind it */if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
     if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
+  function endStartOverlap(a,b){ // v137: how many words at the start of b repeat the end of a (4 or more counts)
+    var f=function(s){return String(s||'').trim().split(/\s+/).map(function(w){return w.toLowerCase().replace(/[^a-z0-9']+/g,'')})},A=f(a),B=f(b);
+    for(var k=Math.min(A.length,B.length,30);k>=4;k--){var ok=true;for(var i=0;i<k;i++){if(A[A.length-k+i]!==B[i]){ok=false;break}}if(ok)return k}
+    return 0;
+  }
   function enTidy(s){s=String(s||'').replace(/^[\s,;:.\u2014\u2013-]+/,'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s} // v126
   function onFinal(ar,alts){
     if(!ar.trim())return;
@@ -1785,7 +1791,11 @@ body.running #en p .draft{opacity:1}
     if(curUnsure&&curUnsure.length){var un=curUnsure.filter(function(w){return ar.indexOf(w)>=0});if(un.length)item.unsure=un}
     if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
     var p=matchPrayer(ar);
-    if(p){item.en=p.b;item.ref=p.ref||'';item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
+    if(p){var pf=lines[lines.length-2]; // v137: a verse or prayer heard in two pieces used to put the same fixed English on the screen twice
+      if(pf&&pf!==item&&pf.fixed&&pf.en&&Date.now()-(pf.t0||0)<30000&&String(p.b).split(/\s+/).length>=3&&wordsIn(ar,pf.ar,true)<0.5){
+        if(wordsIn(p.b,pf.en)>=0.85){pf.ar=pf.ar+' '+ar;lines.splice(lines.indexOf(item),1);dbg('FIXED text already on the screen, not shown twice: '+String(p.b).slice(0,60));render();return}
+        if(wordsIn(pf.en,p.b)>=0.85){pf.ar=pf.ar+' '+ar;pf.en=p.b;pf.ref=p.ref||'';pf.revised=true;lines.splice(lines.indexOf(item),1);dbg('FIXED text completed on the same line: '+String(p.b).slice(0,60));render();return}}
+      item.en=p.b;item.ref=p.ref||'';item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
     var prevItem=lines[lines.length-2];
     if(NO_BACKUP){
       qDepth++;var laneN=laneI++%LANES.length;
@@ -1794,7 +1804,7 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')} /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')}else if(pv&&pv.ar&&wordsIn(ar,pv.ar,true)<0.5){var ovK=endStartOverlap(pe,en);if(ovK>=4){var enR=enTidy(en.split(/\s+/).slice(ovK).join(' '));dbg('TRANSLATED: dropped '+ovK+' words already shown at the end of the line before');if(!enR||enR.split(/\s+/).length<2){var iR=lines.indexOf(item);if(iR>-1)lines.splice(iR,1);render();return}en=enR}} /* v137 */ /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
         if(nx&&nx.en&&!nx.q&&en.trim().split(/\s+/).length>=5&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=enTidy(nx.en.slice(en.trim().length));dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
@@ -2089,7 +2099,7 @@ body.running #en p .draft{opacity:1}
   function nameTerms(){ // the words speech recognition gets wrong: names and Coptic words, user terms first
     var out=[],seen={};
     pairs('terms').forEach(function(p){if(AR.test(p.a)&&!seen[p.a]){seen[p.a]=1;out.push(p.a)}});
-    if(S.get('builtin','1')==='1')(window.COPTIC_TERMS||[]).forEach(function(x){if(!x[2]&&NAME_RE.test(x[1])&&!seen[x[0]]){seen[x[0]]=1;out.push(x[0])}});
+    if(S.get('builtin','1')==='1')var seenEn={};(window.COPTIC_TERMS||[]).forEach(function(x){if(!x[2]&&NAME_RE.test(x[1])&&!seen[x[0]]){var ek=String(x[1]).toLowerCase();if(seenEn[ek])return;seenEn[ek]=1;seen[x[0]]=1;out.push(x[0])}}); /* v137: only the first (correct) spelling of each name goes to the hearing; the other spellings are mishearings kept for translating, and sending them taught the hearing to write them (Athanasius heard as Synaxarium) */
     return out;
   }
   function whisperPrompt(){
@@ -2155,6 +2165,7 @@ body.running #en p .draft{opacity:1}
   }
   function fixNames(txt){return hardNames(fixNames0(txt))}
   function fixNames0(txt){
+    txt=txt.replace(/((?:^|\s)(?:ال)?(?:قديس|[أا]نبا|بابا)\s+)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(?=\s|$|[.,،!؟?])/g,function(m,a){dbg('NAME repaired: a saint called Synaxarium is Athanasius');return a+'أثناسيوس'}); // v137
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
     txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يس[يى]?ر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ').replace(/(أثناسيوس)\s+رسولي?(?=\s|$|[.,،!؟?])/g,'$1 الرسولي');
     txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');
@@ -2248,16 +2259,20 @@ body.running #en p .draft{opacity:1}
   var EN_MIX=['fun','stress','busy','meeting','weekend','okay','already','sorry','please','thank you','of course','actually','anyway','problem','project','budget','schedule','deadline','email','message','online','website','link','phone','job','work','boss','team','family','kids','teenagers','youth','school','college','homework','party','trip','retreat','camp','volunteer','service','community','relationship','communication','attitude','priority','balance','challenge','depression','anxiety','social media','video','game','mall','shopping','business','money','mortgage','insurance','parking','basement','building','fundraiser','donation'];
   var BIBLE_NAMES=[["تيموثاوس", "Timothy"], ["تيطس", "Titus"], ["فليمون", "Philemon"], ["كورنثوس", "Corinth"], ["أهل كورنثوس", "the Corinthians"], ["أفسس", "Ephesus"], ["أهل أفسس", "the Ephesians"], ["فيلبي", "Philippi"], ["أهل فيلبي", "the Philippians"], ["كولوسي", "Colossae"], ["أهل كولوسي", "the Colossians"], ["غلاطية", "Galatia"], ["أهل غلاطية", "the Galatians"], ["رومية", "Rome"], ["أهل رومية", "the Romans"], ["تسالونيكي", "Thessalonica"], ["أهل تسالونيكي", "the Thessalonians"], ["العبرانيين", "the Hebrews"], ["برنابا", "Barnabas"], ["سيلا", "Silas"], ["أبلوس", "Apollos"], ["أكيلا", "Aquila"], ["بريسكلا", "Priscilla"], ["أنسيمس", "Onesimus"], ["أنطاكية", "Antioch"], ["أورشليم", "Jerusalem"], ["السامرة", "Samaria"], ["الناصرة", "Nazareth"], ["كفرناحوم", "Capernaum"], ["بيت لحم", "Bethlehem"], ["بيت عنيا", "Bethany"], ["لعازر", "Lazarus"], ["مرثا", "Martha"], ["زكا", "Zacchaeus"], ["نيقوديموس", "Nicodemus"], ["بيلاطس", "Pilate"], ["هيرودس", "Herod"], ["إيليا", "Elijah"], ["أليشع", "Elisha"], ["إشعياء", "Isaiah"], ["إرميا", "Jeremiah"], ["حزقيال", "Ezekiel"], ["دانيال", "Daniel"], ["يونان", "Jonah"], ["صموئيل", "Samuel"], ["سليمان", "Solomon"], ["نحميا", "Nehemiah"], ["أيوب", "Job"], ["أستير", "Esther"], ["راعوث", "Ruth"]]; // v132: names and places the hearing did not know (it wrote تيموثاوس as زيمسيوس)
   try{BIBLE_NAMES.slice().reverse().forEach(function(t){(window.COPTIC_TERMS=window.COPTIC_TERMS||[]).push(t)})}catch(e){}
+  var LITURGY_TERMS=['أيها السيد الرب الإله ضابط الكل','ضابط الكل','ابنك الوحيد','ابنك الوحيد الجنس','أبو ربنا وإلهنا ومخلصنا يسوع المسيح','المجد للآب والابن والروح القدس','الآن وكل أوان وإلى دهر الدهور آمين','كيرياليصون','السلام لجميعكم','ومع روحك أيضا','قدوس قدوس قدوس','الإنجيل المقدس','الناموس والوصايا'];
   function sxStart(){ // what Soniox is told before the sound starts: the language, the kind of talk, the church words, and how certain terms must be translated
     var mixed=S.get('lang','mixed')==='mixed',terms=[],tt=[],seen={};
     try{nameTerms().slice(0,80).forEach(function(t){terms.push(t)})}catch(e){}
     BIBLE_NAMES.forEach(function(t){if(terms.indexOf(t[0])<0)terms.push(t[0])});
+    terms.slice().forEach(function(t){var m=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة)\s+([^\s]{4,})/.exec(t);if(m&&terms.indexOf(m[1])<0)terms.push(m[1])}); // v137: the name on its own (أثناسيوس), not only inside a title
+    LITURGY_TERMS.forEach(function(t){if(terms.indexOf(t)<0)terms.unshift(t)}); // v136: standard prayer phrases, so the hearing expects them
     terms.unshift('بسم الآب والابن والروح القدس الإله الواحد آمين','الآب','الابن'); // v118: the opening prayer, so بسم الآب is not heard as بسم الله
     if(mixed&&SXCUT<1)EN_MIX.forEach(function(t){terms.push(t)}); // v87: English words Egyptian speakers mix into Arabic, so the hearing writes them in English letters
     try{allTermsAll().forEach(function(t){if(tt.length>=110||t.c||!AR.test(t.a)||seen[t.a])return;seen[t.a]=1;tt.push({source:t.a,target:t.b})})}catch(e){}
     if(SXCUT>=1){terms=terms.slice(0,30);tt=[]}
     var ctx={general:[{key:'domain',value:'Coptic Orthodox Christian sermon and liturgy'},{key:'language',value:'Egyptian Arabic'+(mixed?' with some English':'')},{key:'organization',value:String(S.get('title','')).slice(0,80)}],terms:terms,translation_terms:tt};
     var notes=S.get('notes','').trim();ctx.text='The speaker usually opens with: بسم الآب والابن والروح القدس الإله الواحد آمين (In the name of the Father, the Son and the Holy Spirit, one God, Amen).'+(notes?' '+notes.slice(0,600):'');
+    var cl=function(){return JSON.stringify(ctx).length},c0=cl();while(cl()>8500&&ctx.translation_terms.length>40)ctx.translation_terms.pop();if(cl()!==c0)dbg('STREAM word list trimmed to fit the hearing service: '+c0+' to '+cl()+' characters'); // v137: Soniox refuses a list past about 10,000 characters, and 8,562 is the size that ran in church tests
     var cfg={model:SXCUT>=4?'stt-rt-v5':'stt-rt-v6',audio_format:'pcm_s16le',sample_rate:16000,num_channels:1,language_hints:mixed?['ar','en']:['ar'],enable_endpoint_detection:true};
     if(mixed&&SXCUT<1)cfg.enable_language_identification=true; // v86: the hearing decides word by word whether he spoke Arabic or English, so English words are written in English letters
     if(SXCUT<2)cfg.context=ctx;
@@ -2270,7 +2285,7 @@ body.running #en p .draft{opacity:1}
     (tk||[]).forEach(function(k){var t=String(k[0]||'');if(/^\s/.test(t))push();w+=t;if(typeof k[1]==='number'&&k[1]<c)c=k[1];if(/\s$/.test(t))push()});push();
     return out.slice(0,6);
   }
-  function sxClose(fa){SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=lastSxItem}
+  function sxClose(fa){SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.ar='';SX.at=0;var sx=SX.en.replace(/\s+/g,' ').trim();SX.en='';var ne=!!SX.noEn;if(ne)sx=undefined;curUnsure=sxUnsure(SX.tk);SX.tk=[];dgFinal(fa,sx);curUnsure=null;SX.tail=ne?{en:'-'}:lastSxItem}
   // v110: English said fast used to come out in blocks of 26 words that could cut a word in half ("their l" / "ove for us"). A finished English sentence now goes up as soon as the next one has begun,
   // and a long run with no pause is cut at the end of a sentence when there is one, otherwise between whole words, never inside a word.
   function sxCutAt(tk,forced,nf){
@@ -2290,10 +2305,36 @@ body.running #en p .draft{opacity:1}
     if(forced&&lastWord>=0&&nf&&!/^\s/.test(nf)&&!/\s$/.test(String(tk[tk.length-1][0])))return lastWord; // the last word is still being heard: it goes with the next piece
     return -1;
   }
+  function sxCommaAt(tk){ // v136: the last comma in the Arabic heard so far with at least 5 words before it; -2 means the comma is at the very end (close all of it)
+    var acc='',best=-1,lat=0,let_=0,i,x;
+    for(i=0;i<tk.length;i++){x=String(tk[i][0]);lat+=(x.match(/[A-Za-z]/g)||[]).length;let_+=(x.match(/[A-Za-z\u0600-\u06FF]/g)||[]).length}
+    if(!let_||lat/let_>0.3)return -1; // Arabic only: English already closes at its own sentence ends
+    for(i=0;i<tk.length;i++){x=String(tk[i][0]);acc+=x;var nx=i+1<tk.length?String(tk[i+1][0]):' ';
+      if(!/^\s/.test(nx)&&!/\s$/.test(x)&&!/[\u060C,\u061B]\s*$/.test(x))continue;
+      var head=acc.replace(/\s+/g,' ').trim();if(!/[\u060C,\u061B]$/.test(head))continue;
+      if(head.split(' ').length<5)continue;
+      best=(i===tk.length-1)?-2:i;
+    }
+    if(best>=0&&!acc.slice(tk.slice(0,best+1).map(function(y){return y[0]}).join('').length).trim())return -2;
+    return best;
+  }
+  function sxLibMid(hd){ // v137: true while what he has said so far is the first part of a Bible verse, a reading or a fixed prayer (the opening prayer included)
+    if(SX.lmK===hd)return SX.lmV;var v=false;
+    try{var A=words(hd);
+      if(A.length<12&&(A[0]==='بسم'||A[0]==='باسم'||A[1]==='بسم'||A[1]==='باسم')&&!/(^| )(ال)?امين( |$)/.test(A.join(' ')))v=true;
+      else{var r=matchOne(hd);if(r&&r.n>A.length+2)v=true}
+    }catch(e){}
+    if(v&&!SX.lmV)dbg('STREAM no cut at this comma: in the middle of a verse or prayer');
+    SX.lmK=hd;SX.lmV=v;return v;
+  }
+  function wordsIn(a,b,arabic){ // v137: how much of a is inside b, word by word (0 to 1)
+    var f=arabic?words:function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9' ]+/g,' ').split(' ').filter(Boolean)};
+    var A=f(a),B=f(b),set={},hit=0;if(!A.length)return 0;B.forEach(function(w){set[w]=(set[w]||0)+1});A.forEach(function(w){if(set[w]){hit++;set[w]--}});return hit/A.length;
+  }
   function sxSplit(i){
     var tk=SX.tk||[],h=tk.slice(0,i+1),r=tk.slice(i+1),head=h.map(function(x){return x[0]}).join('').replace(/\s+/g,' ').trim(),rest=r.map(function(x){return x[0]}).join('');
     if(!head||!rest.trim())return false;
-    var eng=(head.match(/[A-Za-z]/g)||[]).length>(head.match(/[؀-ۿ]/g)||[]).length,sx=eng?'':SX.en.replace(/\s+/g,' ').trim();
+    var eng=(head.match(/[A-Za-z]/g)||[]).length>(head.match(/[؀-ۿ]/g)||[]).length,sx=eng?'':SX.en.replace(/\s+/g,' ').trim();if(SX.noEn&&!eng)sx=undefined; /* v137: after a comma cut the hearing's own English no longer lines up with the piece, so it is not used as a draft or a hint */
     SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.en='';curUnsure=sxUnsure(h);
     SX.tk=r;SX.ar=rest;SX.at=Date.now();SX.t0=SX.at;SX.pEnd=SX.at;
     dgFinal(head,sx);curUnsure=null;SX.tail=null;
@@ -2317,14 +2358,16 @@ body.running #en p .draft{opacity:1}
     if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
     if(fa&&!end&&SX.tk&&SX.tk.length>3){var ci=sxCutAt(SX.tk,nw>=26,SX.nfAr);if(ci>=0&&sxSplit(ci)){if(tailR)render();return}}
+    // v136: a long Arabic sentence (a prayer joined by commas) no longer waits for its very end: once it has 10 words or has run 6 s, it closes at a comma, so each clause shows in a few seconds
+    if(fa&&!end&&SX.tk&&SX.tk.length>3&&(nw>=10||(SX.t0&&Date.now()-SX.t0>6000))){var cc=sxCommaAt(SX.tk);if(cc!==-1){var hd=cc===-2?fa:SX.tk.slice(0,cc+1).map(function(x){return x[0]}).join('').replace(/\s+/g,' ').trim();if(sxLibMid(hd))cc=-1} /* v137: a Bible verse or a fixed prayer is never cut in the middle, or its English would be shown twice */if(cc===-2){SX.noEn=true;dbg('STREAM long sentence closed at a comma ('+nw+' words)');sxClose(fa);if(tailR)render();return}if(cc>=0){var ne0=SX.noEn;SX.noEn=true;if(sxSplit(cc)){dbg('STREAM long sentence cut at a comma');if(tailR)render();return}SX.noEn=ne0}}
     if(fa&&(end||(nw>=7&&/[.!?؟]\s*$/.test(fa)&&!SX.nfAr.trim())||nw>=26)){ // a finished thought: at his pause, at the end of a sentence, or when it is getting long
       // v88: a pause in the middle of a thought must not put a stray piece on the screen ("From."): a piece of one or two words, or one that ends on a joining word, waits up to 3.5 s for the rest
       var dangling=nw<=2||/(^|\s)(من|في|على|إلى|الى|عن|مع|و|أو|ان|أن|إن|اللي|الذي|التي|لكن|بس|يعني|زي|كان|ده|دي|لما|عشان|علشان|حتى|ثم|بعد|قبل)[.،,؟!]*\s*$/.test(fa);
       clearTimeout(SX.holdT);
       if(end&&dangling&&nw<26&&!(SX.heldAt&&Date.now()-SX.heldAt>3400)){
         if(!SX.heldAt)SX.heldAt=Date.now();SX.ar=SX.ar.replace(/[.؟!]\s*$/,' ');dbg('STREAM piece held for the rest: '+fa.slice(-30));
-        var held0=SX.ar.replace(/\s+/g,' ').trim();var holdChk=function(){try{if(DG.ws!==ws)return;var f2=SX.ar.replace(/\s+/g,' ').trim();if(!f2)return;if(f2!==held0){SX.heldAt=0;return} /* v134: he carried on, so the sentence closes the normal way and is not cut in the middle */if(SX.nfAr.trim()&&Date.now()-SX.heldAt<9000){SX.holdT=setTimeout(holdChk,1000);return}if(SX.nfAr.trim())dbg('STREAM held piece sent after 9 s: '+f2.slice(-30));skipHold=true;try{sxClose(f2)}finally{skipHold=false}}catch(e){}};SX.holdT=setTimeout(holdChk,3600);return} // v132: it used to give up for good when a half-heard word was there at 3.6 s
-      sxClose(fa);return}
+        var held0=SX.ar.replace(/\s+/g,' ').trim();var holdChk=function(){try{if(DG.ws!==ws)return;var f2=SX.ar.replace(/\s+/g,' ').trim();if(!f2)return;if(f2!==held0){SX.heldAt=0;return} /* v134: he carried on, so the sentence closes the normal way and is not cut in the middle */if(SX.nfAr.trim()&&Date.now()-SX.heldAt<9000){SX.holdT=setTimeout(holdChk,1000);return}if(SX.nfAr.trim())dbg('STREAM held piece sent after 9 s: '+f2.slice(-30));skipHold=true;try{sxClose(f2)}finally{skipHold=false;SX.noEn=false}}catch(e){}};SX.holdT=setTimeout(holdChk,3600);return} // v132: it used to give up for good when a half-heard word was there at 3.6 s
+      sxClose(fa);if(end)SX.noEn=false;return}
     if(tailR)render();
     if(en&&Date.now()-SX.shown>180){SX.shown=Date.now();if(!liveFirstAt)liveFirstAt=Date.now();if(liveEn!==en){liveEn=en;render()}}
     if(m.finished)dbg('STREAM Soniox finished the stream');
