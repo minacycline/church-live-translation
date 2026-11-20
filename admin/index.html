@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v131">
+<meta name="build" content="v132">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -174,7 +174,7 @@ main{justify-content:flex-start}
 .follow input{width:8.5em;font:inherit;font-size:18px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--fg)}
 #go{white-space:nowrap}
 /* the main device shows a red frame and a small tag while it is listening, so nobody mistakes it for a screen */
-body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #1f7a4d;pointer-events:none;z-index:55}
+body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
 .rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
@@ -182,7 +182,7 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
 body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#1f7a4d;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
 /* a screen shows a green frame and "Live Translation" while captions are arriving from the main device */
-body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #1f7a4d;pointer-events:none;z-index:55}
+body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
 #viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.viewing.livecap:not(.noframe) #viewTag{display:block}
 .rolebadge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--fg);border-radius:999px;padding:6px 14px}
