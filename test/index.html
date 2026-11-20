@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v133">
+<meta name="build" content="v134">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1741,7 +1741,7 @@ body.running #en p .draft{opacity:1}
     memoBusy=true;
     chatCall([{role:'system',content:'You keep a running summary of a Coptic Orthodox sermon so a translator understands the context. In at most 3 short sentences give: the main theme, the Bible passage or story being discussed (book and chapter if clear), and the saints or people named. Output only the summary.'},
         {role:'user',content:(sermonMemo?'Summary so far: '+sermonMemo+'\n\n':'')+'Latest sentences: '+recent}],160,0,true)
-    .then(function(res){var s=res&&res.text;if(s&&s.length<600){sermonMemo=s;dbg('MEMO '+s.slice(0,120))}})
+    .then(function(res){var s=res&&res.text;if(s&&s.length<600&&!/^\s*(I can(not|'t|\u2019t)|I'm (unable|not able)|I am (unable|not able)|Sorry|Unfortunately|There is not enough|The text (is|does))/i.test(s)){sermonMemo=s;dbg('MEMO '+s.slice(0,120))}})
     .catch(function(){}).then(function(){memoBusy=false});
   }
   async function quick(ar,deadline){
@@ -1770,7 +1770,7 @@ body.running #en p .draft{opacity:1}
   function aheadText(item){var i=lines.indexOf(item),nx=[];for(var k=i+1;i>=0&&k<lines.length&&nx.length<2;k++)if(lines[k].ar)nx.push(lines[k].ar);var live='';try{live=((SX.ar||'')+(SX.nfAr||'')).replace(/\s+/g,' ').trim()}catch(e){}if(live)nx.push(live);return nx.join(' ').slice(0,400)}
   // v116: the first sentence after Start waits less (3 more words, 0.8 s of quiet, at most 2.5 s) so the first caption comes sooner; later sentences are unchanged
   var sessFirst=false;
-  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?2500:4000,Q=f?800:1200;return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
     if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
   var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
   function enTidy(s){s=String(s||'').replace(/^[\s,;:.\u2014\u2013-]+/,'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s} // v126
@@ -1793,7 +1793,7 @@ body.running #en p .draft{opacity:1}
         var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
         return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
-      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')} /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')} /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
         if(nx&&nx.en&&!nx.q&&en.trim().split(/\s+/).length>=5&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=enTidy(nx.en.slice(en.trim().length));dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
@@ -1814,7 +1814,7 @@ body.running #en p .draft{opacity:1}
         var again=function(ms){return new Promise(function(x){setTimeout(x,ms)}).then(function(){return quick(ar)}).then(function(d){if(!d)throw e2;item.basic=false;item.ai=true;return d})};
         dbg('all translators failed, trying again shortly');return again(3000).catch(function(){return again(6000)})});
       var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
-    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?(no (speech|words|priest|speaker)|silence|nothing|empty)/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)}).then(function(){qDepth=Math.max(0,qDepth-1)});
   }
 
@@ -2232,7 +2232,7 @@ body.running #en p .draft{opacity:1}
   function dgWanted(){return running&&!paused&&!!streamEngine()}
   function pauseListening(){
     if(!running||paused)return;paused=true;dbg('PAUSED');
-    try{var sa=SX.ar.replace(/\s+/g,' ').trim();if(sa){var se=SX.en.replace(/\s+/g,' ').trim();SX.ar='';SX.en='';dgFinal(sa,se)}}catch(e){} // the sentence he was in the middle of is finished first
+    try{clearTimeout(SX.holdT);SX.heldAt=0;var sa=(SX.ar+SX.nfAr).replace(/\s+/g,' ').trim();if(sa){var se=(SX.en+SX.nfEn).replace(/\s+/g,' ').trim();SX.ar='';SX.en='';SX.nfAr='';SX.nfEn='';SX.tk=[];dgFinal(sa,se)}}catch(e){} // the sentence he was in the middle of is finished first
     try{if(!DG.live&&speechSamples/SR16>0.7)cutChunk(false)}catch(e){}
     try{dgClose()}catch(e){}try{rec&&rec.stop()}catch(e){}
     liveEn='';ui();render();setStatus('Paused. Press Resume to carry on.');
@@ -2294,7 +2294,7 @@ body.running #en p .draft{opacity:1}
     if(!head||!rest.trim())return false;
     var eng=(head.match(/[A-Za-z]/g)||[]).length>(head.match(/[؀-ۿ]/g)||[]).length,sx=eng?'':SX.en.replace(/\s+/g,' ').trim();
     SX.heldAt=0;clearTimeout(SX.holdT);DG.segAt=SX.at;SX.en='';curUnsure=sxUnsure(h);
-    SX.tk=r;SX.ar=rest;SX.at=Date.now();SX.t0=SX.at;
+    SX.tk=r;SX.ar=rest;SX.at=Date.now();SX.t0=SX.at;SX.pEnd=SX.at;
     dgFinal(head,sx);curUnsure=null;SX.tail=null;
     return true;
   }
@@ -2311,7 +2311,7 @@ body.running #en p .draft{opacity:1}
       if(tr&&SX.tail&&!SX.ar&&!SX.nfAr){ // late English for the sentence that was just closed
         if(k.is_final){var it=SX.tail;it.sx=((it.sx||'')+tx).replace(/\s+/g,' ').replace(/^ /,'');if(!it.en){it.draft=it.sx;if(!it.tDraft)it.tDraft=Date.now();tailR=true}else if(it.viaStream){it.en=it.sx;tailR=true}}
         continue}
-      if(k.is_final){if(tr)SX.en+=tx;else{SX.ar+=tx;(SX.tk=SX.tk||[]).push([tx,k.confidence]);if(!SX.at){SX.at=sentStart();SX.t0=Date.now()}}}else{if(tr)SX.nfEn+=tx;else{SX.nfAr+=tx;if(!SX.at&&tx.trim()){SX.at=sentStart();SX.t0=Date.now()}}}}
+      if(k.is_final){if(tr)SX.en+=tx;else{SX.ar+=tx;(SX.tk=SX.tk||[]).push([tx,k.confidence]);if(!SX.at){SX.at=sentStart();SX.t0=Date.now();SX.pEnd=sxTok}sxTok=Date.now()}}else{if(tr)SX.nfEn+=tx;else{SX.nfAr+=tx;if(!SX.at&&tx.trim()){SX.at=sentStart();SX.t0=Date.now();SX.pEnd=sxTok}if(tx.trim())sxTok=Date.now()}}}
     var ar=(SX.ar+SX.nfAr).replace(/\s+/g,' ').trim(),en=(SX.en+SX.nfEn).replace(/\s+/g,' ').trim(),fa=SX.ar.replace(/\s+/g,' ').trim();
     if(ar){lastSpeechAt=Date.now();arEl.textContent=cleanAr(ar)}
     var nw=fa?fa.split(' ').length:0;
@@ -2322,7 +2322,7 @@ body.running #en p .draft{opacity:1}
       clearTimeout(SX.holdT);
       if(end&&dangling&&nw<26&&!(SX.heldAt&&Date.now()-SX.heldAt>3400)){
         if(!SX.heldAt)SX.heldAt=Date.now();SX.ar=SX.ar.replace(/[.؟!]\s*$/,' ');dbg('STREAM piece held for the rest: '+fa.slice(-30));
-        var holdChk=function(){try{if(DG.ws!==ws)return;var f2=SX.ar.replace(/\s+/g,' ').trim();if(!f2)return;if(SX.nfAr.trim()&&Date.now()-SX.heldAt<9000){SX.holdT=setTimeout(holdChk,1000);return}if(SX.nfAr.trim())dbg('STREAM held piece sent after 9 s: '+f2.slice(-30));skipHold=true;try{sxClose(f2)}finally{skipHold=false}}catch(e){}};SX.holdT=setTimeout(holdChk,3600);return} // v132: it used to give up for good when a half-heard word was there at 3.6 s
+        var held0=SX.ar.replace(/\s+/g,' ').trim();var holdChk=function(){try{if(DG.ws!==ws)return;var f2=SX.ar.replace(/\s+/g,' ').trim();if(!f2)return;if(f2!==held0){SX.heldAt=0;return} /* v134: he carried on, so the sentence closes the normal way and is not cut in the middle */if(SX.nfAr.trim()&&Date.now()-SX.heldAt<9000){SX.holdT=setTimeout(holdChk,1000);return}if(SX.nfAr.trim())dbg('STREAM held piece sent after 9 s: '+f2.slice(-30));skipHold=true;try{sxClose(f2)}finally{skipHold=false}}catch(e){}};SX.holdT=setTimeout(holdChk,3600);return} // v132: it used to give up for good when a half-heard word was there at 3.6 s
       sxClose(fa);return}
     if(tailR)render();
     if(en&&Date.now()-SX.shown>180){SX.shown=Date.now();if(!liveFirstAt)liveFirstAt=Date.now();if(liveEn!==en){liveEn=en;render()}}
@@ -2443,7 +2443,7 @@ body.running #en p .draft{opacity:1}
   var lastSxItem=null,curSx='',curUnsure=null,uttStart=0,lastVoiceAt=0,lastSentEnd=0;
   var curSxOn=false;
   function sentStart(){var t=Math.max(uttStart||0,lastSentEnd||0);return t&&Date.now()-t<30000?t:Date.now()}
-  var lastTextAt=0,skipHold=false;
+  var lastTextAt=0,skipHold=false,sxTok=0;
   function dgFinal(text,sx){
     var spokeAt=DG.segAt||Date.now();DG.segAt=0;DG.gen++;lastSentEnd=Date.now();
     var t=applyFixes(fixNames(cleanHeard(text,true)));if(!t){if(String(text||'').trim()){dbg('STREAM piece dropped after cleaning: '+String(text).slice(0,60))}return}if(t===lastText&&Date.now()-lastTextAt<4000){dbg('STREAM same words again within 4 s, shown once: '+t.slice(0,60));return}lastTextAt=Date.now(); // v132: a word he repeats later ("Timothy" said three times) is no longer thrown away as a copy
@@ -2580,7 +2580,7 @@ body.running #en p .draft{opacity:1}
     var words=txt.trim().split(/\s+/).length,ends=/[.!?؟。]\s*$/.test(txt);
     if(words<3){
       var prev=lines[lines.length-1];
-      var gapOk=!(SX.t0&&prev&&prev.tCut)||SX.t0-prev.tCut<3000; /* v133: a short piece said after a real pause is its own line, it is no longer glued onto the sentence before it ("Love is Zimsius") */
+      var gapOk=!(SX.t0&&SX.pEnd)||SX.t0-SX.pEnd<3000; /* v133: a short piece said after a real pause is its own line, it is no longer glued onto the sentence before it ("Love is Zimsius") */
       if(prev&&gapOk&&!prev.fixed&&prev.ar&&prev.en&&Date.now()-(prev.t0||0)<15000&&!/[.!?؟]\s*$/.test(prev.ar)){prev.ar=prev.ar+' '+txt;if(alt&&(prev.alt||'').indexOf(alt)<0)prev.alt=((prev.alt||'')+' '+alt).trim();retranslate(prev);return} // it finishes the sentence before it
       if(skipHold){onFinal(txt,alt?[alt]:[]);return} // v133: it already waited 3.6 s for the rest, no second wait
       heldText=txt;heldAlt=alt;heldTimerT=setTimeout(function(){var h=heldText,ha=heldAlt;heldText='';heldAlt='';if(h)onFinal(h,ha?[ha]:[])},2500);return
