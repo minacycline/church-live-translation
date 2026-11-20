@@ -29,7 +29,7 @@
     if(!S.get('cfgBackup','')){try{S.set('cfgBackup',JSON.stringify({at:new Date().toISOString(),values:cfgLocal()}))}catch(e){}} // this device's own settings from before the first sync, kept once
     var ch=[],waiting=false;
     SHARED.forEach(function(k){
-      if(typeof vals[k]!=='string')return;var v=(k==='title'&&!vals[k].trim())?CHURCH:vals[k];
+      if(typeof vals[k]!=='string')return;var v=(k==='title'&&(!vals[k].trim()||vals[k]===CHURCH_OLD))?CHURCH:vals[k];
       if(String(S.get(k,cfgDef(k)))===v)return;
       if(running&&!LIGHT[k]){waiting=true;return}
       S.set(k,v);ch.push(k);
@@ -37,7 +37,7 @@
     if(!waiting){CFG.rev=rev;S.set('cfgRev',String(rev))} // with something still waiting, the same version is taken again after the service
     if(ch.length){
       dbg('SETTINGS from the server (version '+rev+'): '+ch.join(', ')+(waiting?' (the rest waits until the service is stopped)':''));
-      try{if(ch.indexOf('title')>=0)title.textContent=S.get('title',CHURCH)}catch(e){}
+      try{if(ch.indexOf('title')>=0){title.textContent=S.get('title',CHURCH);churchNote()}}catch(e){}
       try{applyView()}catch(e){}
       if(!running&&ch.some(function(k){return !LIGHT[k]})){
         try{readyRefresh()}catch(e){}
