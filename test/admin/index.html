@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v140">
+<meta name="build" content="v141">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -362,6 +362,13 @@ body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:
 #admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
 #closing{position:fixed;top:0;left:0;right:0;bottom:0;z-index:120;background:#fff;color:#16171a;display:flex;align-items:center;justify-content:center;padding:6vw;text-align:center;font:700 clamp(38px,9vw,130px)/1.15 system-ui,sans-serif;cursor:pointer;-webkit-user-select:none;user-select:none}
 #closing[hidden]{display:none}
+#closing{cursor:default}
+#closingBtns{position:absolute;left:0;right:0;bottom:max(28px,env(safe-area-inset-bottom));display:flex;gap:14px;justify-content:center;transition:opacity .6s}
+#closingBtns.dim{opacity:.18}
+#closingBtns.dim button{pointer-events:none}
+#closingBtns button{min-width:150px;min-height:54px;padding:12px 26px;border-radius:14px;font:700 19px/1 system-ui,sans-serif;cursor:pointer}
+#closeBack{background:#d92d20;color:#fff;border:2px solid #d92d20}
+#closeNew{background:#fff;color:#16171a;border:2px solid #c9c9cf}
 body.running header,body.running footer{transition:opacity .4s}
 body.running.idle:not(.paused) header,body.running.idle:not(.paused) footer{opacity:0;pointer-events:none}
 body.running.idle:not(.paused){cursor:none}
@@ -382,7 +389,7 @@ body.closed #en{visibility:hidden}
 <body>
 <div id="admTag">ADMIN</div>
 <div style="position:fixed;left:0;bottom:0;z-index:99;background:#6d28d9;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:0 8px 0 0;pointer-events:none">TEST VERSION</div>
-<div id="closing" hidden role="button" tabindex="0" aria-label="Glory be to God Forever, Amen! Tap to go back to the start screen">Glory be to God Forever, Amen!</div>
+<div id="closing" hidden><div id="closingLine">Glory be to God Forever, Amen!</div><div id="closingBtns"><button type="button" id="closeBack">Return</button><button type="button" id="closeNew">Start over</button></div></div>
 <div id="alert"></div>
 <div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
 <div id="liveTag" aria-hidden="true">Live Translation</div>
@@ -3015,12 +3022,19 @@ body.running #en p .draft{opacity:1}
     try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;repSafe(rb,rr,snap,'Stop was pressed but the page closed before the report was sent');setTimeout(function(){try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
-  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else{goFull();start()}};
+  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){if(replayEl){stop();return}softStop()}else{goFull();start()}};
   // v104: pressing Stop shows only the closing line on a clean white screen; one tap goes back to the start screen
   // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
+  // v141: the closing screen has two buttons. Stop first only pauses (the sentence in progress is finished and still translated); Return within 2 minutes carries on where it was,
+  // after that the service is closed for real and Return only shows the last captions again. Start over closes the service and goes to the start screen.
+  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0;
+  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
+  function closeBack(){clearTimeout(softT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
+  function closeNew(){clearTimeout(softT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
+  function closeWakeUp(){try{var b=$('closingBtns');b.classList.remove('dim');clearTimeout(closeDimT);closeDimT=setTimeout(function(){b.classList.add('dim')},6000)}catch(e){}}
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
-  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown');closeShownAt=Date.now()}catch(e){}
+  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown');closeShownAt=Date.now();closeWakeUp()}catch(e){}
     try{closeWakeOff();if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;closeWakeT=setTimeout(closeWakeOff,30*60000)}).catch(function(){})}catch(e){}}
   function closingHide(){try{$('closing').hidden=true}catch(e){}closeWakeOff()}
   // v115: a screen lock is dropped whenever the page is hidden, so the closing screen takes it again when the page comes back (still 30 minutes in all)
@@ -3042,7 +3056,7 @@ body.running #en p .draft{opacity:1}
       if(Date.now()-last>4000)B.classList.add('idle');
     },500);
   })();
-  try{$('closing').onclick=closingHide;$('closing').onkeydown=function(e){if(e.key==='Enter'||e.key===' '||e.key==='Escape')closingHide()}}catch(e){}
+  try{$('closeBack').onclick=closeBack;$('closeNew').onclick=closeNew;['pointerdown','mousemove','touchstart'].forEach(function(ev){$('closing').addEventListener(ev,closeWakeUp,{passive:true})})}catch(e){}
 
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
   $('rstNo').onclick=function(){$('rstDlg').close()};
