@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v137">
+<meta name="build" content="v138">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1800,15 +1800,15 @@ body.running #en p .draft{opacity:1}
       qDepth++;var laneN=laneI++%LANES.length;
       LANES[laneN]=LANES[laneN].then(function(){
         // v92: understand first. The sentence waits until he has said a little more (or paused), so the translator sees what comes next before it writes
-        var once=function(){var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
+        var once=function(){if(Date.now()-item.t0>45000){var se=new Error('more than 45 s old after an outage or a slow translator');se.stale=true;return Promise.reject(se)} /* v138: the screen never falls further behind than this */var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
           return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
-        return once().catch(function(e){if(!running||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again');return new Promise(function(x){setTimeout(x,2500)}).then(once)});
+        var tryN=0,again=function(e){if(!running||e.stale||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;tryN++;if(tryN>6||Date.now()-item.t0>30000)throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again (try '+(tryN+1)+')');if(tryN===2)serviceDown('claudenet',navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PAUSED: Claude is not answering. Sentences are kept and shown when it returns.');return new Promise(function(x){setTimeout(x,Math.min(2500*tryN,6000))}).then(once).catch(again)};return once().catch(again); /* v138: a short outage no longer loses sentences: the sentence keeps trying for up to 30 s and the ones behind it wait their turn, in order */
       }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')}else if(pv&&pv.ar&&wordsIn(ar,pv.ar,true)<0.5){var ovK=endStartOverlap(pe,en);if(ovK>=4){var enR=enTidy(en.split(/\s+/).slice(ovK).join(' '));dbg('TRANSLATED: dropped '+ovK+' words already shown at the end of the line before');if(!enR||enR.split(/\s+/).length<2){var iR=lines.indexOf(item);if(iR>-1)lines.splice(iR,1);render();return}en=enR}} /* v137 */ /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
         if(nx&&nx.en&&!nx.q&&en.trim().split(/\s+/).length>=5&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=enTidy(nx.en.slice(en.trim().length));dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
         item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
       .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
         dbg('SENTENCE not translated ('+String(e&&e.message||e).slice(0,120)+')');try{MISSED.push({ar:String(ar).slice(0,4000),why:String(e&&e.message||e).slice(0,160)})}catch(x){}
-        if(e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
+        if(e.stale||e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
         serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
       .then(function(){qDepth=Math.max(0,qDepth-1)});
       return;
@@ -2982,7 +2982,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();
+    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
     sessFirst=true;var early=NO_BACKUP&&useWhisper()&&!!streamEngine()&&!replayEl;
     if(early){try{dgOpen()}catch(e){}try{healthAtStart()}catch(e){}} // v116 warm-up: the live line and the translator start getting ready while the microphone opens
     var ok=useWhisper()?await startWhisper():await startApple();
@@ -3149,6 +3149,7 @@ body.running #en p .draft{opacity:1}
   function doRestart(){try{if(running)stop()}catch(e){}setTimeout(function(){location.replace(location.pathname+'?r='+Date.now())},running?1500:100)}
   try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   setTimeout(updateCheck,1500);
+  setTimeout(function(){try{if(!running){matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء')}}catch(e){}},3500); // v138: the verse, prayer and name lists are built while the start screen is showing
   setTimeout(function(){readyRefresh();if(!running)loadReadings()},500);window.addEventListener('online',readyRefresh);window.addEventListener('offline',readyRefresh);
   setTimeout(function(){
     if(running||!IOS)return;
