@@ -1,0 +1,232 @@
+<style>
+/* ---- v58 "One Sentence" look: white page, the newest finished sentence very large in the middle, the one before it small at the top, what is still being heard in grey below ---- */
+:root{--bg:#ffffff;--bg2:#f3f4f6;--fg:#111318;--dim:#5b6170;--gold:#111318;--gold2:#aeb3bd;--line:#d5d8df;--mid:#5b6170;--old:#5b6170;--green:#1f7a4d}
+#title{color:var(--dim)}
+.icon{border-radius:12px}
+main{justify-content:flex-start}
+#en{flex:1;min-height:0;justify-content:flex-start;gap:.5em;padding-right:0;line-height:1.14}
+#en p.cur{font-size:1.75em;letter-spacing:-.01em;color:var(--fg)}
+#en p.next,#en .interim{font-size:.87em;line-height:1.2;font-weight:400;font-style:normal;color:var(--dim);opacity:1}
+#en p.prev{font-size:.58em;line-height:1.3;font-weight:400;color:var(--dim);margin-bottom:auto;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#en p.prev{margin-bottom:0}#en p.prev.pl{margin-bottom:auto}#en p.p2{opacity:.72}#en p.p3{opacity:.5}#en p.interim.cur{font-size:1.75em;line-height:1.14;font-weight:700;color:var(--fg);letter-spacing:-.01em}
+#en p .draft{opacity:1}
+#en>p:last-child{margin-bottom:auto}
+#en>p:first-child:not(.prev){margin-top:auto}
+.ready{margin:auto 0;text-align:left;display:flex;flex-direction:column;gap:26px;font-size:22px}
+#en:has(.ready){overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ready h1{margin:0;font-size:clamp(46px,7.4vw,88px);line-height:1.02;letter-spacing:-.02em;font-weight:700;color:var(--fg)}
+.chks{display:flex;flex-direction:column;gap:14px}
+.chk{display:flex;align-items:center;gap:14px;font-size:clamp(18px,2vw,24px);line-height:1.3;color:var(--fg)}
+.chk span{width:14px;height:14px;border-radius:50%;background:var(--green);flex:none}
+.chk.no span{background:#fff;border:3px solid #b45309}
+.ready .hint{font-size:clamp(15px,1.6vw,19px);color:var(--dim)}
+#chkReady{min-height:48px;padding:10px 22px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:clamp(17px,1.8vw,21px)}
+#chkReady:disabled{opacity:.55}
+.follow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.follow input{width:8.5em;font:inherit;font-size:18px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--fg)}
+#go{white-space:nowrap}
+/* the main device shows a red frame and a small tag while it is listening, so nobody mistakes it for a screen */
+body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
+.rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
+#betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
+#liveTag.weak{background:#b45309}
+#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+body.running:not(.viewing):not(.noframe) #liveTag{display:block}
+body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
+/* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
+body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
+#viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+body.viewing.livecap:not(.noframe) #viewTag{display:block}
+.rolebadge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--fg);border-radius:999px;padding:6px 14px}
+.pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px}.pick button{flex:1 1 200px;min-height:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;padding:9px 14px;border:1.5px solid var(--fg);border-radius:12px;background:#fff;color:var(--fg);font-size:15px}.pick button span{font-size:12px;color:var(--dim);font-weight:400;line-height:1.3}.keylock{display:block;margin-top:6px;padding:6px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--fg);font-size:14px}input[readonly].locked,#groqKey[readonly],#sonioxKey[readonly],#deepgramKey[readonly],#cohereKey[readonly]{background:#f1f1f2;color:var(--dim)}.linkbtn{background:none;border:none;color:var(--dim);text-decoration:underline;font-size:inherit;padding:4px}
+.rolebadge.scr{background:#fff;color:var(--fg);border:2px solid var(--fg)}
+.sharecode.warnc{color:#b45309;font-weight:700}
+.linkbtn{background:none;border:0;padding:6px 0;color:var(--dim);text-decoration:underline;font-size:clamp(14px,1.5vw,17px)}
+body.screenrole #meter,body.screenrole #sideMeter{display:none}
+#watchBtn{min-height:48px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:clamp(16px,1.7vw,19px)}
+.sharecode{font-size:clamp(15px,1.6vw,19px);color:var(--dim)}.sharecode.big{font-size:clamp(16px,1.9vw,22px);max-width:34em;line-height:1.45}.sharecode.big b{font-size:1.5em}.sharecode b{color:var(--fg);letter-spacing:.14em}
+body.viewing:not(.admin) #status,body.viewing:not(.admin) #meter{visibility:hidden}
+body.viewing #meter,body.viewing #sideMeter{display:none}
+/* settings in two levels: a short everyday part anyone at the church can use, and the owner's part behind a PIN */
+#settings h3{margin:20px 0 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:700}
+#settings.basic #ownerArea{display:none}
+#settings:not(.basic) #ownerGate{display:none}
+#ownerGate{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+#ownerBtn{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
+#ownerArea>.help.warn{color:#b45309;font-weight:700;margin-top:14px}
+details.sec{border:1px solid var(--line);border-radius:12px;margin-top:10px;padding:0 14px;background:#fff}
+details.sec>summary{cursor:pointer;font-weight:700;padding:14px 0;font-size:17px;list-style-position:inside}
+details.sec[open]{padding-bottom:14px}
+details.sec>label:first-of-type{margin-top:4px}
+.ref{display:inline-block;font-size:.42em;font-weight:700;letter-spacing:.02em;color:#d92d20;border:2px solid #d92d20;border-radius:.5em;padding:.12em .5em;margin-left:.35em;vertical-align:middle;white-space:nowrap;line-height:1.3}
+#en p.prev .ref{font-size:.7em;border-width:1px}
+.dots{display:inline-flex;gap:.28em;align-items:center;height:1em;vertical-align:middle}
+.dots i{width:.26em;height:.26em;border-radius:50%;background:currentColor;opacity:.3;animation:dotp 1.2s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes dotp{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:.9;transform:translateY(-.12em)}}
+@media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:.5}}
+#lag{display:none;color:var(--dim);font-size:14px;min-width:0}
+body.listening.admin #lag,body.viewing.admin #lag{display:inline}
+#go{border-radius:12px}
+#go:not(.stop){font-size:clamp(26px,3.6vw,46px);padding:.7em 2em;border-radius:20px;margin-left:auto;order:9}
+#status{color:var(--dim)}
+.dot.on{background:var(--green)}
+/* a phone held sideways is very short: the Ready screen tightens so nothing touches the Start button */
+@media (max-height:520px){header{padding-top:8px}main{padding:8px 0 4px}footer{padding:6px 0 20px}.ready{gap:7px}.ready h1{font-size:clamp(24px,8vh,38px)}.rolebadge{font-size:11px;padding:3px 10px}.chks{flex-direction:row;flex-wrap:wrap;gap:6px 22px}.chk{font-size:16px;gap:9px}.chk span{width:11px;height:11px}.follow input{font-size:15px;padding:6px 8px}#watchBtn{min-height:40px;padding:6px 12px;font-size:15px}.sharecode{font-size:13px}.ready .hint{font-size:13px}#chkReady{min-height:44px;padding:6px 16px;font-size:16px}#go:not(.stop){font-size:22px;padding:.5em 1.6em;border-radius:14px}}
+body:not(.running):not(.viewing) #meter,body:not(.running):not(.viewing) #status,body:not(.running):not(.viewing) #lag{display:none}
+#readyDots{display:flex;gap:0;margin-left:-8px;align-items:center;position:relative}
+body.running #readyDots,body.viewing #readyDots{display:none}
+#readyDots button{all:unset;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+#readyDots button i{width:16px;height:16px;border-radius:50%;background:var(--green);display:block}
+@media (max-width:480px){#readyDots button{width:30px}#go:not(.stop){font-size:24px;padding:.65em 1.15em}footer{gap:8px}}
+#readyDots button.idle i{background:#c3c7cf}
+#readyDots button.no i{background:#fff;border:3px solid #b45309;box-sizing:border-box}
+#readyDots button:focus-visible{outline:2px solid var(--fg)}
+#dotTip{position:absolute;left:0;bottom:calc(100% + 8px);background:var(--fg);color:#fff;font-size:15px;line-height:1.35;padding:8px 12px;border-radius:10px;white-space:normal;width:max-content;max-width:min(78vw,340px);z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+
+/* v120: Cost table (admin link only): one line per month, tap a month for the days used */
+#costBtn{display:none;font-weight:700}
+body.adminview.adminok:not(.running) #costBtn{display:inline-flex;align-items:center;justify-content:center}
+#costDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#costDlg h2{margin:0 0 14px;font-size:24px;color:#16171a;font-family:inherit}
+#costDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}
+#costDlg button:disabled{opacity:.35;cursor:default}
+#costWrap{overflow:auto;max-height:62vh;border:1px solid #e3ddd2;border-radius:12px}
+#costDlg table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+#costDlg th,#costDlg td{padding:10px 12px;text-align:right;border-bottom:1px solid #efeae0;white-space:nowrap}
+#costDlg th:first-child,#costDlg td:first-child{text-align:left}
+#costDlg thead th{position:sticky;top:0;background:#f4f1ea;font-size:13px;color:#4b4f58;z-index:1}
+#costDlg tr.mon{cursor:pointer;font-weight:700}
+#costDlg tr.mon:hover td{background:#faf8f4}
+#costDlg tr.mon td:first-child::before{content:"\25B8";display:inline-block;width:1.1em;color:#6e6a63;transition:transform .15s}
+#costDlg tr.mon.open td:first-child::before{transform:rotate(90deg)}
+#costDlg tr.mon.open td{background:#16171a;color:#fff}
+#costDlg tr.mon.open td:first-child::before{color:#c9c6c0}
+#costDlg tr.day td{font-size:14px;color:#4b4f58;background:#faf8f4}
+#costDlg tr.day td:first-child{padding-left:30px}
+#costDlg tr.none td{font-size:14px;color:#8a857d;background:#faf8f4;text-align:left;padding-left:30px}
+#costDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
+#costDlg .cnote.bad{color:#9a3412;font-weight:600}
+#devBtn{display:none}
+body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:center;justify-content:center}
+#devDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
+#devDlg h2{margin:0 0 14px;font-size:24px;color:#16171a;font-family:inherit}
+#devDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}
+#devDlg button:disabled{opacity:.35;cursor:default}
+#devDlg button.warn{border-color:#b91c1c;color:#b91c1c}
+#devDlg button.quiet{border-color:transparent;color:#6e6a63}
+#devDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:10px 0 0}
+#devDlg .cnote.bad{color:#9a3412;font-weight:600}
+#devDlg small{color:#6e6a63;font-size:13px}
+#devDlg .dvsw{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid #e3ddd2;border-radius:12px;background:#faf8f4;cursor:pointer;font-size:15px;line-height:1.4}
+#devDlg .dvsw input{width:22px;height:22px;margin-top:2px;flex:none}
+#dvList{margin-top:12px;display:flex;flex-direction:column;gap:8px;overflow:auto;max-height:56vh}
+#devDlg .dv{flex:none;border:1px solid #e3ddd2;border-radius:12px;overflow:hidden}
+#devDlg .dvh{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;width:100%;min-height:0;padding:12px;border:0;border-radius:0;background:#fff;text-align:left;font:15px system-ui,sans-serif}
+#devDlg .dv.open .dvh{background:#16171a;color:#fff}
+#devDlg .dvt{font-weight:700;flex:1;min-width:0}
+#devDlg .dvt i{font-weight:400;font-style:normal;opacity:.7}
+#devDlg .dvl{flex-basis:100%;font-size:13px;opacity:.8;overflow-wrap:anywhere}
+#devDlg .pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+#devDlg .pill.ok{background:#dcfce7;color:#166534}#devDlg .pill.bl{background:#fee2e2;color:#991b1b}#devDlg .pill.wt{background:#fef3c7;color:#92400e}#devDlg .pill.nw{background:#eef0f3;color:#4b4f58}
+#devDlg .dvb{padding:12px;background:#faf8f4;font-size:14px;line-height:1.45}
+#devDlg .dvb p{margin:6px 0}
+#devDlg .dvb ul{margin:4px 0 8px;padding-left:20px;max-height:160px;overflow:auto;overflow-wrap:anywhere}
+#devDlg .dvb label{display:flex;gap:8px;align-items:center;font-weight:600}
+#devDlg .dvb input[type=text]{flex:1;min-width:0;min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif}
+#devDlg .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+#devDlg .pill.rq{background:#dbeafe;color:#1e40af}
+#devDlg .pill.tu{background:#fef3c7;color:#92400e}
+#devDlg .lims{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0}
+#devDlg .lims label{flex-direction:column;align-items:stretch;gap:4px;font-weight:600}
+#devDlg .lims input{min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif;width:100%;box-sizing:border-box}
+#devDlg .lims small{font-weight:400}
+#devDlg .dvdef{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:14px}
+#devDlg .dvdef input{width:90px;min-height:38px;padding:0 10px;border:1px solid #d6d0c4;border-radius:8px;font:15px system-ui,sans-serif}
+#devDlg .bar{display:block;height:6px;border-radius:3px;background:#e7e2d8;overflow:hidden;margin-top:4px}#devDlg .bar>i{display:block;height:100%;background:#1f7a4d}
+#devDlg .bar.hot>i{background:#d97706}
+#devDlg .dv.rq{border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe}
+#devDlg .dvb a{color:#1d4ed8}
+#devBtn{position:relative}
+#devBadge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font:700 12px/20px system-ui,sans-serif;text-align:center;display:none}
+#devBadge.on{display:block}
+#gateScr{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;padding:24px;background:#f7f4ee;color:#16171a;font-family:-apple-system,"Segoe UI",system-ui,sans-serif;overflow:auto}
+#gateScr.on{display:flex}
+#gateScr [hidden]{display:none!important}
+#gateScr .gbox{width:min(440px,100%);text-align:center}
+#gateScr .glock{font-size:44px;line-height:1;margin-bottom:12px}
+#gateScr h1{font-size:28px;margin:0 0 10px;font-family:inherit;color:#16171a}
+#gateScr p{font-size:17px;line-height:1.5;color:#4b4f58;margin:0 0 16px}
+#gateScr form{display:flex;flex-direction:column;gap:12px;text-align:left}
+#gateScr label{font-weight:600;font-size:15px;display:flex;flex-direction:column;gap:6px}
+#gateScr input{min-height:48px;padding:0 14px;border:1px solid #d6d0c4;border-radius:12px;font:17px system-ui,sans-serif;background:#fff;color:#16171a}
+#gateScr button{min-height:50px;border:0;border-radius:12px;background:#d92d20;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
+#gateScr button.lnk{background:none;color:#d92d20;min-height:40px;font-weight:600}
+#gateScr button:disabled{opacity:.5}
+#gateScr .gmsg{min-height:22px;font-size:15px;color:#9a3412;text-align:center}
+#gateScr .gcode{font-size:13px;color:#8a857d;margin-top:18px}
+#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#d92d20;border-radius:50%;animation:gspin 1s linear infinite}
+@keyframes gspin{to{transform:rotate(360deg)}}
+#costDlg .s{display:none}
+#balBox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+#balBox .bal{border:1.5px solid #e3ddd2;border-radius:12px;padding:10px 12px;background:#faf8f4}
+#balBox .bal.low{border-color:#b91c1c;background:#fef2f2}
+#balBox .bt{font-size:13px;font-weight:700;color:#4b4f58;text-transform:uppercase;letter-spacing:.04em}
+#balBox .bv{display:block;font-size:24px;font-weight:800;color:#16171a;text-decoration:none;margin:2px 0;font-variant-numeric:tabular-nums}
+#balBox .bal.low .bv{color:#b91c1c}
+#balBox a.bv:hover{text-decoration:underline}
+#balBox .bs{font-size:13px;color:#6e6a63;line-height:1.35}
+#balBox .bal.low .bs{color:#9a3412;font-weight:600}
+#balBox .bf{display:flex;gap:6px;margin-top:8px}
+#balBox .bf input{flex:1;min-width:0;font-size:16px;padding:8px 10px;border:1.5px solid #d6d0c4;border-radius:9px;background:#fff;color:#16171a}
+#balBox .bf button{min-height:38px}
+#balBox .lnk{background:none!important;border:0!important;color:#1d4ed8!important;text-decoration:underline;padding:0!important;min-height:auto!important;font:500 13px system-ui,sans-serif!important}
+#costBtn.low{background:#b91c1c!important;color:#fff!important;border-color:#b91c1c!important}
+@media (max-width:560px){#balBox{grid-template-columns:1fr}}
+#costKeys{border:2px solid #b45309;background:#fff7ed;border-radius:12px;padding:12px 14px;margin:0 0 14px}
+#costKeys h3{margin:0 0 4px;font-size:17px;color:#16171a}
+#costKeys p{margin:0 0 10px;font-size:14px;line-height:1.4;color:#4b4f58}
+#costKeys label{display:block;font-weight:700;font-size:15px;margin:10px 0 4px}
+#costKeys label a{font-weight:600;font-size:14px;margin-left:8px;color:#1d4ed8}
+#costKeys input{width:100%;box-sizing:border-box;font-size:17px;padding:11px 12px;border:1.5px solid #d6d0c4;border-radius:10px;background:#fff;color:#16171a}
+#costKeys .hint{font-size:13px;color:#6e6a63;margin-top:4px}
+#costKeys .row{display:flex;gap:10px;align-items:center;margin-top:12px}
+#costKeys #costSave{background:#16171a;color:#fff;border-color:#16171a}
+#costKeys #ckMsg{font-size:14px;font-weight:600}
+#costChg{background:none!important;border:0!important;color:#6e6a63!important;text-decoration:underline;padding:0 4px!important;min-height:auto!important;font-weight:500!important}
+@media (max-width:640px){body.adminview .titlerow{flex-wrap:wrap;row-gap:8px}}
+@media (max-width:560px){#costDlg{padding:14px}#costDlg th,#costDlg td{padding:9px 5px;font-size:13.5px}#costDlg tr.day td:first-child,#costDlg tr.none td{padding-left:22px}#costDlg .u{display:none}#costDlg .s{display:inline}}
+
+/* v102: user view and admin view */
+body.userview #ownerGate,body.adminview #ownerGate,#ownerWarn{display:none!important}
+body.userview #basicArea>div:not(:first-child),body.userview .adminonly{display:none!important}
+#cfgState{margin:0 0 12px;font-weight:600}
+#cfgNote{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:150;background:#14532d;color:#fff;font:600 15px/1.35 system-ui,sans-serif;padding:10px 16px;border-radius:12px;width:max-content;max-width:min(92vw,560px);text-align:center;display:none;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+#cfgNote.bad{background:#b45309}
+#admGate{position:fixed;inset:0;z-index:300;background:#fff;display:flex;align-items:center;justify-content:center;padding:24px}
+#admForm{width:min(92vw,380px);display:flex;flex-direction:column;gap:14px;font-family:system-ui,sans-serif;color:#16171a}
+#admForm h2{margin:0;font-size:28px}
+#admForm p{margin:0;font-size:17px;line-height:1.4;color:#4b4f58}
+#admPass{font-size:20px;padding:14px;border:2px solid #16171a;border-radius:12px;width:100%;box-sizing:border-box}
+#admGo{min-height:52px;border:0;border-radius:12px;background:#16171a;color:#fff;font-size:19px;font-weight:700}
+#admGo:disabled{opacity:.5}
+#admMsg{min-height:1.4em;font-size:16px;font-weight:600;color:#b45309}
+#admOut{min-height:46px;padding:10px 18px;border-radius:12px;border:2px solid var(--fg);background:#fff;color:var(--fg);font-weight:700;font-size:16px}
+#closing{position:fixed;top:0;left:0;right:0;bottom:0;z-index:120;background:#fff;color:#16171a;display:flex;align-items:center;justify-content:center;padding:6vw;text-align:center;font:700 clamp(38px,9vw,130px)/1.15 system-ui,sans-serif;cursor:pointer;-webkit-user-select:none;user-select:none}
+#closing[hidden]{display:none}
+body.running header,body.running footer{transition:opacity .4s}
+body.running.idle:not(.paused) header,body.running.idle:not(.paused) footer{opacity:0;pointer-events:none}
+body.running.idle:not(.paused){cursor:none}
+/* v115: in full screen the buttons only fade while translating; on the start screen and while paused they stay */
+body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.viewing) footer,body.fs.idle.paused header,body.fs.idle.paused footer{opacity:1;pointer-events:auto}
+body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
+/* v115: a phone held sideways: the top bar starts below the Live Translation tag */
+@media (max-height:520px){body.running header{padding-top:22px}html body.running #en #cbox{height:45vh}}
+/* v131: upright phone. The Pause and Stop row no longer keeps an empty band under the yellow box: it lies over the bottom edge and shows on a touch, the box is taller and its side margins thinner, so more words fit on a page. */
+@media (max-width:640px) and (orientation:portrait){body.userview.running:not(.viewing) footer{position:fixed;left:0;right:0;bottom:0;z-index:55;margin:0;padding:10px max(22px,env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left));background:#101014;box-sizing:border-box}html body.userview.running:not(.viewing) #en #cbox{height:42vh;margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))}html body.running #en #cbox .bx,html body.running #en #cmeas{padding-left:.4em;padding-right:.4em}}
+@media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
+@media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
+@media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
+body.closed #en{visibility:hidden}
+#admTag{position:fixed;right:0;bottom:0;z-index:99;background:#16171a;color:#fff;font:700 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 9px;border-radius:8px 0 0 0;pointer-events:none}
+</style>

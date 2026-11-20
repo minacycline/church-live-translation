@@ -1,0 +1,39 @@
+<style>
+/* ---- v51 light theme (Option C): cream background, dark text, one burgundy accent, Atkinson Hyperlegible for reading at a distance ---- */
+:root{--bg:#f7f4ee;--bg2:#efeae0;--fg:#16171a;--dim:#6e6a63;--gold:#7a1e2c;--gold2:#a8a39b;--panel:#ffffff;--line:#e3ddd2;--red:#2b2b2e;--green:#2f6b4a;--mid:#6e6a63;--old:#847f77}
+html,body{background:var(--bg);color:var(--fg);font-family:"Atkinson Hyperlegible",-apple-system,"Segoe UI",system-ui,sans-serif}
+body{background:var(--bg)}
+header{padding:20px 0 0}
+.titlerow{gap:12px}
+#title{text-align:left;font-family:inherit;font-size:clamp(15px,1.6vw,18px);font-weight:700;color:#6a5f55;letter-spacing:.01em;text-shadow:none;padding:4px 0}
+#title:focus{background:var(--bg2);padding:4px 10px}
+.rule{display:none}
+.icon{background:#fff;color:#3a3a3d;border:1px solid var(--line);border-radius:22px;min-width:52px;width:auto;padding:0 12px;height:44px;font-size:17px}
+.icon:focus-visible,#go:focus-visible{outline:2px solid var(--gold)}
+#fsDown,#fsUp{font-weight:700}
+#en{font-weight:700;line-height:1.22;gap:.55em;letter-spacing:-.005em}
+#en p.old{color:var(--old);font-weight:700}
+#en p.old:nth-last-of-type(2){color:var(--mid)}
+#en p.fixed{color:var(--fg)}
+#en p.pending,#en .interim{color:var(--dim);font-weight:400}
+#ar{color:#8a8379;font-family:inherit}
+.empty{color:var(--dim);font-style:normal}
+#go{background:var(--gold);color:#fff;font-weight:700;font-size:18px;padding:14px 30px}
+#go.stop{background:#2b2b2e;color:#fff}
+#status{color:#6a5f55;font-style:normal}
+#meter{border:1px solid var(--line);background:#fff;opacity:1}
+#meter i{background:var(--gold2);opacity:.8}
+#meter.voice i{background:#2f8f5b}
+.dot{background:var(--gold2)}.dot.on{background:#2f8f5b}
+#rst{border-color:var(--line);color:var(--dim)}
+#rstDlg{background:#fff;color:var(--fg);border-color:var(--line)}
+#rstDlg button{border-color:var(--line);color:var(--fg)}
+#rstDlg button.yes{background:var(--gold);border-color:var(--gold);color:#fff}
+dialog,#review{background:#fff;color:var(--fg);border:1px solid var(--line);font-family:"Atkinson Hyperlegible",-apple-system,system-ui,sans-serif}
+dialog::backdrop{background:rgba(22,23,26,.35)}
+dialog h2,#review h2{font-family:inherit;color:var(--fg);font-weight:700}
+input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--line)}
+.actions button,.rv button.primary{background:var(--gold);color:#fff}
+.actions .ghost,.rv button{background:var(--bg2);color:var(--fg)}
+.rv .saved{color:#2f6b4a}
+</style>

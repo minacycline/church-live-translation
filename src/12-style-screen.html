@@ -1,0 +1,9 @@
+<style>
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#d92d20;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+body.listening.admin #sideMeter{display:block}
+body.listening:not(.admin) #status,body.listening:not(.admin) #meter{visibility:hidden}
+.dot.on.voice{box-shadow:0 0 0 4px rgba(47,143,91,.28)}.dot.warn.voice{box-shadow:0 0 0 3px rgba(224,160,48,.25)}
+#sideMeter i{position:absolute;left:0;right:0;bottom:0;height:0;background:#b9b2a2;transition:height .08s linear}
+#sideMeter.voice i{background:#2f9e5b}
+#en{padding-right:30px}
+</style>

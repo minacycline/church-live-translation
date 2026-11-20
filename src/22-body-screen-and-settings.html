@@ -1,0 +1,154 @@
+<main>
+  <div id="en"></div>
+  <div id="ar"></div>
+</main>
+
+<footer>
+  <span id="readyDots" role="group" aria-label="Ready checks"></span>
+  <button id="go">Start</button>
+  <button id="pause" type="button">Pause</button>
+  <div id="sideMeter" title="Sound level: rises and turns green when it hears the speaker"><i></i></div>
+  <span id="meter" title="Microphone level; green when the speaker's voice is detected"><i></i></span>
+  <span id="status">Ready</span>
+  <span id="lag"></span>
+  <button id="rst" type="button" aria-label="Restart">↻ Restart</button>
+</footer>
+<dialog id="pwDlg"><div style="font-size:19px">Password</div><div class="help" style="margin-top:6px">Type the password to unlock the app.</div><input id="pwIn" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;margin-top:8px"><div id="pwMsg" class="help" style="margin-top:6px"></div><button id="pwGo" class="yes" type="button">Unlock</button></dialog>
+<dialog id="rstDlg"><div style="font-size:19px">Restart the app?</div><div class="help" style="margin-top:6px">Listening stops and the screen clears. Your settings and saved services are kept.</div><button id="rstNo" type="button">Cancel</button><button id="rstYes" class="yes" type="button">Restart</button></dialog>
+
+<dialog id="settings">
+  <h2>Settings</h2>
+  <label for="email">Email for the free translation service</label>
+  <input id="email" type="email" autocomplete="off" placeholder="church@example.com">
+  <div class="help">Optional. Raises the free daily limit from 5,000 to 50,000 characters. Nothing is sent to this address.</div>
+
+  <label for="groqKey">Groq key (free tier)</label>
+  <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_..."><div class="actions" style="margin-top:6px"><button id="pasteKey" type="button">Paste key</button></div><div id="keyNote" class="help"></div>
+  <div class="help">One free key does two jobs: better hearing (Whisper) and AI correction of each sentence. Without it, the iPad's own recognizer and a basic translator are used. The key stays on this iPad.</div>
+
+  <label for="hearSpeed">Hearing speed</label>
+  <select id="hearSpeed"><option value="fast">Fast (Whisper turbo, about 0.3 s)</option><option value="accurate">Accurate (Whisper large, about 0.9 s)</option></select>
+  <div class="help">Fast answers about three times sooner. Switch to Accurate if rare words or names come out wrong.</div>
+  <label for="hearEngine">Hearing engine</label>
+  <select id="hearEngine"><option value="whisper">Whisper through Groq</option><option value="cohere">Cohere (needs a Cohere key)</option><option value="compare">Test: compare Whisper and Cohere</option><option value="soniox">Soniox live streaming (needs a Soniox key)</option><option value="deepgram">Deepgram live streaming (needs a Deepgram key)</option></select>
+  <div class="help">Cohere needs its own free key below. A free trial key is limited to 5 pieces a minute and 1,000 a month, so the app sends Cohere about 4 pieces a minute and Whisper hears the rest. "Compare" lists where the two heard different words in the live test report. With a live streaming engine, words appear while the speaker is talking, and Whisper takes over by itself if the live line drops.</div>
+  <label for="cohereKey">Cohere key (optional)</label>
+  <input id="cohereKey" type="password" autocomplete="off" placeholder="from dashboard.cohere.com, API keys">
+  <div class="help">Stays on this device. Press "Check everything" after pasting it to see whether Cohere answers from this device.</div>
+  <label for="sonioxKey">Soniox key (optional)</label>
+  <input id="sonioxKey" type="password" autocomplete="off" placeholder="from console.soniox.com, API keys">
+  <div class="help">Not needed: the church server holds the Soniox key. Paste one here only to use a different Soniox account on this device if the server ever fails. Soniox charges for the time the app is listening.</div>
+  <label for="translator">Translator for finished sentences</label>
+  <select id="translator"><option value="groq">Groq free models</option><option value="claude">Claude Haiku (paid, best)</option></select>
+  <label for="think">How the translator works</label>
+  <select id="think"><option value="ahead">Understand first: it hears what he says next, then writes (clearer, a few seconds later)</option><option value="fast">Fast: writes each sentence at once</option></select>
+  <label for="claudeKey">Claude key (not needed, the church server holds it)</label>
+  <input id="claudeKey" type="password" autocomplete="off" placeholder="from platform.claude.com, API keys (starts with sk-ant-)">
+  <div class="help">Stays on this device. Claude Haiku translates every sentence. If Claude does not answer (no credit, wrong key, no connection), the screen says so; no other translator is used.</div>
+  <label for="deepgramKey">Deepgram key (optional)</label>
+  <input id="deepgramKey" type="password" autocomplete="off" placeholder="from console.deepgram.com, API keys">
+  <div class="help">Stays on this device. Used only when the hearing engine above is set to Deepgram. Deepgram charges for every minute the app is listening, silence included, against the account's credit.</div>
+  <label for="engine">Hearing</label>
+  <select id="engine"><option value="whisper">Whisper through Groq (recommended, needs the key)</option><option value="apple">iPad built-in recognizer</option></select>
+
+  <label for="micMode">Microphone</label>
+  <select id="micMode"><option value="room">iPad microphone in the room</option><option value="direct">Direct feed from the speaker's mic or the mixer</option><option value="tab">Test: listen to another browser tab (computer with Chrome only)</option></select>
+  <div class="help">For a direct feed the iPad's noise cleanup is turned off, which keeps the sound cleaner.</div>
+  <label for="noise">Background noise</label>
+  <select id="noise"><option value="normal">Normal</option><option value="noisy">Noisy (children, crying, chatter)</option></select>
+  <div class="help">Noisy mode only counts sound in the range of an adult voice as speech, needs it louder before sending, and tells the AI to ignore anything that is not the speaker.</div>
+  <label for="lang">What the speaker speaks</label>
+  <select id="lang"><option value="ar">Arabic only</option><option value="mixed">Arabic with some English</option></select>
+  <div class="help">With "some English", sentences the speaker says in English are shown as he said them instead of being forced through Arabic.</div>
+  <label for="autoRead">Today's readings</label>
+  <select id="autoRead"><option value="1">Load automatically from the Coptic lectionary (Katameros)</option><option value="0">Off</option></select>
+  <div class="help">Each day the Psalm, Gospel, Pauline, Catholic and Acts readings are fetched in Arabic and English (NKJV). When the speaker reads a verse, the exact English is shown. <span id="readStatus"></span></div>
+
+  <label for="notes">Today's notes for the AI (optional)</label>
+  <textarea id="notes" style="min-height:70px" dir="auto" placeholder="Example: Gospel reading is Luke 15, the Prodigal Son. Feast of St. Mary. Visiting bishop is Anba Youssef."></textarea>
+  <div class="help">Anything that helps the AI guess an unclear word: today's Gospel passage, the feast, names of people mentioned.</div>
+
+  <label for="terms">Church terms, one per line: wrong or Arabic = correct English</label>
+  <textarea id="terms" dir="auto" placeholder="Abuna = Father&#10;Pope Tawadros the Second = Pope Tawadros II&#10;ثيئوتوكوس = Theotokos"></textarea>
+  <div class="help">Applied to every caption. Left side can be Arabic (matched before translating) or English (fixed after translating).</div>
+
+  <label for="hideWords">Extra words to hide from every screen, separated by commas</label>
+  <input id="hideWords" type="text" dir="auto" autocomplete="off" placeholder="a word, another word">
+  <div class="help">A built-in list of crude and offensive words is always hidden, on this device and on every screen it feeds. A hidden word shows as "…". Add anything else you never want shown.</div>
+
+  <label for="preview">Instant preview while speaking</label>
+  <select id="preview"><option value="0">Off (recommended)</option><option value="1">On (experimental: phone's own recognizer, can interfere with the microphone)</option></select>
+  <div class="help">Uses the iPhone/iPad speech recognizer for a rough line within a second, then Whisper replaces it. Experimental: on some phones it takes the microphone away from the app.</div>
+
+  <label for="builtin">Built-in Coptic terms</label>
+  <select id="builtin"><option value="1">On</option><option value="0">Off</option></select>
+  <details style="margin-top:6px"><summary class="help" style="cursor:pointer">See the built-in list</summary><div id="builtinList" class="help" dir="auto" style="max-height:200px;overflow:auto;white-space:pre-line"></div></details>
+  <div class="help">Your own terms above take priority over the built-in ones.</div>
+  <label>Learned corrections</label>
+  <div class="help">When the translator fixes a word Whisper misheard, the pair is remembered here. After the same fix twice it is applied by itself and the right word is given to Whisper as vocabulary. Delete any that are wrong; a deleted one is never learned again.</div>
+  <div id="fixList"></div>
+  <label for="role">This device is</label>
+  <select id="role"><option value="main">The main device: it listens and makes the captions</option><option value="screen">A screen only: it shows what the main device sends</option></select>
+  <div class="help">There is one main device per service. Every other device is a screen. A screen never listens, needs no keys and costs nothing.</div>
+  <label for="watchCode">Code of the main device (for a screen)</label>
+  <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
+  <label for="frame">Coloured frame during a service</label>
+  <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
+  <div class="help">Red with "Live Translation" at the top and the beta notice at the bottom on the main device, red with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <label for="share">Let other screens follow this device</label>
+  <select id="share"><option value="0">Off</option><option value="1">On</option></select>
+  <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
+  <label for="room">Code for the other screens</label>
+  <input id="room" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="made automatically">
+  <div class="help">Six letters or numbers. Change it if you ever want to stop old devices from following.</div>
+  <label for="adminPin">Owner PIN</label>
+  <input id="adminPin" type="password" inputmode="numeric" autocomplete="off" placeholder="leave empty for no PIN">
+  <div class="help">Anyone can open the everyday settings from the gear: text size, sound and today's readings. Everything else, including the keys and the hearing engine, needs this PIN. Set one on every church device so only you can change those. The PIN is kept on this device. Owner access closes again after 10 minutes or when Start is pressed; during a service, press and hold the church name for 2 seconds to see the live status.</div>
+  <label for="reviewKey">Review sheet key</label>
+  <input id="reviewKey" type="password" autocomplete="off" placeholder="saved automatically when you open the setup link">
+  <div class="help">Lines the app could not fix by itself are sent to your Google Sheet. Approve or change them there and the app picks the answers up by itself.</div>
+  <div class="actions"><button id="rvNow" type="button">Send and refresh now</button></div>
+  <div id="rvNote" class="help"></div>
+  <label for="reading">Today's reading, one verse per line: Arabic = English</label>
+  <textarea id="reading" dir="auto" placeholder="وَكَانَ لإِنْسَانٍ ابْنَانِ = A certain man had two sons.&#10;فَقَالَ أَصْغَرُهُمَا لأَبِيهِ = And the younger of them said to his father"></textarea>
+  <div class="help">Paste the Gospel or Epistle for this service. When the speaker reads a verse, your English is shown instead of a translation. Clear it after the service.</div>
+
+  <label for="prayers">Prayer library, one per line: Arabic text = approved English</label>
+  <textarea id="prayers" dir="auto" placeholder="المجد للآب والابن والروح القدس = Glory be to the Father, and to the Son, and to the Holy Spirit"></textarea>
+  <div class="help">When a heard sentence closely matches one of these, your English is shown instead of a machine translation. Built in already: the Liturgy of St. Basil, the Midnight Praises, doxologies, the Agpeya and common hymns, plus the whole Bible (Arabic Van Dyck matched to English) for verses quoted in the sermon. <span id="libNote"></span></div>
+
+  <div class="row">
+    <div><label for="size">Biggest text size</label><input id="size" type="range" min="28" max="90" value="46"></div>
+    <div><label for="showAr">Show Arabic being heard</label><select id="showAr"><option value="0">Hide</option><option value="1">Show</option></select></div>
+    <div><label for="maxMin">Stop after (minutes)</label><input id="maxMin" type="number" min="5" max="300" value="120"></div>
+    <div><label for="idleMin">Stop when quiet for (minutes)</label><input id="idleMin" type="number" min="2" max="60" value="10"></div>
+    <div><label for="dailyCap">Daily limit (minutes of speech)</label><input id="dailyCap" type="number" min="10" max="480" value="240"></div>
+  </div>
+  <div class="help">Silence is never sent, so it costs nothing. These three stops make sure the app cannot keep counting against the free limit if nobody presses Stop. <span id="usageNote"></span></div>
+  <label for="testlive">Live test with a recording</label>
+  <input id="testlive" type="file" accept="audio/*,video/*">
+  <div class="help">Plays the recording out loud in real time through exactly the same hearing and translation as in church, then makes a test report with how many seconds each line took. Send the report and the recording to Claude. Your microphone and the app's learned settings are not touched. Counts toward the daily limit.</div>
+  <label for="testfile" style="margin-top:10px">Quick test (whole recording at once)</label>
+  <div class="actions"><button id="chkBtn" type="button">Check everything</button> <button id="lrnBtn" type="button">Reset learning</button> <button id="recBtn" type="button">Share last recording</button> <button id="dbgBtn" type="button">Copy debug report</button></div>
+  <div id="chkOut" class="help" style="white-space:pre-line"></div>
+  <div class="help">If something goes wrong, press Copy debug report right after and paste it into a message to Claude. Share last recording sends the last 12 minutes of what the microphone heard as an audio file, so the hearing can be tuned on the real sound.</div>
+  <input id="testfile" type="file" accept="audio/*,video/*">
+  <div class="help">Faster, but does not show the real delay. Pick a recording of the speaker and check the result under ✎. Needs the Groq key. Counts toward the daily limit.</div>
+  <div class="actions">
+    <button class="ghost" id="close">Cancel</button>
+    <button id="save">Save</button>
+  </div>
+</dialog>
+
+<dialog id="review">
+  <h2>Review and correct</h2>
+  <div class="help">Each line shows what was heard and what was shown. Type the correct English and save it. A short phrase goes into the church terms; a whole sentence goes into the prayer library. The fix applies from the next time it is heard.</div>
+  <div class="actions" id="reportRow" style="display:none"><button id="reportBtn" class="primary" type="button">Share test report</button></div>
+  <div id="reportSum" class="help" style="white-space:pre-line"></div>
+  <div id="reviewList"></div>
+  <h2 style="margin-top:18px">Saved services</h2>
+  <div class="help">Every service is saved on this iPad by itself, from Start to Stop. The last 10 are kept; older ones are removed automatically. Tap Share to send one out, for example to email or Files.</div>
+  <div id="txList"></div>
+  <div class="actions"><button class="ghost" id="reviewClose">Close</button></div>
+</dialog>
+

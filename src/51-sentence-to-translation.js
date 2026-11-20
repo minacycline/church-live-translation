@@ -1,0 +1,57 @@
+  function waitAhead(item){var f=!!item.first,W=f?3:6,MX=f?1200:4000,Q=f?600:1200;if(!f&&/[\u060C,]\s*$/.test(item.ar||'')){W=4;MX=2500} /* v137: a piece cut at a comma has more coming right behind it */if(/[.!?\u061F]\s*$/.test(item.ar||'')&&String(item.ar).trim().split(/\s+/).length>=5){dbg('NO WAIT: the sentence is finished');return Promise.resolve(aheadText(item))} /* v134 */return new Promise(function(res){var t0=Date.now();(function chk(){var a=aheadText(item),w=a?a.split(' ').length:0,el=Date.now()-t0;
+    if(!running||w>=W||el>MX||(el>Q&&Date.now()-lastSpeechAt>Q)){if(f)dbg('FIRST sentence waited '+(el/1000).toFixed(1)+' s for what comes next');res(a);return}setTimeout(chk,250)})()})}
+  var qDepth=0,LATE_MS=9000,LANES=[Promise.resolve(),Promise.resolve()],laneI=0; // each sentence gets a time budget: past it, the cheaper fast translation is used so the screen never falls behind
+  function endStartOverlap(a,b){ // v137: how many words at the start of b repeat the end of a (4 or more counts)
+    var f=function(s){return String(s||'').trim().split(/\s+/).map(function(w){return w.toLowerCase().replace(/[^a-z0-9']+/g,'')})},A=f(a),B=f(b);
+    for(var k=Math.min(A.length,B.length,30);k>=4;k--){var ok=true;for(var i=0;i<k;i++){if(A[A.length-k+i]!==B[i]){ok=false;break}}if(ok)return k}
+    return 0;
+  }
+  function enTidy(s){s=String(s||'').replace(/^[\s,;:.\u2014\u2013-]+/,'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s} // v126
+  function onFinal(ar,alts){
+    if(!ar.trim())return;
+    var tsp=null;try{tsp=trinitySplit(ar)}catch(e){}
+    if(tsp&&tsp.rest){dbg('OPENING prayer split off: '+tsp.head.slice(0,80));onFinal(tsp.head,null);onFinal(tsp.rest,null);return}
+    if(!AR.test(ar)&&S.get('lang','mixed')==='mixed'){var it={ar:ar,en:ar.trim(),ai:false,t0:Date.now(),t1:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,rep:!!replayEl};lines.push(it);arEl.textContent=cleanAr(ar);render();enCheck(it);return}
+    var ng=nameGuesses(ar);
+    var item={first:sessFirst&&!(sessFirst=false),rep:!!replayEl,guesses:ng.length?ng:null,ar:ar,en:'',t0:Date.now(),tCut:curCut,tSpeak:curSpeechStart,tLive:liveFirstAt,pos:curPos,alt:(alts&&alts[0])||'',conf:curConf,co:curCo};lines.push(item);arEl.textContent=cleanAr(ar);render();
+    if(curUnsure&&curUnsure.length){var un=curUnsure.filter(function(w){return ar.indexOf(w)>=0});if(un.length)item.unsure=un}
+    if(curSxOn){item.sx=curSx||'';lastSxItem=item;if(curSx){item.draft=curSx;item.tDraft=Date.now();render()}curSx=''}
+    var p=matchPrayer(ar);
+    if(p){var pf=lines[lines.length-2]; // v137: a verse or prayer heard in two pieces used to put the same fixed English on the screen twice
+      if(pf&&pf!==item&&pf.fixed&&pf.en&&Date.now()-(pf.t0||0)<30000&&String(p.b).split(/\s+/).length>=3&&wordsIn(ar,pf.ar,true)<0.5){
+        if(wordsIn(p.b,pf.en)>=0.85){pf.ar=pf.ar+' '+ar;lines.splice(lines.indexOf(item),1);dbg('FIXED text already on the screen, not shown twice: '+String(p.b).slice(0,60));render();return}
+        if(wordsIn(pf.en,p.b)>=0.85){pf.ar=pf.ar+' '+ar;pf.en=p.b;pf.ref=p.ref||'';pf.revised=true;lines.splice(lines.indexOf(item),1);dbg('FIXED text completed on the same line: '+String(p.b).slice(0,60));render();return}}
+      item.en=p.b;item.ref=p.ref||'';item.fixed=true;item.prayer=true;item.t1=Date.now();render();return}
+    var prevItem=lines[lines.length-2];
+    if(NO_BACKUP){
+      qDepth++;var laneN=laneI++%LANES.length;
+      LANES[laneN]=LANES[laneN].then(function(){
+        // v92: understand first. The sentence waits until he has said a little more (or paused), so the translator sees what comes next before it writes
+        var once=function(){if(Date.now()-item.t0>45000){var se=new Error('more than 45 s old after an outage or a slow translator');se.stale=true;return Promise.reject(se)} /* v138: the screen never falls further behind than this */var nAr=ar.split(/\s+/).length,late=item.sx!==undefined&&(item.sx||'').split(/\s+/).length<nAr*0.5;
+          return (S.get('think','ahead')==='ahead'&&item.after===undefined?waitAhead(item):Promise.resolve(item.after||'')).then(function(a){item.after=a||'';return late&&!a?new Promise(function(x){setTimeout(x,400)}):null}).then(function(){if(item.sx)dbg('SX hint: '+item.sx.slice(0,90));if(item.after)dbg('AHEAD '+item.after.slice(0,70));return groq(ar,alts,prevItem,item,Date.now()+15000)})};
+        var tryN=0,again=function(e){if(!running||e.stale||e.kind==='credit'||e.kind==='key'||/stopped|no translator/.test(e.message))throw e;tryN++;if(tryN>6||Date.now()-item.t0>30000)throw e;dbg('TRANSLATE hiccup ('+e.message+'), trying the same sentence again (try '+(tryN+1)+')');if(tryN===2)serviceDown('claudenet',navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PAUSED: Claude is not answering. Sentences are kept and shown when it returns.');return new Promise(function(x){setTimeout(x,Math.min(2500*tryN,6000))}).then(once).catch(again)};return once().catch(again); /* v138: a short outage no longer loses sentences: the sentence keeps trying for up to 30 s and the ones behind it wait their turn, in order */
+      }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();dbg('SENTENCE dropped: the translator returned nothing usable for it');try{MISSED.push({ar:String(ar).slice(0,4000),why:'the translator returned nothing usable'})}catch(x){}return}var ix=lines.indexOf(item),pv=ix>0?lines[ix-1]:prevItem,nx=ix>=0?lines[ix+1]:null,pe=pv&&pv.en?pv.en.trim():'';if(pe.split(/\s+/).length>=5&&en.indexOf(pe)===0&&en.length>pe.length+3){en=enTidy(en.slice(pe.length));dbg('TRANSLATED: dropped a repeat of the previous sentence')}else if(pv&&pv.ar&&wordsIn(ar,pv.ar,true)<0.5){var ovK=endStartOverlap(pe,en);if(ovK>=4){var enR=enTidy(en.split(/\s+/).slice(ovK).join(' '));dbg('TRANSLATED: dropped '+ovK+' words already shown at the end of the line before');if(!enR||enR.split(/\s+/).length<2){var iR=lines.indexOf(item);if(iR>-1)lines.splice(iR,1);render();return}en=enR}} /* v137 */ /* v126: a short line like a name is said again on purpose, so it is kept */var enB=en.replace(/\s*\((?![^)]*\d)[A-Za-z][A-Za-z' -]{0,30}\)/g,'');if(enB!==en){dbg('TRANSLATED: removed a bracketed alternative');en=enB} // v118
+        if(nx&&nx.en&&!nx.q&&en.trim().split(/\s+/).length>=5&&nx.en.indexOf(en.trim())===0&&nx.en.length>en.length+3){nx.en=enTidy(nx.en.slice(en.trim().length));dbg('TRANSLATED: dropped a repeat from the next sentence')} // the two can finish in either order
+        item.en=en;item.ai=true;item.t1=Date.now();render();if(++memoCount%8===0)updateMemo()})
+      .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();
+        dbg('SENTENCE not translated ('+String(e&&e.message||e).slice(0,120)+')');try{MISSED.push({ar:String(ar).slice(0,4000),why:String(e&&e.message||e).slice(0,160)})}catch(x){}
+        if(e.stale||e.kind==='credit'||e.kind==='key'||/stopped/.test(e.message))return; // already on screen
+        serviceDown('claudenet',/no translator/.test(e.message)?'TRANSLATION STOPPED: no translator is set up on this device.':navigator.onLine===false?'TRANSLATION PAUSED: no internet on this device.':'TRANSLATION PROBLEM: Claude did not answer ('+String(e.message||'').slice(0,80)+'). It keeps trying with the next sentence.')})
+      .then(function(){qDepth=Math.max(0,qDepth-1)});
+      return;
+    }
+    var useAI=S.get('groqKey','')&&Date.now()>groqBlockedUntil;
+    var draftOK=useAI&&!item.sx&&qDepth===0&&budgetLeft()>0.55&&minuteRoom(POOL[POOL.length-1]||MODELS.fast)>3500; // the quick draft doubles the token cost, so it is only made while the day's allowance is comfortable
+    if(draftOK)quick(ar).then(function(d){if(!item.en&&d&&!/^\s*(""|\[.*\])\s*$/.test(d)){item.draft=d;item.tDraft=Date.now();render()}}).catch(function(){});
+    qDepth++;var lane=laneI++%LANES.length;
+    LANES[lane]=LANES[lane].then(function(){
+      var lag=Date.now()-item.t0,dl=item.t0+LATE_MS+4000;
+      if(useAI&&lag>LATE_MS){item.late=true;dbg('LATE '+(lag/1000).toFixed(1)+'s behind: using the fast translation');return quick(ar,dl).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(e){if(item.sx){item.viaStream=true;return item.sx}item.basic=true;basicCount++;var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)})}
+      if(useAI)return groq(ar,alts,prevItem,item,item.t0+LATE_MS).then(function(en){item.ai=true;return en}).catch(function(e){dbg('careful translator failed: '+e.message);return quick(ar).then(function(d){if(!d)throw new Error('empty');item.ai=true;return d}).catch(function(){return Promise.reject(e)})}).catch(function(e){if(item.sx){item.viaStream=true;dbg('careful translator busy: keeping the live engine\'s own English for this line');return item.sx}item.basic=true;basicCount++;setStatus('AI busy, using basic translation ('+e.message+')');if(!/rate limit/.test(e.message))showAlert('The accurate translator failed, so this line used a basic backup:\n'+e.message+'\nOpen Settings and press Check everything. (tap to hide)',false,20000);var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn)}).catch(function(e2){ // every translator failed at once (a short outage): wait and try twice more before the sentence is given up
+        var again=function(ms){return new Promise(function(x){setTimeout(x,ms)}).then(function(){return quick(ar)}).then(function(d){if(!d)throw e2;item.basic=false;item.ai=true;return d})};
+        dbg('all translators failed, trying again shortly');return again(3000).catch(function(){return again(6000)})});
+      var t=applyTerms(ar);return mymemory(t.ar).then(t.fixEn);
+    }).then(function(en){dbg('TRANSLATED '+((Date.now()-item.t0)/1000).toFixed(1)+'s ['+(lastModel||'?')+']: '+(en||'').slice(0,70));if(en&&AR.test(en)){var enL=en.replace(/[\u0600-\u06FF]+/g,' ').replace(/\s+([.,!?;:])/g,'$1').replace(/\s+/g,' ').trim();if((enL.match(/[A-Za-z]{2,}/g)||[]).length>=3){dbg('TRANSLATED: Arabic letters taken out of the English');en=enL}} /* v134 */if(!en||!en.trim()||/^\s*(""|\[.*\])\s*$/.test(en)||AR.test(en)||/^\(?\s*(no (speech|words|priest|speaker)[a-z ]{0,20}|silence|nothing( to translate)?|empty( string)?)\s*[.)]*\s*$/i.test(en)){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();return}item.en=en;item.t1=Date.now();render();if(item.ai&&++memoCount%8===0)updateMemo();if(running&&/problem/i.test($('status').textContent))setStatus('Listening')})
+      .catch(function(e){var i=lines.indexOf(item);if(i>-1)lines.splice(i,1);render();setStatus('Translation problem: '+e.message)}).then(function(){qDepth=Math.max(0,qDepth-1)});
+  }
+

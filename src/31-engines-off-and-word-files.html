@@ -1,0 +1,19 @@
+<script>
+/* v98: Groq, Whisper, Cohere, Deepgram and the free MyMemory translator are removed. This guard makes sure of it:
+   any request to one of them is refused before it leaves the device, whatever the rest of the code does. */
+(function(){
+  var GONE=/(^|\.)(groq\.com|cohere\.com|cohere\.ai|deepgram\.com|translated\.net)$/i;
+  function host(u){try{return new URL(String(u&&u.url||u),location.href).hostname}catch(e){return ''}}
+  window.__blocked=[];
+  var f0=window.fetch;if(f0)window.fetch=function(u,o){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);return Promise.reject(new Error('removed service ('+h+')'))}return f0.apply(this,arguments)};
+  var W0=window.WebSocket;if(W0){var W=function(u,p){var h=host(u);if(GONE.test(h)){window.__blocked.push(h);throw new Error('removed service ('+h+')')}return p===undefined?new W0(u):new W0(u,p)};W.prototype=W0.prototype;W.CONNECTING=0;W.OPEN=1;W.CLOSING=2;W.CLOSED=3;window.WebSocket=W}
+  // old keys of the removed services are wiped from this device, with their backup copies
+  try{['groqKey','cohereKey','deepgramKey'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+  try{document.cookie='gk=;max-age=0;path=/;SameSite=Strict;Secure'}catch(e){}
+  try{if(window.caches)caches.delete('church-kv')}catch(e){}
+  try{var r=indexedDB.open('church',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){try{var tx=r.result.transaction('kv','readwrite'),st=tx.objectStore('kv');['groqKey','cohereKey','deepgramKey'].forEach(function(k){st.delete(k)})}catch(e){}}}catch(e){}
+})();
+</script>
+<script src="terms.js"></script>
+<script src="names.js"></script>
+<script src="liturgy.js"></script>
