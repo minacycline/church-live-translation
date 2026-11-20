@@ -54,12 +54,19 @@
     try{var rb=sessionBegan,rr=!!replayName&&/LIVE TEST/.test(DBG[0]||''),snap={log:DBG,lines:lines.slice(),missed:MISSED,drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};sessionBegan=0;repSafe(rb,rr,snap,'Stop was pressed but the page closed before the report was sent');setTimeout(function(){try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,rr,snap)},6000)}catch(e){}
   }
   $('pause').onclick=function(){if(!running)return;paused?resumeListening():pauseListening()};
-  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){var wasTest=!!replayEl;stop();if(!wasTest)closingShow()}else{goFull();start()}};
+  $('go').onclick=function(){if(VIEW.on){viewStop();return}if(!running&&isScreen()){viewStart(S.get('watchCode',''));return}if(running){if(replayEl){stop();return}softStop()}else{goFull();start()}};
   // v104: pressing Stop shows only the closing line on a clean white screen; one tap goes back to the start screen
   // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
+  // v141: the closing screen has two buttons. Stop first only pauses (the sentence in progress is finished and still translated); Return within 2 minutes carries on where it was,
+  // after that the service is closed for real and Return only shows the last captions again. Start over closes the service and goes to the start screen.
+  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0;
+  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
+  function closeBack(){clearTimeout(softT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
+  function closeNew(){clearTimeout(softT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
+  function closeWakeUp(){try{var b=$('closingBtns');b.classList.remove('dim');clearTimeout(closeDimT);closeDimT=setTimeout(function(){b.classList.add('dim')},6000)}catch(e){}}
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
-  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown');closeShownAt=Date.now()}catch(e){}
+  function closingShow(){try{document.body.classList.add('closed');document.body.classList.remove('idle');$('closing').hidden=false;dbg('CLOSING shown');closeShownAt=Date.now();closeWakeUp()}catch(e){}
     try{closeWakeOff();if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){if($('closing').hidden){try{w.release()}catch(e){}return}closeWake=w;closeWakeT=setTimeout(closeWakeOff,30*60000)}).catch(function(){})}catch(e){}}
   function closingHide(){try{$('closing').hidden=true}catch(e){}closeWakeOff()}
   // v115: a screen lock is dropped whenever the page is hidden, so the closing screen takes it again when the page comes back (still 30 minutes in all)
@@ -81,7 +88,7 @@
       if(Date.now()-last>4000)B.classList.add('idle');
     },500);
   })();
-  try{$('closing').onclick=closingHide;$('closing').onkeydown=function(e){if(e.key==='Enter'||e.key===' '||e.key==='Escape')closingHide()}}catch(e){}
+  try{$('closeBack').onclick=closeBack;$('closeNew').onclick=closeNew;['pointerdown','mousemove','touchstart'].forEach(function(ev){$('closing').addEventListener(ev,closeWakeUp,{passive:true})})}catch(e){}
 
   $('rst').onclick=function(){try{$('rstDlg').showModal()}catch(e){if(confirm('Restart the app?'))doRestart()}};
   $('rstNo').onclick=function(){$('rstDlg').close()};
