@@ -5,8 +5,8 @@ from playwright.async_api import async_playwright
 PAGE = sys.argv[1] if len(sys.argv) > 1 else "test/index.html"
 EXPORT = ("window.__h={fix:function(t){return applyFixes(fixNames(cleanHeard(t,true)))},terms:function(){return sxStart().context.terms},"
  "ctxLen:function(){return JSON.stringify(sxStart().context).length},sxMessage:function(m){return sxMessage(m,DG.ws)},onFinal:onFinal,"
- "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)}};")
-M = {"delay": 0.3, "fail_until": 0, "replies": [], "n": 0}
+ "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)},safe:function(a,b){return fixSafe(a,b,'')}};")
+M = {"delay": 0.3, "fail_until": 0, "replies": [], "n": 0, "part": 0}
 FAILS = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else "  -> " + str(detail)[:300])); sys.stdout.flush()
@@ -19,6 +19,7 @@ async def route(r):
         if time.time() < M["fail_until"]:
             return await r.fulfill(status=529, content_type="application/json", headers=H, body='{"error":{"type":"overloaded_error","message":"Overloaded"}}')
         u = json.loads(q.post_data or "{}").get("messages", [{}])[-1].get("content", "")
+        if "only PART of a Bible verse" in u: M["part"] += 1
         t = M["replies"].pop(0) if M["replies"] else "Line %d of the talk, %s." % (M["n"], "with hint" if "rough English" in u else "no hint")
         await asyncio.sleep(M["delay"])
         return await r.fulfill(status=200, content_type="application/json", headers=H,
@@ -74,6 +75,19 @@ async def main():
         check("hearing word list under 8,600 characters", v["ctx"] <= 8600, v["ctx"]); check("Saint Synaxarium repaired to Athanasius", "أثناسيوس" in v["fix"], v["fix"])
         check("the word Synaxarium itself is kept", "السنكسار" in v["keep"], v["keep"])
         check("great saint Synaxarium the Apostolic repaired to Athanasius", "أثناسيوس الرسولي" in v["fix2"] and "نكس" not in v["fix2"], v["fix2"])
+        pg = await page()
+        w = await pg.evaluate("()=>{const H=window.__h;return {inh:H.fix('اللي قال له: ماذا أفعل؟ هارس الحياة الأبدية.'),inh2:H.fix('ماذا أصنع لآرس الحياة الأبدية؟'),scr:H.fix('اتكتبوا الفريسيين خانوهم.'),weep:H.fix('المرأة دي قال لها أول حاجة: لا تركي.'),s1:H.safe('مرشد','راعي'),s2:H.safe('فيسوع','يسوع'),s3:H.safe('لا تركي','لا تخافي'),s4:H.safe('والعياد','والعيد'),s5:H.safe('عجابة','عجيبة')}}")
+        await pg.close()
+        check("heard word repaired: inherit eternal life", "لأرث الحياة" in w["inh"] and "لأرث الحياة" in w["inh2"], w)
+        check("heard word repaired: the scribes and Pharisees", "الكتبة والفريسيين" in w["scr"], w["scr"]); check("heard word repaired: do not weep", "لا تبكي" in w["weep"], w["weep"])
+        check("learned fix refused when the words do not sound alike", bool(w["s1"]) and bool(w["s3"]), w); check("learned fix refused when it only drops 'so' or 'and'", bool(w["s2"]), w)
+        check("learned fix still allowed for a real mishearing", w["s4"] == "" and w["s5"] == "", w)
+        HEN = "How often I would have gathered your children together, even as a hen gathers her chicks under her wings, and you would not!"
+        M["part"] = 0; e = await pieces(["كم مرة أردت أن أجمع بنيك؟ كما تجمع الدجاجة تحت جناحيها فلم تريده."], [HEN])
+        check("later part of a verse: only what he said is shown", len(e) == 1 and e[0] == HEN and "prophets" not in e[0], e); check("later part of a verse: the verse goes to the translator as a guide", M["part"] >= 1, M["part"])
+        SHORT = "النهارده يا أحبائي عايزين نتكلم عن محبة ربنا لينا كلنا. <end> فيسوع بكى وتحنن عليهم. <end> " + " ".join("وبعدين يسوع وقف في المكان ده وشاف المدينة كلها قدامه والشعب ماشي من غير راعي ومن غير مرشد يقودهم في الطريق".split())
+        r = await stream("x", ar=SHORT, en="", gap=600, tail=7000); L = [l for l in r["lines"] if l["ar"].startswith("فيسوع")]
+        check("short finished sentence is not held 4 s", len(L) == 1 and L[0]["late"] is not None and L[0]["late"] < 3.2, r["lines"])
         EN = "Today we are going to talk about the deceased man who was healed."
         r = await stream("x", ar=EN + " <end>", en="", tail=4000, m={"replies": ["RAW:" + EN.replace("deceased", "diseased")]}); L = r["lines"]
         check("English sentence: one misheard word corrected", len(L) == 1 and "diseased" in L[0]["en"], L)
