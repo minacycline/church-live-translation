@@ -35,15 +35,15 @@
     var cand=Object.keys(hits).sort(function(x,y){return hits[y]-hits[x]}).slice(0,40);
     var best=null,bs=0;
     cand.forEach(function(id){
-      var e=L.entries[id],sc=scorePair(A,e.w,L.idf),en=e.b,ref=e.r,wl=e.w.length;
-      if(sc.contain<0.72&&e.k==='bible'&&e.n>=0){var nx=L.entries[e.n],sc2=scorePair(A,e.w.concat(nx.w),L.idf);if(sc2.contain>sc.contain){sc=sc2;en=e.b+' '+nx.b;ref=e.r+'-'+nx.r.split(':')[1];wl+=nx.w.length}}
+      var e=L.entries[id],sc=scorePair(A,e.w,L.idf),en=e.b,ref=e.r,wl=e.w.length,ew=e.w;
+      if(sc.contain<0.72&&e.k==='bible'&&e.n>=0){var nx=L.entries[e.n],sc2=scorePair(A,e.w.concat(nx.w),L.idf);if(sc2.contain>sc.contain){sc=sc2;en=e.b+' '+nx.b;ref=e.r+'-'+nx.r.split(':')[1];wl+=nx.w.length;ew=e.w.concat(nx.w)}}
       var ok;
       if(A.length<=3)ok=sc.contain>=0.95&&wl<=A.length+1;
       else if(A.length<=5)ok=sc.contain>=0.85&&wl<=A.length*1.6+2;
       else ok=sc.contain>=0.72&&wl<=A.length*2.5+2;
       if(e.k==='user'&&A.length>3)ok=ok||sc.contain>=0.65&&wl<=A.length*3;
       var total=sc.contain+0.3*sc.cover+(e.k==='user'?0.2:e.k==='reading'?0.1:0);
-      if(ok&&total>bs){bs=total;best={b:en,ref:e.k==='bible'?ref:'',k:e.k,n:wl}}
+      if(ok&&total>bs){bs=total;best={b:en,ref:e.k==='bible'?ref:'',k:e.k,n:wl,w:ew}}
     });
     return best;
   }
@@ -72,6 +72,9 @@
     var rest=tok.slice(end+1).join(' ').trim();
     return {head:tok.slice(0,end+1).join(' '),rest:words(rest).length?rest:''};
   }
+  // v144: he quoted only the later part of a verse (كم مرة أردت أن أجمع بنيك... from Matthew 23:37) and the screen showed the whole verse, with an opening he never said.
+  // True when the heard words are clearly less than the verse and do not begin where the verse begins: then the verse is only a wording guide for the translator.
+  function verseTail(ar,p){try{if(!p||p.k!=='bible'||!p.w)return false;var A=words(ar);if(p.w.length<=A.length*1.3+2)return false;var head=p.w.slice(0,6),hit=0;A.slice(0,4).forEach(function(w){if(head.indexOf(w)>=0)hit++});return hit<2}catch(e){return false}}
   function trinityWhole(ar){var t=trinitySplit(ar);return t&&!t.rest?{b:TRINITY_EN,ref:'',k:'lit'}:null}
   function matchPrayer(ar){
     var tw=trinityWhole(ar);if(tw)return tw;
