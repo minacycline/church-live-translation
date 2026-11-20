@@ -106,6 +106,7 @@
   function fixNames(txt){return hardNames(fixNames0(txt))}
   function fixNames0(txt){
     txt=txt.replace(/((?:^|\s)(?:ال)?(?:قديس|[أا]نبا|بابا)\s+)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(?=\s|$|[.,،!؟?])/g,function(m,a){dbg('NAME repaired: a saint called Synaxarium is Athanasius');return a+'أثناسيوس'}); // v137
+    txt=txt.replace(/(^|\s)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(\s+الرسول[يى])(?=\s|$|[.,،!؟?])/g,function(m,a,b){dbg('NAME repaired: Synaxarium the Apostolic is Athanasius');return a+'أثناسيوس'+b}); // v140
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
     txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يس[يى]?ر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ').replace(/(أثناسيوس)\s+رسولي?(?=\s|$|[.,،!؟?])/g,'$1 الرسولي');
     txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');

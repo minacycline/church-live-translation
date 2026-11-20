@@ -38,6 +38,8 @@
       var d=String(res&&res.text||'').trim().replace(/^["\u201c]|["\u201d]$/g,'');
       if(!d||d===t)return;var a=t.split(/\s+/).length,b=d.split(/\s+/).length;
       if(b<a*0.8||b>a*1.2){dbg('EN CHECK rejected (length changed too much: '+a+' words became '+b+')');return} // v110: was 0.5, which let half a sentence disappear
+      var wA=t.toLowerCase().match(/[a-z0-9']+/g)||[],wB=d.toLowerCase().match(/[a-z0-9']+/g)||[],kept=wB.filter(function(w){return wA.indexOf(w)>=0}).length,had=wA.filter(function(w){return wB.indexOf(w)>=0}).length;
+      if(!wB.length||kept<wB.length*0.7||had<wA.length*0.7){dbg('EN CHECK rejected (words changed too much: '+kept+' of '+wB.length+' kept)');return} // v140
       if(it.en!==t)return;it.en=d;it.fixedEn=t;dbg('EN CHECK '+t.slice(0,50)+' \u2192 '+d.slice(0,50));render();
     }).catch(function(e){dbg('EN CHECK skipped: '+(e&&e.message))});
   }

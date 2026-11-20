@@ -22,7 +22,7 @@ async def route(r):
         t = M["replies"].pop(0) if M["replies"] else "Line %d of the talk, %s." % (M["n"], "with hint" if "rough English" in u else "no hint")
         await asyncio.sleep(M["delay"])
         return await r.fulfill(status=200, content_type="application/json", headers=H,
-            body=json.dumps({"content": [{"type": "text", "text": json.dumps({"new": t})}], "usage": {"input_tokens": 1, "output_tokens": 1}}))
+            body=json.dumps({"content": [{"type": "text", "text": t[4:] if t.startswith("RAW:") else json.dumps({"new": t})}], "usage": {"input_tokens": 1, "output_tokens": 1}}))
     await r.fulfill(status=200, content_type="application/json", headers=H, body="{}")
 STREAM = r"""async(sc)=>{const H=window.__h;H.run(true);H.DG.ws={__sn:true};H.DG.live=true;H.setSX({ar:'',en:'',nfAr:'',nfEn:'',at:0,shown:0});
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));const arW=sc.ar.split(' '),enW=sc.en.split(' ');let ei=0,done=0;const total=arW.filter(w=>!w.startsWith('<')).length;
@@ -68,11 +68,17 @@ async def main():
         async def pieces(p, replies=()):
             M.update(delay=0.3, fail_until=0, replies=list(replies), n=0); pg = await page(); r = await pg.evaluate(PIECES, p); await pg.close(); return r
         pg = await page()
-        v = await pg.evaluate("()=>{const H=window.__h,t=H.terms();return {syn:t.filter(x=>/نكس|نكز/.test(x)).length,ath:t.includes('أثناسيوس'),ctx:H.ctxLen(),fix:H.fix('إلى أهل القديس سينكسار.'),keep:H.fix('قرأنا في السنكسار عن القديس')}}")
+        v = await pg.evaluate("()=>{const H=window.__h,t=H.terms();return {syn:t.filter(x=>/نكس|نكز/.test(x)).length,ath:t.includes('أثناسيوس'),ctx:H.ctxLen(),fix:H.fix('إلى أهل القديس سينكسار.'),keep:H.fix('قرأنا في السنكسار عن القديس'),fix2:H.fix('هنتكلم على القديس العظيم السنكسار الرسولي،')}}")
         await pg.close()
         check("hearing word list: one spelling of Synaxarium", v["syn"] == 1, v); check("hearing word list: Athanasius on its own", v["ath"], v)
         check("hearing word list under 8,600 characters", v["ctx"] <= 8600, v["ctx"]); check("Saint Synaxarium repaired to Athanasius", "أثناسيوس" in v["fix"], v["fix"])
         check("the word Synaxarium itself is kept", "السنكسار" in v["keep"], v["keep"])
+        check("great saint Synaxarium the Apostolic repaired to Athanasius", "أثناسيوس الرسولي" in v["fix2"] and "نكس" not in v["fix2"], v["fix2"])
+        EN = "Today we are going to talk about the deceased man who was healed."
+        r = await stream("x", ar=EN + " <end>", en="", tail=4000, m={"replies": ["RAW:" + EN.replace("deceased", "diseased")]}); L = r["lines"]
+        check("English sentence: one misheard word corrected", len(L) == 1 and "diseased" in L[0]["en"], L)
+        r = await stream("x", ar=EN + " <end>", en="", tail=4000, m={"replies": ["RAW:The priest then spoke about a completely different story this morning here."]}); L = r["lines"]
+        check("English sentence: a different sentence from the check is refused", len(L) == 1 and L[0]["en"].strip() == EN, L)
         r = await stream("prayer"); L = r["lines"]
         check("long prayer shown in 3 pieces", len(L) == 3, [l["ar"] for l in L]); check("long prayer: all translated, none lost", all(l["en"] for l in L) and r["lost"] == 0, L)
         check("long prayer: no shifted draft or hint", all("no hint" in l["en"] and not l["draft"] for l in L), L)
