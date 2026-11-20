@@ -31,8 +31,12 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
-body.running:not(.viewing):not(.noframe) #liveTag{display:block} /* v146: Live Translation on top, the excuse note at the bottom */
-body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
+body.running:not(.viewing):not(.noframe) #liveTag{display:block;text-align:center;white-space:nowrap} /* v147: top = Live Translation with the excuse note under it; bottom = the church name (nothing when no name is set) */
+#liveTagA{display:block}#liveTagB{display:block;font-size:11px;line-height:14px;font-weight:400;letter-spacing:.02em}#liveTag.weak #liveTagB{display:none}
+@media (max-width:640px){body.running:not(.viewing):not(.noframe) header{padding-top:40px}} /* v147: on a phone the two-line tag no longer sits over the top buttons */
+body:not(.running) #betaNote,body.viewing #betaNote,body.noframe #betaNote,#betaNote:empty{display:none}
+body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56;max-width:calc(100vw - 20px);overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+@media (max-width:480px){body.running:not(.viewing):not(.noframe) #betaNote{font-size:10.5px;letter-spacing:0;padding-left:8px;padding-right:8px}}
 /* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
 body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
 #viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
@@ -228,7 +232,7 @@ body.running.idle:not(.paused){cursor:none}
 body.fs.idle:not(.running):not(.viewing) header,body.fs.idle:not(.running):not(.viewing) footer,body.fs.idle.paused header,body.fs.idle.paused footer{opacity:1;pointer-events:auto}
 body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
 /* v115: a phone held sideways: the top bar starts below the Live Translation tag */
-@media (max-height:520px){body.running header{padding-top:22px}html body.running #en #cbox{height:45vh}}
+@media (max-height:520px){body.running header{padding-top:38px}html body.running #en #cbox{height:45vh}}
 /* v131: upright phone. The Pause and Stop row no longer keeps an empty band under the yellow box: it lies over the bottom edge and shows on a touch, the box is taller and its side margins thinner, so more words fit on a page. */
 @media (max-width:640px) and (orientation:portrait){body.userview.running:not(.viewing) footer{position:fixed;left:0;right:0;bottom:0;z-index:55;margin:0;padding:10px max(22px,env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left));background:#101014;box-sizing:border-box}html body.userview.running:not(.viewing) #en #cbox{height:42vh;margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))}html body.running #en #cbox .bx,html body.running #en #cmeas{padding-left:.4em;padding-right:.4em}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}

@@ -4,7 +4,7 @@
   var HOLD_SEC=120,HOLD_MAX=20000,HOLD={on:false,since:0,q:[],n:0,ring:[],sentN:0,finN:0,msgAt:0,jam:0,drain:[],dn:0,told:false,boot:false};
   // v96 weak Wi-Fi: up to 2 minutes of speech is kept during a drop (it was 25 s), it is never thrown away while the line is being retried,
   // and when the line returns the kept sound goes up at a steady pace (about 5 times normal speed) so a weak line is not flooded and dropped again.
-  function holdNote(t){try{var g=$('liveTag');if(!g)return;g.textContent=t||'Live Translation';g.classList.toggle('weak',!!t)}catch(e){}}
+  function holdNote(t){try{var g=$('liveTag'),a=$('liveTagA');if(!g||!a)return;a.textContent=t||'Live Translation';g.classList.toggle('weak',!!t)}catch(e){}}
   setInterval(function(){
     if(!HOLD.drain.length)return;var ws=DG.ws;if(!ws||ws.readyState!==1||!DG.live)return;
     var sent=0;while(HOLD.drain.length&&sent<SR16*0.5&&ws.bufferedAmount<48000){var f=HOLD.drain.shift();HOLD.dn-=f.length;sent+=f.length;dgSend(ws,f)}
