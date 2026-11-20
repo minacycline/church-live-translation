@@ -31,7 +31,7 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
-body.running:not(.viewing):not(.noframe) #liveTag.weak{display:block} /* v145: the top tag is shown only for the weak Wi-Fi notice; the bottom note already says Live translation */
+body.running:not(.viewing):not(.noframe) #liveTag{display:block} /* v146: Live Translation on top, the excuse note at the bottom */
 body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
 /* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
 body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
