@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 PAGE = sys.argv[1] if len(sys.argv) > 1 else "test/index.html"
 EXPORT = ("window.__h={fix:function(t){return applyFixes(fixNames(cleanHeard(t,true)))},terms:function(){return sxStart().context.terms},"
  "ctxLen:function(){return JSON.stringify(sxStart().context).length},sxMessage:function(m){return sxMessage(m,DG.ws)},onFinal:onFinal,"
- "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()}};")
+ "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)}};")
 M = {"delay": 0.3, "fail_until": 0, "replies": [], "n": 0}
 FAILS = []
 def check(name, ok, detail=""):
@@ -79,6 +79,17 @@ async def main():
         check("English sentence: one misheard word corrected", len(L) == 1 and "diseased" in L[0]["en"], L)
         r = await stream("x", ar=EN + " <end>", en="", tail=4000, m={"replies": ["RAW:The priest then spoke about a completely different story this morning here."]}); L = r["lines"]
         check("English sentence: a different sentence from the check is refused", len(L) == 1 and L[0]["en"].strip() == EN, L)
+        pg = await page()
+        c = await pg.evaluate("""async()=>{const H=window.__h,$=i=>document.getElementById(i),w=ms=>new Promise(r=>setTimeout(r,ms)),o={};H.run(true);H.onFinal('ربنا موجود معانا النهارده',[]);
+          $('go').click();await w(300);o.shown=!$('closing').hidden;o.btns=$('closeBack').textContent+'|'+$('closeNew').textContent;o.paused=H.state();
+          $('closeBack').click();await w(2500);o.backHidden=$('closing').hidden;o.backState=H.state();o.backLines=H.lines().length;o.backEn=!!(H.lines()[0]||{}).en;o.closedClass=document.body.classList.contains('closed');
+          $('go').click();await w(300);$('closeNew').click();await w(300);o.newHidden=$('closing').hidden;o.newState=H.state();
+          H.run(true);$('go').click();await w(300);H.run(false);$('closeBack').click();await w(300);o.lateHidden=$('closing').hidden;o.lateState=H.state();o.lateClosed=document.body.classList.contains('closed');return o}""")
+        await pg.close()
+        check("closing screen: Stop shows it with Return and Start over, listening paused", c["shown"] and c["btns"] == "Return|Start over" and c["paused"] == 3, c)
+        check("closing screen: Return carries on, caption kept and still translated", c["backHidden"] and c["backState"] == 1 and c["backLines"] == 1 and c["backEn"] and not c["closedClass"], c)
+        check("closing screen: Start over ends the service", c["newHidden"] and c["newState"] == 0, c)
+        check("closing screen: Return after the service ended shows the captions, not listening", c["lateHidden"] and c["lateState"] == 0 and not c["lateClosed"], c)
         r = await stream("prayer"); L = r["lines"]
         check("long prayer shown in 3 pieces", len(L) == 3, [l["ar"] for l in L]); check("long prayer: all translated, none lost", all(l["en"] for l in L) and r["lost"] == 0, L)
         check("long prayer: no shifted draft or hint", all("no hint" in l["en"] and not l["draft"] for l in L), L)
