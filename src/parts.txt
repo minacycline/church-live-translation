@@ -7,7 +7,7 @@
 20-body-top.html
 21-style-running.html
 22-body-screen-and-settings.html
-30-peerjs.html
+# 30-peerjs.html  (PeerJS library for "Other screens", which is switched off: kept here, not in the page)
 31-engines-off-and-word-files.html
 40-app-start-and-keys.js
 41-title-and-settings.js
