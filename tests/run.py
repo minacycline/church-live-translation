@@ -69,10 +69,10 @@ async def main():
         async def pieces(p, replies=()):
             M.update(delay=0.3, fail_until=0, replies=list(replies), n=0); pg = await page(); r = await pg.evaluate(PIECES, p); await pg.close(); return r
         pg = await page()
-        v = await pg.evaluate("()=>{const H=window.__h,t=H.terms();return {syn:t.filter(x=>/نكس|نكز/.test(x)).length,ath:t.includes('أثناسيوس'),ctx:H.ctxLen(),fix:H.fix('إلى أهل القديس سينكسار.'),keep:H.fix('قرأنا في السنكسار عن القديس'),fix2:H.fix('هنتكلم على القديس العظيم السنكسار الرسولي،')}}")
+        v = await pg.evaluate("()=>{const H=window.__h,t=H.terms();return {syn:t.filter(x=>/نكس|نكز/.test(x)).length,ath:t.includes('أثناسيوس'),tr:['translate','translation','translator'].every(x=>t.includes(x)),ctx:H.ctxLen(),fix:H.fix('إلى أهل القديس سينكسار.'),keep:H.fix('قرأنا في السنكسار عن القديس'),fix2:H.fix('هنتكلم على القديس العظيم السنكسار الرسولي،')}}")
         await pg.close()
         check("hearing word list: one spelling of Synaxarium", v["syn"] == 1, v); check("hearing word list: Athanasius on its own", v["ath"], v)
-        check("hearing word list under 8,600 characters", v["ctx"] <= 8600, v["ctx"]); check("Saint Synaxarium repaired to Athanasius", "أثناسيوس" in v["fix"], v["fix"])
+        check("hearing word list: translate, translation, translator", v["tr"], v); check("hearing word list under 8,600 characters", v["ctx"] <= 8600, v["ctx"]); check("Saint Synaxarium repaired to Athanasius", "أثناسيوس" in v["fix"], v["fix"])
         check("the word Synaxarium itself is kept", "السنكسار" in v["keep"], v["keep"])
         check("great saint Synaxarium the Apostolic repaired to Athanasius", "أثناسيوس الرسولي" in v["fix2"] and "نكس" not in v["fix2"], v["fix2"])
         pg = await page()
