@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v134">
+<meta name="build" content="v135">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -138,7 +138,7 @@ input,textarea,select{background:var(--bg);color:var(--fg);border-color:var(--li
 .rv .saved{color:#2f6b4a}
 </style>
 <style>
-#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#1f7a4d;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
+#alert{position:fixed;top:0;left:0;right:0;z-index:60;background:#8a1f1f;color:#fff;font:600 17px/1.35 system-ui,sans-serif;padding:10px 14px;display:none;white-space:pre-line}#alert.ok{background:#2f6b3a}#resume{position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#resume[hidden]{display:none}#resumeBtn{font:700 clamp(26px,5vw,48px)/1.15 system-ui,sans-serif;color:#fff;background:#d92d20;border:0;border-radius:24px;padding:.9em 1.3em;max-width:92vw}#resumeWhy{font:400 clamp(15px,2vw,20px)/1.4 system-ui,sans-serif;color:#5b6170;max-width:34em}#alert.calm{background:#374151;text-align:center;font-weight:600}#alert b{text-decoration:underline}#sideMeter{position:fixed;right:6px;top:72px;bottom:64px;width:16px;border:1px solid #cfc7b5;border-radius:8px;background:#fff;overflow:hidden;z-index:20;display:none}
 body.listening.admin #sideMeter{display:block}
 body.listening:not(.admin) #status,body.listening:not(.admin) #meter{visibility:hidden}
 .dot.on.voice{box-shadow:0 0 0 4px rgba(47,143,91,.28)}.dot.warn.voice{box-shadow:0 0 0 3px rgba(224,160,48,.25)}
@@ -178,12 +178,12 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 .rolepick{display:inline-flex;border:1.5px solid var(--fg);border-radius:999px;overflow:hidden;margin-bottom:6px}.rolepick button{all:unset;cursor:pointer;padding:6px 14px;font-size:13px;line-height:1.1;text-align:center;color:var(--fg)}.rolepick button b{display:block;font-weight:700}.rolepick button span{display:block;font-size:11px;opacity:.7}.rolepick button.on{background:var(--fg);color:var(--bg)}.rolepick button:focus-visible{outline:2px solid var(--fg);outline-offset:-4px}
 #betaNote{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 1px);text-align:center;font-size:11px;line-height:14px;letter-spacing:.02em;color:var(--dim);pointer-events:none;z-index:57;opacity:.85}
 #liveTag.weak{background:#b45309}
-#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+#liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block}
-body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#1f7a4d;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
-/* a screen shows a green frame and "Live Translation" while captions are arriving from the main device */
+body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56}
+/* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
 body.viewing.livecap:not(.noframe)::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;border:6px solid #d92d20;pointer-events:none;z-index:55}
-#viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#1f7a4d;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
+#viewTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.viewing.livecap:not(.noframe) #viewTag{display:block}
 .rolebadge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--fg);border-radius:999px;padding:6px 14px}
 .pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px}.pick button{flex:1 1 200px;min-height:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;padding:9px 14px;border:1.5px solid var(--fg);border-radius:12px;background:#fff;color:var(--fg);font-size:15px}.pick button span{font-size:12px;color:var(--dim);font-weight:400;line-height:1.3}.keylock{display:block;margin-top:6px;padding:6px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--fg);font-size:14px}input[readonly].locked,#groqKey[readonly],#sonioxKey[readonly],#deepgramKey[readonly],#cohereKey[readonly]{background:#f1f1f2;color:var(--dim)}.linkbtn{background:none;border:none;color:var(--dim);text-decoration:underline;font-size:inherit;padding:4px}
@@ -206,7 +206,7 @@ details.sec{border:1px solid var(--line);border-radius:12px;margin-top:10px;padd
 details.sec>summary{cursor:pointer;font-weight:700;padding:14px 0;font-size:17px;list-style-position:inside}
 details.sec[open]{padding-bottom:14px}
 details.sec>label:first-of-type{margin-top:4px}
-.ref{display:inline-block;font-size:.42em;font-weight:700;letter-spacing:.02em;color:var(--green);border:2px solid var(--green);border-radius:.5em;padding:.12em .5em;margin-left:.35em;vertical-align:middle;white-space:nowrap;line-height:1.3}
+.ref{display:inline-block;font-size:.42em;font-weight:700;letter-spacing:.02em;color:#d92d20;border:2px solid #d92d20;border-radius:.5em;padding:.12em .5em;margin-left:.35em;vertical-align:middle;white-space:nowrap;line-height:1.3}
 #en p.prev .ref{font-size:.7em;border-width:1px}
 .dots{display:inline-flex;gap:.28em;align-items:center;height:1em;vertical-align:middle}
 .dots i{width:.26em;height:.26em;border-radius:50%;background:currentColor;opacity:.3;animation:dotp 1.2s ease-in-out infinite}
@@ -308,12 +308,12 @@ body.adminview.adminok:not(.running) #devBtn{display:inline-flex;align-items:cen
 #gateScr form{display:flex;flex-direction:column;gap:12px;text-align:left}
 #gateScr label{font-weight:600;font-size:15px;display:flex;flex-direction:column;gap:6px}
 #gateScr input{min-height:48px;padding:0 14px;border:1px solid #d6d0c4;border-radius:12px;font:17px system-ui,sans-serif;background:#fff;color:#16171a}
-#gateScr button{min-height:50px;border:0;border-radius:12px;background:#1f7a4d;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
-#gateScr button.lnk{background:none;color:#1f7a4d;min-height:40px;font-weight:600}
+#gateScr button{min-height:50px;border:0;border-radius:12px;background:#d92d20;color:#fff;font:700 17px system-ui,sans-serif;cursor:pointer}
+#gateScr button.lnk{background:none;color:#d92d20;min-height:40px;font-weight:600}
 #gateScr button:disabled{opacity:.5}
 #gateScr .gmsg{min-height:22px;font-size:15px;color:#9a3412;text-align:center}
 #gateScr .gcode{font-size:13px;color:#8a857d;margin-top:18px}
-#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#1f7a4d;border-radius:50%;animation:gspin 1s linear infinite}
+#gateScr .gspin{width:34px;height:34px;margin:6px auto 16px;border:4px solid #d6d0c4;border-top-color:#d92d20;border-radius:50%;animation:gspin 1s linear infinite}
 @keyframes gspin{to{transform:rotate(360deg)}}
 #costDlg .s{display:none}
 #balBox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
@@ -423,9 +423,9 @@ body.running #stat{color:#f4f4f2}
 @media (max-width:640px){.sl{display:none}#stat{gap:11px;margin-right:4px}}
 #logo{height:58px;width:auto;flex:none;background:#101014;border-radius:12px;padding:5px 9px;display:block}
 @media (max-height:520px){#logo{height:30px;padding:3px 5px}}
-#go:not(.stop){font-size:22px;padding:15px 34px 15px 28px;border-radius:999px;background:#1f7a4d;color:#fff;display:inline-flex;align-items:center;gap:12px;margin-left:auto;order:9;border:0;cursor:pointer;transition:background .15s}
+#go:not(.stop){font-size:22px;padding:15px 34px 15px 28px;border-radius:999px;background:#d92d20;color:#fff;display:inline-flex;align-items:center;gap:12px;margin-left:auto;order:9;border:0;cursor:pointer;transition:background .15s}
 #go:not(.stop)::before{content:'';flex:none;border-left:15px solid #fff;border-top:9px solid transparent;border-bottom:9px solid transparent}
-#go:not(.stop):hover{background:#18643f}
+#go:not(.stop):hover{background:#b42318}
 #go:not(.stop):active{transform:scale(.98)}
 #go.stop{display:inline-flex;align-items:center;gap:10px;border-radius:999px;padding:12px 26px}
 #go.stop::before{content:'';flex:none;width:13px;height:13px;border-radius:2px;background:#fff}
@@ -559,7 +559,7 @@ body.running #en p .draft{opacity:1}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Green with "Live Translation" at the top and the beta notice at the bottom on the main device, green with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Red with "Live Translation" at the top and the beta notice at the bottom on the main device, red with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
