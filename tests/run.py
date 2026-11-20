@@ -104,6 +104,10 @@ async def main():
         check("closing screen: Return carries on, caption kept and still translated", c["backHidden"] and c["backState"] == 1 and c["backLines"] == 1 and c["backEn"] and not c["closedClass"], c)
         check("closing screen: Start over ends the service", c["newHidden"] and c["newState"] == 0, c)
         check("closing screen: Return after the service ended shows the captions, not listening", c["lateHidden"] and c["lateState"] == 0 and not c["lateClosed"], c)
+        pg = await page()
+        g = await pg.evaluate("""()=>{const H=window.__h,t=document.getElementById('liveTag'),s=()=>getComputedStyle(t).display;H.run(true);document.body.classList.add('running');const a=s();t.classList.add('weak');const b=s();t.classList.remove('weak');document.body.classList.remove('running');H.run(false);return {normal:a,weak:b,note:getComputedStyle(document.getElementById('betaNote')).display}}""")
+        await pg.close()
+        check("top tag hidden while translating, shown only for weak Wi-Fi", g["normal"] == "none" and g["weak"] == "block" and g["note"] != "none", g)
         r = await stream("prayer"); L = r["lines"]
         check("long prayer shown in 3 pieces", len(L) == 3, [l["ar"] for l in L]); check("long prayer: all translated, none lost", all(l["en"] for l in L) and r["lost"] == 0, L)
         check("long prayer: no shifted draft or hint", all("no hint" in l["en"] and not l["draft"] for l in L), L)
