@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v139">
+<meta name="build" content="v140">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1749,6 +1749,8 @@ body.running #en p .draft{opacity:1}
       var d=String(res&&res.text||'').trim().replace(/^["\u201c]|["\u201d]$/g,'');
       if(!d||d===t)return;var a=t.split(/\s+/).length,b=d.split(/\s+/).length;
       if(b<a*0.8||b>a*1.2){dbg('EN CHECK rejected (length changed too much: '+a+' words became '+b+')');return} // v110: was 0.5, which let half a sentence disappear
+      var wA=t.toLowerCase().match(/[a-z0-9']+/g)||[],wB=d.toLowerCase().match(/[a-z0-9']+/g)||[],kept=wB.filter(function(w){return wA.indexOf(w)>=0}).length,had=wA.filter(function(w){return wB.indexOf(w)>=0}).length;
+      if(!wB.length||kept<wB.length*0.7||had<wA.length*0.7){dbg('EN CHECK rejected (words changed too much: '+kept+' of '+wB.length+' kept)');return} // v140
       if(it.en!==t)return;it.en=d;it.fixedEn=t;dbg('EN CHECK '+t.slice(0,50)+' \u2192 '+d.slice(0,50));render();
     }).catch(function(e){dbg('EN CHECK skipped: '+(e&&e.message))});
   }
@@ -2154,6 +2156,7 @@ body.running #en p .draft{opacity:1}
   function fixNames(txt){return hardNames(fixNames0(txt))}
   function fixNames0(txt){
     txt=txt.replace(/((?:^|\s)(?:ال)?(?:قديس|[أا]نبا|بابا)\s+)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(?=\s|$|[.,،!؟?])/g,function(m,a){dbg('NAME repaired: a saint called Synaxarium is Athanasius');return a+'أثناسيوس'}); // v137
+    txt=txt.replace(/(^|\s)(?:ال)?س[يى]?نكس[اي]?ر(?:يوس|ي|ى)?(\s+الرسول[يى])(?=\s|$|[.,،!؟?])/g,function(m,a,b){dbg('NAME repaired: Synaxarium the Apostolic is Athanasius');return a+'أثناسيوس'+b}); // v140
     // "Athanasius the Apostolic": Whisper writes it many ways (السنسيس، أسنانيس، أسنس يسر...) but the title that follows is steady
     txt=txt.replace(/(^|\s)(?:ال)?[اأإ]?[سث]ن[ا]?[نس]{0,2}[يى]?[سش]{0,2}(?:وس)?(?:\s+يس[يى]?ر)?\s+(?=(?:ال)?رسولي?(?:\s|$))/g,'$1أثناسيوس ').replace(/(أثناسيوس)\s+رسولي?(?=\s|$|[.,،!؟?])/g,'$1 الرسولي');
     txt=txt.replace(/(يوحنا|يوحان|يوحانا|يوحنَّا)\s+(?:ال)?(?:معبد|معمد|مبعد|معبدي|معمدي)[يىاا]?[نن]?(?=\s|[.,،!؟?]|$)/g,'يوحنا المعمدان').replace(/العهد\s+(?:ال)?[اأ]تيم/g,'العهد العتيق');
