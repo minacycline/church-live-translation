@@ -125,6 +125,8 @@ async def main():
         check("the same word later in the service is written as the name", any("NEW sentence" in u and "وهؤلاء تيموثاوس" in u for u in M["users"]), [u[:200] for u in M["users"]])
         e = await pieces(["كما قال معلمنا بولس الرسول إلى المساوس،"], [U1, 'RAW:{"new":"As our teacher Paul the Apostle said, to Boaz,","names":[["المساوس","بوعز"]]}'])
         check("a name that was not offered is refused", len(e) == 1 and "Boaz" not in e[0] and e[0].startswith("As our teacher Paul"), e)
+        e = await pieces(["كما قال معلمنا بولس الرسول إلى المساوس،"], ['RAW:{"new":"As our teacher Paul the Apostle said, to the Ephesians,","fixes":[["المساوس","أفسس"]]}', 'RAW:{"new":"As our teacher Paul the Apostle said, to Timothy,","names":[["المساوس","تيموثاوس"]]}'])
+        check("a word the translator swapped for a guess is settled by sound too", len(e) == 1 and "to Timothy" in e[0] and "Ephes" not in e[0], e)
         e = await pieces(["الكنيسة فرحانة النهارده بيكم كلكم."], ['RAW:{"new":"The church is happy with all of you today.","unknown":["الكنيسة"]}', "SECOND REQUEST MADE"])
         check("a real Arabic word listed as unknown starts no second request", M["n"] == 1 and e == ["The church is happy with all of you today."], [M["n"], e])
         e = await pieces(["الرب راعي فلا يعوزني شيء،", "في مراع خضر يربضني،", "إلى مياه الراحة يوردني"]); check("psalm in 3 pieces: 2 lines, no repeat", len(e) == 2, e)
