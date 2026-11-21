@@ -59,10 +59,15 @@
   // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
   // v141: the closing screen has two buttons. Stop first only pauses (the sentence in progress is finished and still translated); Return within 2 minutes carries on where it was,
   // after that the service is closed for real and Return only shows the last captions again. Start over closes the service and goes to the start screen.
-  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0;
-  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
-  function closeBack(){clearTimeout(softT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
-  function closeNew(){clearTimeout(softT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
+  // v151: the report used to leave only when the service closed for real, 2 minutes after Stop (or never, if the phone was locked first). It now leaves 6 seconds after Stop.
+  // If Return is pressed after that, what follows is reported as a second part with its own start time, so nothing is sent twice.
+  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0,softRepT=0,SOFT_REP_MS=6000;
+  function softReport(){if(!softOn||!running||!sessionBegan||replayEl)return;
+    try{dbg('REPORT sent at Stop (the Return button stays for the rest of the '+Math.round(SOFT_MS/1000)+' s)');var rb=sessionBegan,snap={log:DBG.slice(),lines:lines.slice(),missed:MISSED.slice(),drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};
+      sessionBegan=0;try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,false,snap)}catch(e){}}
+  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();try{repSafeNow()}catch(e){}clearTimeout(softRepT);softRepT=setTimeout(softReport,SOFT_REP_MS);clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
+  function closeBack(){clearTimeout(softT);clearTimeout(softRepT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;if(!sessionBegan){sessionBegan=Date.now();DBG=[];MISSED=[];dbg('SECOND PART: the first part of this service was already reported at Stop; this report holds what came after Return')}dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
+  function closeNew(){clearTimeout(softT);clearTimeout(softRepT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
   function closeWakeUp(){try{var b=$('closingBtns');b.classList.remove('dim');clearTimeout(closeDimT);closeDimT=setTimeout(function(){b.classList.add('dim')},6000)}catch(e){}}
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
