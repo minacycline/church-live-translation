@@ -15,7 +15,7 @@
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
+    running=true;SOUNDMAP={};ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
     sessFirst=true;var early=NO_BACKUP&&useWhisper()&&!!streamEngine()&&!replayEl;
     if(early){try{dgOpen()}catch(e){}try{healthAtStart()}catch(e){}} // v116 warm-up: the live line and the translator start getting ready while the microphone opens
     var ok=useWhisper()?await startWhisper():await startApple();

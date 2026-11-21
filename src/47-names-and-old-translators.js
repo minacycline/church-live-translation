@@ -50,6 +50,55 @@
     });
     return out.slice(0,4);
   }
+  // v149: a name the hearing wrote as a word that is no word at all (seen 2026-11-20: تيموثاوس heard three times as المساوس). The translator says which words
+  // it could not understand ("unknown"); for a word that is also not in the Arabic Bible, the liturgy or the term lists, the names that SOUND like it are offered
+  // in one short second request, and the translator uses one only if it fits the sentence. The choice is kept for the rest of this service only.
+  var SOUNDMAP={},SNDKEYS=null;
+  function sndVariants(n){var v=[n];if(/^(ال|لل)/.test(n)&&n.length>5)v.push(n.slice(2));if(/^[وبلفك]/.test(n)&&n.length>4){v.push(n.slice(1));if(/^[وبلفك](ال|لل)/.test(n)&&n.length>6)v.push(n.slice(3))}return v}
+  function sndStem(n){var v=sndVariants(n);return v[v.length-1]}
+  function oddWord(n){ // true only when no reading of the word is a known Arabic, church or Bible word
+    var bw=bibleWords(),ix=nameIdx();if(!bw||!ix.keys.length||n.length<4)return false;
+    var litw=LITWORDS||(nameGuesses('x'),LITWORDS)||{};
+    return !sndVariants(n).some(function(x){return bw[x]||litw[x]||ix.map[x]||COMMONDIALECT.indexOf(x)>=0});
+  }
+  function sndKeys(){
+    if(SNDKEYS)return SNDKEYS;var bw=bibleWords()||{},ix=nameIdx(),m={};
+    ix.keys.forEach(function(k){if(k.length>=5&&k.indexOf(' ')<0&&bw[k]>=3)m[k]={ar:ix.map[k].ar,en:ix.map[k].en}});
+    (window.COPTIC_TERMS||[]).forEach(function(t){var a=String(t[0]||''),b=String(t[1]||''),x=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة|مار|أبونا)\s+([^\s]{5,})$/.exec(a),w=x?x[1]:(a.indexOf(' ')<0?a:''),e=b.split(' ').pop();
+      if(!w||!/^[A-Z][a-z]{2,}/.test(e)||(!x&&b.indexOf(' ')>=0))return;var k=normAr(w);if(k.length>=5&&!m[k])m[k]={ar:w,en:e}});
+    SNDKEYS={map:m,keys:Object.keys(m)};return SNDKEYS;
+  }
+  function soundNames(n){ // names that sound like the word, also when the hearing lost the start of the name; best first, 4 at most
+    var sk=sndKeys(),vs=sndVariants(n).filter(function(v){return v.length>=4}),out=[];
+    sk.keys.forEach(function(k){var best=9;vs.forEach(function(v){for(var j=0;j<=3&&k.length-j>=4;j++){if(Math.abs(k.length-j-v.length)>2)continue;var d=wdist(v,k.slice(j))+0.5*j;if(d<best)best=d}});
+      var sc=best/k.length;if(sc<=0.34)out.push({s:sc,ar:sk.map[k].ar,en:sk.map[k].en})});
+    out.sort(function(a,b){return a.s-b.s});return out.slice(0,4);
+  }
+  function soundApply(txt){ // a word already settled in this service is written as its name before the sentence is translated
+    if(!Object.keys(SOUNDMAP).length)return txt;
+    return txt.split(/(\s+)/).map(function(tok){var m=/^([^؀-ۿ]*)([؀-ۿ]+)([^؀-ۿ]*)$/.exec(tok);if(!m)return tok;var n=normAr(m[2]),to=SOUNDMAP[sndStem(n)];if(!to)return tok;
+      return m[1]+(/^[وف]/.test(n)&&n.length>sndStem(n).length&&!/^[وف]/.test(sndStem(n))?n.charAt(0):'')+to+m[3]}).join('');
+  }
+  async function nameBySound(ar,en,unknown,deadline,earlier){
+    var ws=normAr(ar).split(' '),todo=[];
+    unknown.slice(0,3).forEach(function(u){u=normAr(String(u||''));if(!u||u.indexOf(' ')>=0||ws.indexOf(u)<0||!oddWord(u))return;var c=soundNames(u);if(c.length)todo.push({w:u,c:c})});
+    if(!todo.length)return '';
+    if(deadline&&Date.now()+2500>deadline){dbg('NAME by sound skipped: no time left for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    var res=await chatCall([
+      {role:'system',content:'You finish one line of a live English translation of a Coptic Orthodox church service spoken in Egyptian Arabic. Speech recognition wrote a name as a word that does not exist. You are given the Arabic sentence, the English made without that word, and the names that sound like the word. If one of those names clearly fits the sentence (who is speaking, who is written to, whose story it is), write the English again with that name in its place and change nothing else. If none fits, or you are not sure, return the English exactly as given. Never use a name that is not in the list. Reply with JSON only: {"new":"...","names":[["the unknown word","the Arabic name you used"]]} with "names" [] when you used none.'},
+      {role:'user',content:(earlier?'Earlier (context only): '+earlier+'\n\n':'')+'Arabic sentence:\n'+ar+'\n\nEnglish so far:\n'+en+'\n\n'+todo.map(function(t){return 'Unknown word: '+t.w+'\nNames that sound like it: '+t.c.map(function(x){return x.ar+' ('+x.en+')'}).join('، ')}).join('\n\n')}
+    ],300,0,false,deadline);
+    var m=String(res.text||'').match(/\{[\s\S]*\}/);if(!m)return '';
+    var o;try{o=JSON.parse(m[0])}catch(e){return ''}
+    if(!o||typeof o.new!=='string'||!Array.isArray(o.names)||!o.names.length)return '';
+    var out=o.new.trim(),ok=[],lo=out.toLowerCase();
+    o.names.forEach(function(p){if(!Array.isArray(p)||p.length!==2)return;var w=normAr(String(p[0])),nm=normAr(String(p[1]));
+      todo.forEach(function(t){if(t.w!==w)return;t.c.forEach(function(x){if(normAr(x.ar)===nm&&lo.indexOf(String(x.en).toLowerCase())>=0&&en.toLowerCase().indexOf(String(x.en).toLowerCase())<0)ok.push([t.w,x.ar,x.en])})})});
+    var w0=en.split(/\s+/).length,w1=out.split(/\s+/).length;
+    if(!ok.length||!out||AR.test(out)||w1>w0+6||w1<w0-2){dbg('NAME by sound: no name used for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    ok.forEach(function(x){SOUNDMAP[sndStem(x[0])]=x[1];dbg('NAME by sound: '+x[0]+' -> '+x[1]+' ('+x[2]+'), kept for this service')});
+    return out;
+  }
   function namesInSentence(txt){
     var ix=nameIdx(),seen={},out=[];
     normAr(txt).split(' ').forEach(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(k&&!seen[k.ar]){seen[k.ar]=1;out.push(k.ar+' = '+k.en)}});
