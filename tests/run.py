@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 PAGE = sys.argv[1] if len(sys.argv) > 1 else "test/index.html"
 EXPORT = ("window.__h={fix:function(t){return applyFixes(fixNames(cleanHeard(t,true)))},terms:function(){return sxStart().context.terms},"
  "ctxLen:function(){return JSON.stringify(sxStart().context).length},sxMessage:function(m){return sxMessage(m,DG.ws)},onFinal:onFinal,"
- "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)},safe:function(a,b){return fixSafe(a,b,'')}};")
+ "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)},began:function(v){if(v!==undefined)sessionBegan=v;return sessionBegan},safe:function(a,b){return fixSafe(a,b,'')}};")
 M = {"delay": 0.3, "fail_until": 0, "replies": [], "n": 0, "part": 0}
 FAILS = []
 def check(name, ok, detail=""):
@@ -25,6 +25,7 @@ async def route(r):
         await asyncio.sleep(M["delay"])
         return await r.fulfill(status=200, content_type="application/json", headers=H,
             body=json.dumps({"content": [{"type": "text", "text": t[4:] if t.startswith("RAW:") else json.dumps({"new": t})}], "usage": {"input_tokens": 1, "output_tokens": 1}}))
+    if q.url.endswith("/report") and q.method == "POST": M.setdefault("reports", []).append(json.loads(q.post_data or "{}"))
     await r.fulfill(status=200, content_type="application/json", headers=H, body="{}")
 STREAM = r"""async(sc)=>{const H=window.__h;H.run(true);H.DG.ws={__sn:true};H.DG.live=true;H.setSX({ar:'',en:'',nfAr:'',nfEn:'',at:0,shown:0});
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));const arW=sc.ar.split(' '),enW=sc.en.split(' ');let ei=0,done=0;const total=arW.filter(w=>!w.startsWith('<')).length;
@@ -105,6 +106,14 @@ async def main():
         check("closing screen: Return carries on, caption kept and still translated", c["backHidden"] and c["backState"] == 1 and c["backLines"] == 1 and c["backEn"] and not c["closedClass"], c)
         check("closing screen: Start over ends the service", c["newHidden"] and c["newState"] == 0, c)
         check("closing screen: Return after the service ended shows the captions, not listening", c["lateHidden"] and c["lateState"] == 0 and not c["lateClosed"], c)
+        M["reports"] = []; pg = await page()
+        await pg.evaluate("""async()=>{const H=window.__h,$=i=>document.getElementById(i),w=ms=>new Promise(r=>setTimeout(r,ms));H.run(true);H.began(Date.now());H.onFinal('ربنا موجود معانا النهارده',[]);await w(2500);
+          $('go').click();await w(2000);$('closeBack').click();await w(500);$('go').click();await w(7500)}"""); n1 = len(M["reports"]); r1 = (M["reports"] or [{}])[0]
+        check("report leaves 6 s after Stop, not after the 2 minute wait (Return in the first seconds sends nothing)", n1 == 1 and len(r1.get("text", [])) == 1 and "REPORT sent at Stop" in r1.get("log", ""), [n1, str(r1)[:200]])
+        b0 = await pg.evaluate("""async()=>{const H=window.__h,$=i=>document.getElementById(i),w=ms=>new Promise(r=>setTimeout(r,ms)),o={b0:H.began()};$('closeBack').click();await w(300);o.b1=H.began();o.st=H.state();
+          H.onFinal('المحبة لا تسقط أبدا يا أحبائي',[]);await w(2500);$('go').click();await w(7500);$('closeNew').click();await w(7500);return o}"""); R = M["reports"]; r2 = R[1] if len(R) > 1 else {}
+        await pg.close()
+        check("Return after the report was sent: the rest is a second part, nothing sent twice", b0["b0"] == 0 and b0["b1"] > 0 and b0["st"] == 1 and len(R) == 2 and len(r2.get("text", [])) == 1 and r2["text"][0]["ar"] != r1["text"][0]["ar"] and r2.get("log", "").split("s ", 1)[-1].startswith("SECOND PART"), [b0, len(R), str(r2)[:300]])
         pg = await page()
         g = await pg.evaluate("""()=>{const H=window.__h,t=document.getElementById('liveTag'),s=()=>getComputedStyle(t).display;H.run(true);document.body.classList.add('running');const a=s();t.classList.add('weak');const b=s();t.classList.remove('weak');document.body.classList.remove('running');H.run(false);return {normal:a,weak:b,top:t.textContent,note:document.getElementById('betaNote').textContent,title:document.getElementById('title').textContent}}""")
         await pg.close()
