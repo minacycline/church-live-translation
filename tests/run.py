@@ -20,6 +20,7 @@ async def route(r):
             return await r.fulfill(status=529, content_type="application/json", headers=H, body='{"error":{"type":"overloaded_error","message":"Overloaded"}}')
         u = json.loads(q.post_data or "{}").get("messages", [{}])[-1].get("content", "")
         if "only PART of a Bible verse" in u: M["part"] += 1
+        M.setdefault("users", []).append(u)
         t = M["replies"].pop(0) if M["replies"] else "Line %d of the talk, %s." % (M["n"], "with hint" if "rough English" in u else "no hint")
         await asyncio.sleep(M["delay"])
         return await r.fulfill(status=200, content_type="application/json", headers=H,
@@ -117,6 +118,15 @@ async def main():
         check("slow opening prayer: one fixed line", len(L) == 1 and L[0]["fx"] == 1 and L[0]["en"].startswith("In the name of the Father"), L)
         r = await stream("sermon"); L = r["lines"]
         check("sermon sentence: 4 pieces, all translated", len(L) == 4 and all(l["en"] for l in L), L)
+        U1 = 'RAW:{"new":"As our teacher Paul the Apostle said, to,","unknown":["المساوس"]}'
+        M["users"] = []; e = await pieces(["كما قال معلمنا بولس الرسول إلى المساوس،", "وهؤلاء المساوس."], [U1, 'RAW:{"new":"As our teacher Paul the Apostle said, to Timothy,","names":[["المساوس","تيموثاوس"]]}', "And these, Timothy."])
+        check("unknown word that sounds like a name: the name is used", len(e) == 2 and "to Timothy" in e[0], e)
+        check("unknown word: names that sound like it were offered", any("Names that sound like it" in u and "تيموثاوس (Timothy)" in u for u in M["users"]), [u[-200:] for u in M["users"]])
+        check("the same word later in the service is written as the name", any("NEW sentence" in u and "وهؤلاء تيموثاوس" in u for u in M["users"]), [u[:200] for u in M["users"]])
+        e = await pieces(["كما قال معلمنا بولس الرسول إلى المساوس،"], [U1, 'RAW:{"new":"As our teacher Paul the Apostle said, to Boaz,","names":[["المساوس","بوعز"]]}'])
+        check("a name that was not offered is refused", len(e) == 1 and "Boaz" not in e[0] and e[0].startswith("As our teacher Paul"), e)
+        e = await pieces(["الكنيسة فرحانة النهارده بيكم كلكم."], ['RAW:{"new":"The church is happy with all of you today.","unknown":["الكنيسة"]}', "SECOND REQUEST MADE"])
+        check("a real Arabic word listed as unknown starts no second request", M["n"] == 1 and e == ["The church is happy with all of you today."], [M["n"], e])
         e = await pieces(["الرب راعي فلا يعوزني شيء،", "في مراع خضر يربضني،", "إلى مياه الراحة يوردني"]); check("psalm in 3 pieces: 2 lines, no repeat", len(e) == 2, e)
         e = await pieces(["بسم الآب والابن والروح القدس،", "الإله الواحد، آمين"]); check("opening prayer in 2 pieces: 1 line", len(e) == 1, e)
         e = await pieces(["يا رب ارحم يا رب ارحم"] * 3, ["Lord have mercy. Lord have mercy."] * 3); check("Lord have mercy said 3 times stays 3", len(e) == 3, e)
