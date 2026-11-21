@@ -63,16 +63,16 @@
   }
   function sndKeys(){
     if(SNDKEYS)return SNDKEYS;var bw=bibleWords()||{},ix=nameIdx(),m={};
-    ix.keys.forEach(function(k){if(k.length>=5&&k.indexOf(' ')<0&&bw[k]>=3)m[k]={ar:ix.map[k].ar,en:ix.map[k].en}});
+    var canon={};ix.keys.forEach(function(k){if(k.length>=5&&k.indexOf(' ')<0&&bw[k]>=3){m[k]={ar:ix.map[k].ar,en:ix.map[k].en};canon[ix.map[k].en]=ix.map[k].ar}}); // v150: canon = the Bible spelling of a name, used for every other spelling of it
     (window.COPTIC_TERMS||[]).forEach(function(t){var a=String(t[0]||''),b=String(t[1]||''),x=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة|مار|أبونا)\s+([^\s]{5,})$/.exec(a),w=x?x[1]:(a.indexOf(' ')<0?a:''),e=b.split(' ').pop();
-      if(!w||!/^[A-Z][a-z]{2,}/.test(e)||(!x&&b.indexOf(' ')>=0))return;var k=normAr(w);if(k.length>=5&&!m[k])m[k]={ar:w,en:e}});
+      if(!w||!/^[A-Z][a-z]{2,}/.test(e)||(!x&&b.indexOf(' ')>=0))return;var k=normAr(w);if(k.length>=5&&!m[k])m[k]={ar:canon[e]||w,en:e}});
     SNDKEYS={map:m,keys:Object.keys(m)};return SNDKEYS;
   }
   function soundNames(n){ // names that sound like the word, also when the hearing lost the start of the name; best first, 4 at most
     var sk=sndKeys(),vs=sndVariants(n).filter(function(v){return v.length>=4}),out=[];
     sk.keys.forEach(function(k){var best=9;vs.forEach(function(v){for(var j=0;j<=3&&k.length-j>=4;j++){if(Math.abs(k.length-j-v.length)>2)continue;var d=wdist(v,k.slice(j))+0.5*j;if(d<best)best=d}});
       var sc=best/k.length;if(sc<=0.34)out.push({s:sc,ar:sk.map[k].ar,en:sk.map[k].en})});
-    out.sort(function(a,b){return a.s-b.s});return out.slice(0,4);
+    out.sort(function(a,b){return a.s-b.s});var seen={};return out.filter(function(x){if(seen[x.en])return false;seen[x.en]=1;return true}).slice(0,4); // v150: one entry per name
   }
   function soundApply(txt){ // a word already settled in this service is written as its name before the sentence is translated
     if(!Object.keys(SOUNDMAP).length)return txt;
@@ -81,11 +81,11 @@
   }
   async function nameBySound(ar,en,unknown,deadline,earlier){
     var ws=normAr(ar).split(' '),todo=[];
-    unknown.slice(0,3).forEach(function(u){u=normAr(String(u||''));if(!u||u.indexOf(' ')>=0||ws.indexOf(u)<0||!oddWord(u))return;var c=soundNames(u);if(c.length)todo.push({w:u,c:c})});
+    unknown.slice(0,8).forEach(function(u){u=normAr(String(u||''));if(todo.length>=2||!u||u.indexOf(' ')>=0||ws.indexOf(u)<0||!oddWord(u)||todo.some(function(t){return t.w===u}))return;var c=soundNames(u);if(c.length)todo.push({w:u,c:c})});
     if(!todo.length)return '';
     if(deadline&&Date.now()+2500>deadline){dbg('NAME by sound skipped: no time left for '+todo.map(function(t){return t.w}).join(' '));return ''}
     var res=await chatCall([
-      {role:'system',content:'You finish one line of a live English translation of a Coptic Orthodox church service spoken in Egyptian Arabic. Speech recognition wrote a name as a word that does not exist. You are given the Arabic sentence, the English made without that word, and the names that sound like the word. If one of those names clearly fits the sentence (who is speaking, who is written to, whose story it is), write the English again with that name in its place and change nothing else. If none fits, or you are not sure, return the English exactly as given. Never use a name that is not in the list. Reply with JSON only: {"new":"...","names":[["the unknown word","the Arabic name you used"]]} with "names" [] when you used none.'},
+      {role:'system',content:'You finish one line of a live English translation of a Coptic Orthodox church service spoken in Egyptian Arabic. Speech recognition wrote a name as a word that does not exist. You are given the Arabic sentence, the English made so far, and the names that sound like the word. The English so far either left the word out or put a guess in its place (often a name or place taken from a nearby sentence). If one of the listed names clearly fits the sentence (who is speaking, who is written to, whose story it is), write the English again with that name where the unknown word stands, in place of any guess and of any dots left for it, and change nothing else. The words right beside the unknown word may be misheard too (for example "the people of" in front of the name of a person), so go by who or what the sentence is about. If none fits, or you are not sure, return the English exactly as given. Never use a name that is not in the list. Reply with JSON only: {"new":"...","names":[["the unknown word","the Arabic name you used"]]} with "names" [] when you used none.'},
       {role:'user',content:(earlier?'Earlier (context only): '+earlier+'\n\n':'')+'Arabic sentence:\n'+ar+'\n\nEnglish so far:\n'+en+'\n\n'+todo.map(function(t){return 'Unknown word: '+t.w+'\nNames that sound like it: '+t.c.map(function(x){return x.ar+' ('+x.en+')'}).join('، ')}).join('\n\n')}
     ],300,0,false,deadline);
     var m=String(res.text||'').match(/\{[\s\S]*\}/);if(!m)return '';
