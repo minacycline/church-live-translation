@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v148">
+<meta name="build" content="v149">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1390,6 +1390,55 @@ body.running #en p .draft{opacity:1}
     });
     return out.slice(0,4);
   }
+  // v149: a name the hearing wrote as a word that is no word at all (seen 2026-11-20: تيموثاوس heard three times as المساوس). The translator says which words
+  // it could not understand ("unknown"); for a word that is also not in the Arabic Bible, the liturgy or the term lists, the names that SOUND like it are offered
+  // in one short second request, and the translator uses one only if it fits the sentence. The choice is kept for the rest of this service only.
+  var SOUNDMAP={},SNDKEYS=null;
+  function sndVariants(n){var v=[n];if(/^(ال|لل)/.test(n)&&n.length>5)v.push(n.slice(2));if(/^[وبلفك]/.test(n)&&n.length>4){v.push(n.slice(1));if(/^[وبلفك](ال|لل)/.test(n)&&n.length>6)v.push(n.slice(3))}return v}
+  function sndStem(n){var v=sndVariants(n);return v[v.length-1]}
+  function oddWord(n){ // true only when no reading of the word is a known Arabic, church or Bible word
+    var bw=bibleWords(),ix=nameIdx();if(!bw||!ix.keys.length||n.length<4)return false;
+    var litw=LITWORDS||(nameGuesses('x'),LITWORDS)||{};
+    return !sndVariants(n).some(function(x){return bw[x]||litw[x]||ix.map[x]||COMMONDIALECT.indexOf(x)>=0});
+  }
+  function sndKeys(){
+    if(SNDKEYS)return SNDKEYS;var bw=bibleWords()||{},ix=nameIdx(),m={};
+    ix.keys.forEach(function(k){if(k.length>=5&&k.indexOf(' ')<0&&bw[k]>=3)m[k]={ar:ix.map[k].ar,en:ix.map[k].en}});
+    (window.COPTIC_TERMS||[]).forEach(function(t){var a=String(t[0]||''),b=String(t[1]||''),x=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة|مار|أبونا)\s+([^\s]{5,})$/.exec(a),w=x?x[1]:(a.indexOf(' ')<0?a:''),e=b.split(' ').pop();
+      if(!w||!/^[A-Z][a-z]{2,}/.test(e)||(!x&&b.indexOf(' ')>=0))return;var k=normAr(w);if(k.length>=5&&!m[k])m[k]={ar:w,en:e}});
+    SNDKEYS={map:m,keys:Object.keys(m)};return SNDKEYS;
+  }
+  function soundNames(n){ // names that sound like the word, also when the hearing lost the start of the name; best first, 4 at most
+    var sk=sndKeys(),vs=sndVariants(n).filter(function(v){return v.length>=4}),out=[];
+    sk.keys.forEach(function(k){var best=9;vs.forEach(function(v){for(var j=0;j<=3&&k.length-j>=4;j++){if(Math.abs(k.length-j-v.length)>2)continue;var d=wdist(v,k.slice(j))+0.5*j;if(d<best)best=d}});
+      var sc=best/k.length;if(sc<=0.34)out.push({s:sc,ar:sk.map[k].ar,en:sk.map[k].en})});
+    out.sort(function(a,b){return a.s-b.s});return out.slice(0,4);
+  }
+  function soundApply(txt){ // a word already settled in this service is written as its name before the sentence is translated
+    if(!Object.keys(SOUNDMAP).length)return txt;
+    return txt.split(/(\s+)/).map(function(tok){var m=/^([^؀-ۿ]*)([؀-ۿ]+)([^؀-ۿ]*)$/.exec(tok);if(!m)return tok;var n=normAr(m[2]),to=SOUNDMAP[sndStem(n)];if(!to)return tok;
+      return m[1]+(/^[وف]/.test(n)&&n.length>sndStem(n).length&&!/^[وف]/.test(sndStem(n))?n.charAt(0):'')+to+m[3]}).join('');
+  }
+  async function nameBySound(ar,en,unknown,deadline,earlier){
+    var ws=normAr(ar).split(' '),todo=[];
+    unknown.slice(0,3).forEach(function(u){u=normAr(String(u||''));if(!u||u.indexOf(' ')>=0||ws.indexOf(u)<0||!oddWord(u))return;var c=soundNames(u);if(c.length)todo.push({w:u,c:c})});
+    if(!todo.length)return '';
+    if(deadline&&Date.now()+2500>deadline){dbg('NAME by sound skipped: no time left for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    var res=await chatCall([
+      {role:'system',content:'You finish one line of a live English translation of a Coptic Orthodox church service spoken in Egyptian Arabic. Speech recognition wrote a name as a word that does not exist. You are given the Arabic sentence, the English made without that word, and the names that sound like the word. If one of those names clearly fits the sentence (who is speaking, who is written to, whose story it is), write the English again with that name in its place and change nothing else. If none fits, or you are not sure, return the English exactly as given. Never use a name that is not in the list. Reply with JSON only: {"new":"...","names":[["the unknown word","the Arabic name you used"]]} with "names" [] when you used none.'},
+      {role:'user',content:(earlier?'Earlier (context only): '+earlier+'\n\n':'')+'Arabic sentence:\n'+ar+'\n\nEnglish so far:\n'+en+'\n\n'+todo.map(function(t){return 'Unknown word: '+t.w+'\nNames that sound like it: '+t.c.map(function(x){return x.ar+' ('+x.en+')'}).join('، ')}).join('\n\n')}
+    ],300,0,false,deadline);
+    var m=String(res.text||'').match(/\{[\s\S]*\}/);if(!m)return '';
+    var o;try{o=JSON.parse(m[0])}catch(e){return ''}
+    if(!o||typeof o.new!=='string'||!Array.isArray(o.names)||!o.names.length)return '';
+    var out=o.new.trim(),ok=[],lo=out.toLowerCase();
+    o.names.forEach(function(p){if(!Array.isArray(p)||p.length!==2)return;var w=normAr(String(p[0])),nm=normAr(String(p[1]));
+      todo.forEach(function(t){if(t.w!==w)return;t.c.forEach(function(x){if(normAr(x.ar)===nm&&lo.indexOf(String(x.en).toLowerCase())>=0&&en.toLowerCase().indexOf(String(x.en).toLowerCase())<0)ok.push([t.w,x.ar,x.en])})})});
+    var w0=en.split(/\s+/).length,w1=out.split(/\s+/).length;
+    if(!ok.length||!out||AR.test(out)||w1>w0+6||w1<w0-2){dbg('NAME by sound: no name used for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    ok.forEach(function(x){SOUNDMAP[sndStem(x[0])]=x[1];dbg('NAME by sound: '+x[0]+' -> '+x[1]+' ('+x[2]+'), kept for this service')});
+    return out;
+  }
   function namesInSentence(txt){
     var ix=nameIdx(),seen={},out=[];
     normAr(txt).split(' ').forEach(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(k&&!seen[k.ar]){seen[k.ar]=1;out.push(k.ar+' = '+k.en)}});
@@ -1712,19 +1761,22 @@ body.running #en p .draft{opacity:1}
   var lastModel='';
   function partialNew(t){var m=/"new"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(t);if(!m)return '';return m[1].replace(/\\"/g,'"').replace(/\\n/g,' ')}
   async function groq(ar,alts,prevItem,item,deadline){
+    var arSnd=soundApply(ar);if(arSnd!==ar){dbg('NAME by sound applied: '+arSnd.slice(0,80));ar=arSnd} // v149
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en); // with two lanes the previous line may still be in flight: then it is simply not revised
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
-        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say; Arabic only in both parts, one answer each (no slashes, no brackets); [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.verse?'\n\nIn the NEW sentence he quotes only PART of a Bible verse'+(item.verse.ref?' ('+item.verse.ref+')':'')+'. The church\'s English for the whole verse is: "'+String(item.verse.b).slice(0,600)+'". Use that wording for the words he actually said, and leave out every part of the verse that is not in the NEW sentence.':'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
+        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]],"unknown":["..."]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say; Arabic only in both parts, one answer each (no slashes, no brackets); [] if none. "unknown": single Arabic words copied exactly from the NEW sentence that are not a real word in Arabic or in the Egyptian dialect and not a name you know, so you cannot tell what was said (usually a name that was misheard). Leave such a word out of "new" and never write it in English letters as if it were a name or a place; an ordinary word you understand is never listed; [] if none.'},
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.verse?'\n\nIn the NEW sentence he quotes only PART of a Bible verse'+(item.verse.ref?' ('+item.verse.ref+')':'')+'. The church\'s English for the whole verse is: "'+String(item.verse.b).slice(0,600)+'". Use that wording for the words he actually said, and leave out every part of the verse that is not in the NEW sentence.':'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Never take a name or a place from it that is not in the Arabic text. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
       if(canRevise&&typeof o.previous==='string'&&o.previous.trim()&&o.previous.trim()!==prevItem.en){var pr=o.previous.trim(),pi=lines.indexOf(prevItem),pp=pi>0&&lines[pi-1].en?lines[pi-1].en.trim():'';if(pp.length>3&&pr.indexOf(pp)===0){pr=pr.slice(pp.length).trim();dbg('REVISE: dropped a repeat of the sentence before')}var ow=prevItem.en.split(/\s+/).length,nw2=pr.split(/\s+/).length;if(pr&&nw2<=ow*1.5+3){prevItem.en=pr;prevItem.revised=true}else dbg('REVISE rejected: the previous sentence would grow from '+ow+' to '+nw2+' words')} // v118
       if(Array.isArray(o.fixes))o.fixes.slice(0,4).forEach(function(fx){if(Array.isArray(fx)&&fx.length===2&&learnFix(String(fx[0]),String(fx[1]),ar,o.new)&&item)item.fixes=(item.fixes||[]).concat([fx[0]+' \u2192 '+fx[1]])});
-      return o.new.trim();
+      var en1=o.new.trim();
+      if(Array.isArray(o.unknown)&&o.unknown.length&&en1){dbg('UNKNOWN word(s): '+o.unknown.slice(0,3).join(' '));try{var en2=await nameBySound(ar,en1,o.unknown,deadline,ctxItems.slice(-2).map(function(l){return l.en}).join(' '));if(en2)en1=en2}catch(e){dbg('NAME by sound failed: '+e.message)}} // v149
+      return en1;
     }}catch(e){}}
     var m2=/"new"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(out);if(m2)return m2[1].replace(/\\"/g,'"').trim();
     return out.replace(/^\{[\s\S]*"new"\s*:\s*"/,'').replace(/"\s*\}\s*$/,'');
@@ -3001,7 +3053,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
+    running=true;SOUNDMAP={};ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
     sessFirst=true;var early=NO_BACKUP&&useWhisper()&&!!streamEngine()&&!replayEl;
     if(early){try{dgOpen()}catch(e){}try{healthAtStart()}catch(e){}} // v116 warm-up: the live line and the translator start getting ready while the microphone opens
     var ok=useWhisper()?await startWhisper():await startApple();
