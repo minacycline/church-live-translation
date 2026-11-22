@@ -38,4 +38,5 @@
 66-live-test-replay.js
 67-user-and-admin-views.js
 68-admin-cost.js
+68b-admin-sermon-debug.js
 69-admin-devices.js
