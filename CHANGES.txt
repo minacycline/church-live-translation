@@ -1,0 +1,12 @@
+# One line for every build: build | date | what changed. The tests stop a build whose number has no line here.
+# The Changes and bugs tab of the church sheet is filled from this list.
+v144 | 2026-11-20 | Short finished sentences no longer wait up to 5 s; part of a verse shows only his words; three misheard phrases repaired; a learned fix must sound alike.
+v145 | 2026-11-20 | Top Live Translation tag hidden while translating (reversed in v146).
+v146 | 2026-11-20 | Top tag shown again; bottom note reads Please excuse any mistakes.
+v147 | 2026-11-20 | Top: Live Translation with the excuse line under it. Bottom: the church name from the title setting.
+v148 | 2026-11-20 | translate, translation, translator put first in the hearing's English word list.
+v149 | 2026-11-20 | A name heard as a non-word is settled by sound and context (first build).
+v150 | 2026-11-20 | Name by sound: one entry per name, the Bible spelling used for every spelling of it.
+v151 | 2026-11-21 | The report leaves 6 s after Stop, not after the 2 minute Return wait; Return after that sends a second part.
+v152 | 2026-11-21 | The report is sent when the page is hidden or closed; a talk left midway is reported in parts.
+v153 | 2026-11-21 | Translator rule from Mina's 09:23 talk: a thing that 'does not want' to do something means it won't (this word won't get written); a noun said first is the topic, not the object. Every build must now have its line in this file.

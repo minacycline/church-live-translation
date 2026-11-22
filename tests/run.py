@@ -53,6 +53,8 @@ async def main():
         if f.endswith((".js", ".json", ".png")) and os.path.isfile(f): shutil.copy(f, site)
     s = open(PAGE, encoding="utf-8").read().replace('<base href="../">', "")
     check("page has the test hook point", s.count("window.__churchTest={") == 1)
+    ver = (re.search(r'name="build" content="([^"]+)"', s) or [None, ""])[1]; ch = open("CHANGES.txt", encoding="utf-8").read() if os.path.exists("CHANGES.txt") else ""
+    check("this build has its line in CHANGES.txt", bool(ver) and any(l.startswith(ver + " |") for l in ch.splitlines()), ver)
     open(os.path.join(site, "index.html"), "w", encoding="utf-8").write(s.replace("window.__churchTest={", EXPORT + "window.__churchTest={"))
     class Q(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *a): pass
