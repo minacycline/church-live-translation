@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v148">
+<meta name="build" content="v152">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1389,6 +1389,55 @@ body.running #en p .draft{opacity:1}
     });
     return out.slice(0,4);
   }
+  // v149: a name the hearing wrote as a word that is no word at all (seen 2026-11-20: تيموثاوس heard three times as المساوس). The translator says which words
+  // it could not understand ("unknown"); for a word that is also not in the Arabic Bible, the liturgy or the term lists, the names that SOUND like it are offered
+  // in one short second request, and the translator uses one only if it fits the sentence. The choice is kept for the rest of this service only.
+  var SOUNDMAP={},SNDKEYS=null;
+  function sndVariants(n){var v=[n];if(/^(ال|لل)/.test(n)&&n.length>5)v.push(n.slice(2));if(/^[وبلفك]/.test(n)&&n.length>4){v.push(n.slice(1));if(/^[وبلفك](ال|لل)/.test(n)&&n.length>6)v.push(n.slice(3))}return v}
+  function sndStem(n){var v=sndVariants(n);return v[v.length-1]}
+  function oddWord(n){ // true only when no reading of the word is a known Arabic, church or Bible word
+    var bw=bibleWords(),ix=nameIdx();if(!bw||!ix.keys.length||n.length<4)return false;
+    var litw=LITWORDS||(nameGuesses('x'),LITWORDS)||{};
+    return !sndVariants(n).some(function(x){return bw[x]||litw[x]||ix.map[x]||COMMONDIALECT.indexOf(x)>=0});
+  }
+  function sndKeys(){
+    if(SNDKEYS)return SNDKEYS;var bw=bibleWords()||{},ix=nameIdx(),m={};
+    var canon={};ix.keys.forEach(function(k){if(k.length>=5&&k.indexOf(' ')<0&&bw[k]>=3){m[k]={ar:ix.map[k].ar,en:ix.map[k].en};canon[ix.map[k].en]=ix.map[k].ar}}); // v150: canon = the Bible spelling of a name, used for every other spelling of it
+    (window.COPTIC_TERMS||[]).forEach(function(t){var a=String(t[0]||''),b=String(t[1]||''),x=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة|مار|أبونا)\s+([^\s]{5,})$/.exec(a),w=x?x[1]:(a.indexOf(' ')<0?a:''),e=b.split(' ').pop();
+      if(!w||!/^[A-Z][a-z]{2,}/.test(e)||(!x&&b.indexOf(' ')>=0))return;var k=normAr(w);if(k.length>=5&&!m[k])m[k]={ar:canon[e]||w,en:e}});
+    SNDKEYS={map:m,keys:Object.keys(m)};return SNDKEYS;
+  }
+  function soundNames(n){ // names that sound like the word, also when the hearing lost the start of the name; best first, 4 at most
+    var sk=sndKeys(),vs=sndVariants(n).filter(function(v){return v.length>=4}),out=[];
+    sk.keys.forEach(function(k){var best=9;vs.forEach(function(v){for(var j=0;j<=3&&k.length-j>=4;j++){if(Math.abs(k.length-j-v.length)>2)continue;var d=wdist(v,k.slice(j))+0.5*j;if(d<best)best=d}});
+      var sc=best/k.length;if(sc<=0.34)out.push({s:sc,ar:sk.map[k].ar,en:sk.map[k].en})});
+    out.sort(function(a,b){return a.s-b.s});var seen={};return out.filter(function(x){if(seen[x.en])return false;seen[x.en]=1;return true}).slice(0,4); // v150: one entry per name
+  }
+  function soundApply(txt){ // a word already settled in this service is written as its name before the sentence is translated
+    if(!Object.keys(SOUNDMAP).length)return txt;
+    return txt.split(/(\s+)/).map(function(tok){var m=/^([^؀-ۿ]*)([؀-ۿ]+)([^؀-ۿ]*)$/.exec(tok);if(!m)return tok;var n=normAr(m[2]),to=SOUNDMAP[sndStem(n)];if(!to)return tok;
+      return m[1]+(/^[وف]/.test(n)&&n.length>sndStem(n).length&&!/^[وف]/.test(sndStem(n))?n.charAt(0):'')+to+m[3]}).join('');
+  }
+  async function nameBySound(ar,en,unknown,deadline,earlier){
+    var ws=normAr(ar).split(' '),todo=[];
+    unknown.slice(0,8).forEach(function(u){u=normAr(String(u||''));if(todo.length>=2||!u||u.indexOf(' ')>=0||ws.indexOf(u)<0||!oddWord(u)||todo.some(function(t){return t.w===u}))return;var c=soundNames(u);if(c.length)todo.push({w:u,c:c})});
+    if(!todo.length)return '';
+    if(deadline&&Date.now()+2500>deadline){dbg('NAME by sound skipped: no time left for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    var res=await chatCall([
+      {role:'system',content:'You finish one line of a live English translation of a Coptic Orthodox church service spoken in Egyptian Arabic. Speech recognition wrote a name as a word that does not exist. You are given the Arabic sentence, the English made so far, and the names that sound like the word. The English so far either left the word out or put a guess in its place (often a name or place taken from a nearby sentence). If one of the listed names clearly fits the sentence (who is speaking, who is written to, whose story it is), write the English again with that name where the unknown word stands, in place of any guess and of any dots left for it, and change nothing else. The words right beside the unknown word may be misheard too (for example "the people of" in front of the name of a person), so go by who or what the sentence is about. If none fits, or you are not sure, return the English exactly as given. Never use a name that is not in the list. Reply with JSON only: {"new":"...","names":[["the unknown word","the Arabic name you used"]]} with "names" [] when you used none.'},
+      {role:'user',content:(earlier?'Earlier (context only): '+earlier+'\n\n':'')+'Arabic sentence:\n'+ar+'\n\nEnglish so far:\n'+en+'\n\n'+todo.map(function(t){return 'Unknown word: '+t.w+'\nNames that sound like it: '+t.c.map(function(x){return x.ar+' ('+x.en+')'}).join('، ')}).join('\n\n')}
+    ],300,0,false,deadline);
+    var m=String(res.text||'').match(/\{[\s\S]*\}/);if(!m)return '';
+    var o;try{o=JSON.parse(m[0])}catch(e){return ''}
+    if(!o||typeof o.new!=='string'||!Array.isArray(o.names)||!o.names.length)return '';
+    var out=o.new.trim(),ok=[],lo=out.toLowerCase();
+    o.names.forEach(function(p){if(!Array.isArray(p)||p.length!==2)return;var w=normAr(String(p[0])),nm=normAr(String(p[1]));
+      todo.forEach(function(t){if(t.w!==w)return;t.c.forEach(function(x){if(normAr(x.ar)===nm&&lo.indexOf(String(x.en).toLowerCase())>=0&&en.toLowerCase().indexOf(String(x.en).toLowerCase())<0)ok.push([t.w,x.ar,x.en])})})});
+    var w0=en.split(/\s+/).length,w1=out.split(/\s+/).length;
+    if(!ok.length||!out||AR.test(out)||w1>w0+6||w1<w0-2){dbg('NAME by sound: no name used for '+todo.map(function(t){return t.w}).join(' '));return ''}
+    ok.forEach(function(x){SOUNDMAP[sndStem(x[0])]=x[1];dbg('NAME by sound: '+x[0]+' -> '+x[1]+' ('+x[2]+'), kept for this service')});
+    return out;
+  }
   function namesInSentence(txt){
     var ix=nameIdx(),seen={},out=[];
     normAr(txt).split(' ').forEach(function(w){var k=ix.map[w]||(/^[وبلفك]/.test(w)&&ix.map[w.slice(1)]);if(k&&!seen[k.ar]){seen[k.ar]=1;out.push(k.ar+' = '+k.en)}});
@@ -1711,19 +1760,23 @@ body.running #en p .draft{opacity:1}
   var lastModel='';
   function partialNew(t){var m=/"new"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(t);if(!m)return '';return m[1].replace(/\\"/g,'"').replace(/\\n/g,' ')}
   async function groq(ar,alts,prevItem,item,deadline){
+    var arSnd=soundApply(ar);if(arSnd!==ar){dbg('NAME by sound applied: '+arSnd.slice(0,80));ar=arSnd} // v149
     var ctxItems=lines.slice(-4,-1).filter(function(l){return l.en&&!/^\[/.test(l.en)});
     var prev=ctxItems.map(function(l){return l.ar+'\n→ '+l.en}).join('\n\n');
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en); // with two lanes the previous line may still be in flight: then it is simply not revised
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
-        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say; Arabic only in both parts, one answer each (no slashes, no brackets); [] if none.'},
-        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.verse?'\n\nIn the NEW sentence he quotes only PART of a Bible verse'+(item.verse.ref?' ('+item.verse.ref+')':'')+'. The church\'s English for the whole verse is: "'+String(item.verse.b).slice(0,600)+'". Use that wording for the words he actually said, and leave out every part of the verse that is not in the NEW sentence.':'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
+        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]],"unknown":["..."]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say, and never a guess for a word you cannot make sense of (that word goes in "unknown"); Arabic only in both parts, one answer each (no slashes, no brackets); [] if none. "unknown": single Arabic words copied exactly from the NEW sentence that are not a real word in Arabic or in the Egyptian dialect and not a name you know, so you cannot tell what was said (usually a name that was misheard). Leave such a word out of "new" (write the sentence without it, with no dots, dash or blank in its place) and never write it in English letters as if it were a name or a place; an ordinary word you understand is never listed; [] if none.'},
+        {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.verse?'\n\nIn the NEW sentence he quotes only PART of a Bible verse'+(item.verse.ref?' ('+item.verse.ref+')':'')+'. The church\'s English for the whole verse is: "'+String(item.verse.b).slice(0,600)+'". Use that wording for the words he actually said, and leave out every part of the verse that is not in the NEW sentence.':'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Never take a name or a place from it that is not in the Arabic text. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
     if(m){try{var o=JSON.parse(m[0]);if(o&&typeof o.new==='string'){
       if(canRevise&&typeof o.previous==='string'&&o.previous.trim()&&o.previous.trim()!==prevItem.en){var pr=o.previous.trim(),pi=lines.indexOf(prevItem),pp=pi>0&&lines[pi-1].en?lines[pi-1].en.trim():'';if(pp.length>3&&pr.indexOf(pp)===0){pr=pr.slice(pp.length).trim();dbg('REVISE: dropped a repeat of the sentence before')}var ow=prevItem.en.split(/\s+/).length,nw2=pr.split(/\s+/).length;if(pr&&nw2<=ow*1.5+3){prevItem.en=pr;prevItem.revised=true}else dbg('REVISE rejected: the previous sentence would grow from '+ow+' to '+nw2+' words')} // v118
       if(Array.isArray(o.fixes))o.fixes.slice(0,4).forEach(function(fx){if(Array.isArray(fx)&&fx.length===2&&learnFix(String(fx[0]),String(fx[1]),ar,o.new)&&item)item.fixes=(item.fixes||[]).concat([fx[0]+' \u2192 '+fx[1]])});
-      return o.new.trim();
+      var en1=o.new.trim();
+      var unk=(Array.isArray(o.unknown)?o.unknown:[]).map(String);if(Array.isArray(o.fixes))o.fixes.slice(0,4).forEach(function(fx){if(Array.isArray(fx)&&fx.length===2)String(fx[0]).split(/\s+/).forEach(function(w){if(w&&unk.indexOf(w)<0)unk.push(w)})}); // v150: a word the translator swapped for a guess is checked too, it rarely lists a word as unknown
+      if(unk.length&&en1){if(Array.isArray(o.unknown)&&o.unknown.length)dbg('UNKNOWN word(s): '+o.unknown.slice(0,3).join(' '));try{var en2=await nameBySound(ar,en1,unk,deadline,ctxItems.slice(-2).map(function(l){return l.en}).join(' '));if(en2)en1=en2}catch(e){dbg('NAME by sound failed: '+e.message)}} // v149
+      return en1;
     }}catch(e){}}
     var m2=/"new"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(out);if(m2)return m2[1].replace(/\\"/g,'"').trim();
     return out.replace(/^\{[\s\S]*"new"\s*:\s*"/,'').replace(/"\s*\}\s*$/,'');
@@ -3000,7 +3053,7 @@ body.running #en p .draft{opacity:1}
       try{$('gear').onclick();setTimeout(function(){var k=$('groqKey');k&&k.focus()},300)}catch(e){}
       return;
     }
-    running=true;ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
+    running=true;SOUNDMAP={};ui();lastResult=Date.now();DBG=[];DBG0=Date.now();sessionBegan=Date.now();partNo=0;limitTold=false;MISSED=[];setTimeout(function(){try{qFlush()}catch(e){}},8000);if(!txId||Date.now()-(txAll().slice(-1)[0]||{end:0}).end>20*60000){sermonMemo='';memoCount=0}dbg('START ios='+IOS);setStatus('Starting microphone…');txBegin();setTimeout(function(){try{var w0=Date.now();matchOne('الرب راعي فلا يعوزني شيء');fixNames('الرب راعي فلا يعوزني شيء');nameGuesses('الرب راعي فلا يعوزني شيء');dbg('LIBRARY of verses, prayers and names ready in '+(Date.now()-w0)+' ms')}catch(e){}},30); /* v138: built at Start, not when the first sentence arrives */
     sessFirst=true;var early=NO_BACKUP&&useWhisper()&&!!streamEngine()&&!replayEl;
     if(early){try{dgOpen()}catch(e){}try{healthAtStart()}catch(e){}} // v116 warm-up: the live line and the translator start getting ready while the microphone opens
     var ok=useWhisper()?await startWhisper():await startApple();
@@ -3044,10 +3097,15 @@ body.running #en p .draft{opacity:1}
   // v113: the closing screen keeps the device awake (30 minutes at most) and shows only the line, no logo
   // v141: the closing screen has two buttons. Stop first only pauses (the sentence in progress is finished and still translated); Return within 2 minutes carries on where it was,
   // after that the service is closed for real and Return only shows the last captions again. Start over closes the service and goes to the start screen.
-  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0;
-  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
-  function closeBack(){clearTimeout(softT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
-  function closeNew(){clearTimeout(softT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
+  // v151: the report used to leave only when the service closed for real, 2 minutes after Stop (or never, if the phone was locked first). It now leaves 6 seconds after Stop.
+  // If Return is pressed after that, what follows is reported as a second part with its own start time, so nothing is sent twice.
+  var softOn=false,softT=0,softWasPaused=false,SOFT_MS=120000,closeDimT=0,softRepT=0,SOFT_REP_MS=6000;
+  function softReport(){if(!softOn||!running||!sessionBegan||replayEl)return;
+    try{dbg('REPORT sent at Stop (the Return button stays for the rest of the '+Math.round(SOFT_MS/1000)+' s)');var rb=sessionBegan,snap={log:DBG.slice(),lines:lines.slice(),missed:MISSED.slice(),drop:DBGDROP,use:{req:claudeUse.req,inTok:claudeUse.inTok,outTok:claudeUse.outTok}};
+      sessionBegan=0;try{localStorage.removeItem('pendingReport')}catch(e){}reportSend(rb,false,snap)}catch(e){}}
+  function softStop(){softWasPaused=!!paused;softOn=true;dbg('STOP pressed: paused, the closing screen offers Return for '+Math.round(SOFT_MS/1000)+' s');try{pauseListening()}catch(e){}closingShow();try{repSafeNow()}catch(e){}clearTimeout(softRepT);softRepT=setTimeout(softReport,SOFT_REP_MS);clearTimeout(softT);softT=setTimeout(function(){if(softOn&&running){softOn=false;dbg('STOP final: Return was not pressed');stop()}},SOFT_MS)}
+  function closeBack(){clearTimeout(softT);clearTimeout(softRepT);closingHide();document.body.classList.remove('closed');if(softOn&&running){softOn=false;if(!sessionBegan){sessionBegan=Date.now();DBG=[];MISSED=[];dbg('SECOND PART: the first part of this service was already reported at Stop; this report holds what came after Return')}dbg('RETURN pressed: carrying on');if(!softWasPaused)resumeListening();else ui()}else{softOn=false;dbg('RETURN pressed: the service had ended, last captions shown');try{ui();render()}catch(e){}}}
+  function closeNew(){clearTimeout(softT);clearTimeout(softRepT);if(softOn&&running){softOn=false;stop()}softOn=false;dbg('START OVER pressed');closingHide()}
   function closeWakeUp(){try{var b=$('closingBtns');b.classList.remove('dim');clearTimeout(closeDimT);closeDimT=setTimeout(function(){b.classList.add('dim')},6000)}catch(e){}}
   var closeWake=null,closeWakeT=0;
   function closeWakeOff(){clearTimeout(closeWakeT);try{closeWake&&closeWake.release()}catch(e){}closeWake=null}
@@ -3083,7 +3141,7 @@ body.running #en p .draft{opacity:1}
   function reportBuild(began,test,snap){
     snap=snap||{log:DBG,lines:lines,missed:MISSED,drop:DBGDROP,use:claudeUse};
     var log=snap.log.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
-    var ls=snap.lines.filter(function(l){return l.en&&(!l.t0||l.t0>=began-2000)}), /* v118: earlier sessions' captions brought back on screen are not this session */lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
+    var ls=snap.lines.filter(function(l){return l.en&&!l.rp&&(!l.t0||l.t0>=began-2000)}), /* v118: earlier sessions' captions brought back on screen are not this session */lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
       device:navigator.userAgent,devCode:devCode(),sentences:ls.length, /* v129 */
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
@@ -3134,10 +3192,42 @@ body.running #en p .draft{opacity:1}
         try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e2){o.sentencesLeftOut=(o.sentencesLeftOut||0)+(o.text||[]).length;o.text=[];o.log=o.log.slice(-20000);try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e3){}}}
     }catch(e){}
   }
-  function repSafeNow(){if(sessionBegan&&running)repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
+  function partNew(b){return lines.some(function(l){return !l.rp&&l.t0&&l.t0>=b-2000})||MISSED.length>0}
+  function repSafeNow(){if(sessionBegan&&running&&(!partNo||partNew(sessionBegan)))repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
   setInterval(repSafeNow,30000);
-  window.addEventListener('pagehide',repSafeNow);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)repSafeNow()});
+  // v152: a report used to leave the device only after Stop (or the next time the app was opened). When the page is hidden or closed and something was translated,
+  // the report is now sent at that moment. It is first kept in the small store (pendingParts) and leaves it only when the server confirms; with no answer it joins the normal waiting list.
+  // If the service carries on after that (the page comes back), what follows is a new part with its own start time; a sentence already reported (l.rp) is never reported again.
+  var partNo=0,partFly={};
+  function partList(){try{var a=JSON.parse(localStorage.getItem('pendingParts')||'[]');return Array.isArray(a)?a:[]}catch(e){return []}}
+  function partKey(b){var m=/"began":"([^"]+)"/.exec(b);return m?m[1]:''}
+  function partDrop(key){try{var a=partList().filter(function(b){return partKey(b)!==key});if(a.length)localStorage.setItem('pendingParts',JSON.stringify(a));else localStorage.removeItem('pendingParts')}catch(e){}}
+  function partsToQueue(){ // parts whose direct send got no answer go to the normal waiting list (kept there first, removed here second, so none is lost)
+    var a=partList().filter(function(b){return !partFly[partKey(b)]});if(!a.length)return Promise.resolve();
+    return a.reduce(function(p,b){return p.then(function(){return qAdd(b)}).then(function(){partDrop(partKey(b))})},Promise.resolve()).then(function(){return qFlush()}).catch(function(){});
+  }
+  function hideSend(){
+    if(!CLAUDE_PROXY||!sessionBegan||!running||replayEl)return false;
+    var b0=sessionBegan,soft=!!softOn,mine=function(l){return !l.rp&&l.t0&&l.t0>=b0-2000};
+    if(!lines.some(function(l){return l.en&&mine(l)}))return false; // nothing translated in this part: the safety copy is enough
+    try{
+      dbg('REPORT sent because the page was hidden or closed'+(soft?' after Stop':' (if the page comes back, what follows is a new part)'));
+      var o=reportBuild(b0,false,null),body=reportFit(o),key=o.began,kept=false;
+      try{var a=partList();a.push(body);localStorage.setItem('pendingParts',JSON.stringify(a));kept=true}catch(e){}
+      try{localStorage.removeItem('pendingReport')}catch(e){}
+      if(!kept)qAdd(body).then(function(){return qFlush()}); // too large for the small store: straight to the waiting list
+      else{partFly[key]=1;var big=true;try{big=new Blob([body]).size>60000}catch(e){}
+        fetch(CLAUDE_PROXY+'/report',{method:'POST',headers:{'content-type':'application/json'},body:body,keepalive:!big}).then(function(r){delete partFly[key];if(r.ok)partDrop(key);else partsToQueue()},function(){delete partFly[key];partsToQueue()})}
+      var wait=lines.filter(function(l){return !l.en&&mine(l)}).map(function(l){return l.t0});
+      lines.forEach(function(l){if(l.en&&mine(l))l.rp=1});partNo++;
+      if(soft){clearTimeout(softRepT);sessionBegan=0}
+      else{sessionBegan=wait.length?Math.min.apply(null,wait)+2000:Date.now();DBG=[];MISSED=[];dbg('NEXT PART: what came before was reported when the page was hidden')}
+      return true;
+    }catch(e){return false}
+  }
+  function repHide(){var sent=false;try{sent=hideSend()}catch(e){}if(!sent)repSafeNow()}
+  window.addEventListener('pagehide',repHide);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)repHide();else partsToQueue()});
   function reportSend(began,test,snap){
     if(!CLAUDE_PROXY||!began)return; // v103: every session is reported, short ones too (the sheet marks them as short)
     var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
@@ -3157,7 +3247,7 @@ body.running #en p .draft{opacity:1}
     if(REPSTAT.server)t.push(REPSTAT.server+(REPSTAT.server===1?' report has':' reports have')+' not reached the Google Sheet yet (the mini PC may be off). The server tries again every hour.');
     if(REPSTAT.lost||REPSTAT.deviceLost)t.push((REPSTAT.lost+REPSTAT.deviceLost)+' report(s) could not be kept. Tell Claude.');
     return t.join(' ')}
-  setTimeout(function(){try{var pr=localStorage.getItem('pendingReport');if(pr){localStorage.removeItem('pendingReport');qAdd(pr).then(qFlush);return}}catch(e){}qFlush()},7000);
+  setTimeout(function(){partsToQueue().then(function(){try{var pr=localStorage.getItem('pendingReport');if(pr){localStorage.removeItem('pendingReport');qAdd(pr).then(qFlush);return}}catch(e){}qFlush()})},7000);
   // v99 usage: the owner's settings show how much of today's limit is used
   function usageShow(){
     if(!CLAUDE_PROXY)return;var ow=document.getElementById('ownerArea');if(!ow)return;var el=document.getElementById('usageNote');
