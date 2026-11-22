@@ -114,6 +114,15 @@ async def main():
           H.onFinal('المحبة لا تسقط أبدا يا أحبائي',[]);await w(2500);$('go').click();await w(7500);$('closeNew').click();await w(7500);return o}"""); R = M["reports"]; r2 = R[1] if len(R) > 1 else {}
         await pg.close()
         check("Return after the report was sent: the rest is a second part, nothing sent twice", b0["b0"] == 0 and b0["b1"] > 0 and b0["st"] == 1 and len(R) == 2 and len(r2.get("text", [])) == 1 and r2["text"][0]["ar"] != r1["text"][0]["ar"] and r2.get("log", "").split("s ", 1)[-1].startswith("SECOND PART"), [b0, len(R), str(r2)[:300]])
+        M["reports"] = []; pg = await page()
+        h = await pg.evaluate("""async()=>{const H=window.__h,$=i=>document.getElementById(i),w=ms=>new Promise(r=>setTimeout(r,ms)),o={};let hid=false;Object.defineProperty(document,'hidden',{get:()=>hid,configurable:true});
+          const hide=v=>{hid=v;document.dispatchEvent(new Event('visibilitychange'))};await w(3000);H.run(true);H.began(Date.now());hide(true);await w(800);o.safe=!!localStorage.getItem('pendingReport');hide(false);
+          H.onFinal('ربنا موجود معانا النهارده',[]);await w(2500);const b=H.began();hide(true);window.dispatchEvent(new Event('pagehide'));await w(1200);o.moved=H.began()>b;o.st=H.state();o.left=localStorage.getItem('pendingParts');o.safe2=!!localStorage.getItem('pendingReport');hide(false);
+          H.onFinal('المحبة لا تسقط أبدا يا أحبائي',[]);await w(2500);$('go').click();await w(1500);hide(true);await w(1200);o.b3=H.began();hide(false);await w(7500);return o}"""); R = M["reports"]
+        await pg.close()
+        check("page hidden before anything was translated: nothing sent, safety copy kept", h["safe"], h)
+        check("page hidden or closed: the report leaves at once and the service carries on", len(R) >= 1 and len(R[0].get("text", [])) == 1 and "REPORT sent because the page was hidden" in R[0].get("log", "") and h["moved"] and h["st"] == 1 and not h["left"] and not h["safe2"], [h, len(R), str(R[:1])[:200]])
+        check("page left right after Stop: the rest leaves at once, no sentence twice, nothing more later", len(R) == 2 and len(R[1].get("text", [])) == 1 and R[1]["text"][0]["ar"] != R[0]["text"][0]["ar"] and h["b3"] == 0, [h, len(R), str(R[1:])[:300]])
         pg = await page()
         g = await pg.evaluate("""()=>{const H=window.__h,t=document.getElementById('liveTag'),s=()=>getComputedStyle(t).display;H.run(true);document.body.classList.add('running');const a=s();t.classList.add('weak');const b=s();t.classList.remove('weak');document.body.classList.remove('running');H.run(false);return {normal:a,weak:b,top:t.textContent,note:document.getElementById('betaNote').textContent,title:document.getElementById('title').textContent}}""")
         await pg.close()

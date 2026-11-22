@@ -3,7 +3,7 @@
   function reportBuild(began,test,snap){
     snap=snap||{log:DBG,lines:lines,missed:MISSED,drop:DBGDROP,use:claudeUse};
     var log=snap.log.slice(),cnt=function(re){return log.filter(function(x){return re.test(x)}).length};
-    var ls=snap.lines.filter(function(l){return l.en&&(!l.t0||l.t0>=began-2000)}), /* v118: earlier sessions' captions brought back on screen are not this session */lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
+    var ls=snap.lines.filter(function(l){return l.en&&!l.rp&&(!l.t0||l.t0>=began-2000)}), /* v118: earlier sessions' captions brought back on screen are not this session */lat=ls.filter(function(l){return l.t0&&l.t1}).map(function(l){return (l.t1-l.t0)/1000}).sort(function(a,b){return a-b});
     return {app:(document.querySelector('meta[name=build]')||{}).content,page:location.pathname,test:!!test,began:new Date(began).toISOString(),ended:new Date().toISOString(),minutes:Math.round((Date.now()-began)/6000)/10,
       device:navigator.userAgent,devCode:devCode(),sentences:ls.length, /* v129 */
       delay:{median:lat.length?lat[Math.floor(lat.length/2)]:null,slowest:lat.length?lat[lat.length-1]:null},
@@ -54,10 +54,42 @@
         try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e2){o.sentencesLeftOut=(o.sentencesLeftOut||0)+(o.text||[]).length;o.text=[];o.log=o.log.slice(-20000);try{localStorage.setItem('pendingReport',JSON.stringify(o))}catch(e3){}}}
     }catch(e){}
   }
-  function repSafeNow(){if(sessionBegan&&running)repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
+  function partNew(b){return lines.some(function(l){return !l.rp&&l.t0&&l.t0>=b-2000})||MISSED.length>0}
+  function repSafeNow(){if(sessionBegan&&running&&(!partNo||partNew(sessionBegan)))repSafe(sessionBegan,!!replayName&&/LIVE TEST/.test(DBG[0]||''),null,'the page was closed or reloaded without Stop')}
   setInterval(repSafeNow,30000);
-  window.addEventListener('pagehide',repSafeNow);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)repSafeNow()});
+  // v152: a report used to leave the device only after Stop (or the next time the app was opened). When the page is hidden or closed and something was translated,
+  // the report is now sent at that moment. It is first kept in the small store (pendingParts) and leaves it only when the server confirms; with no answer it joins the normal waiting list.
+  // If the service carries on after that (the page comes back), what follows is a new part with its own start time; a sentence already reported (l.rp) is never reported again.
+  var partNo=0,partFly={};
+  function partList(){try{var a=JSON.parse(localStorage.getItem('pendingParts')||'[]');return Array.isArray(a)?a:[]}catch(e){return []}}
+  function partKey(b){var m=/"began":"([^"]+)"/.exec(b);return m?m[1]:''}
+  function partDrop(key){try{var a=partList().filter(function(b){return partKey(b)!==key});if(a.length)localStorage.setItem('pendingParts',JSON.stringify(a));else localStorage.removeItem('pendingParts')}catch(e){}}
+  function partsToQueue(){ // parts whose direct send got no answer go to the normal waiting list (kept there first, removed here second, so none is lost)
+    var a=partList().filter(function(b){return !partFly[partKey(b)]});if(!a.length)return Promise.resolve();
+    return a.reduce(function(p,b){return p.then(function(){return qAdd(b)}).then(function(){partDrop(partKey(b))})},Promise.resolve()).then(function(){return qFlush()}).catch(function(){});
+  }
+  function hideSend(){
+    if(!CLAUDE_PROXY||!sessionBegan||!running||replayEl)return false;
+    var b0=sessionBegan,soft=!!softOn,mine=function(l){return !l.rp&&l.t0&&l.t0>=b0-2000};
+    if(!lines.some(function(l){return l.en&&mine(l)}))return false; // nothing translated in this part: the safety copy is enough
+    try{
+      dbg('REPORT sent because the page was hidden or closed'+(soft?' after Stop':' (if the page comes back, what follows is a new part)'));
+      var o=reportBuild(b0,false,null),body=reportFit(o),key=o.began,kept=false;
+      try{var a=partList();a.push(body);localStorage.setItem('pendingParts',JSON.stringify(a));kept=true}catch(e){}
+      try{localStorage.removeItem('pendingReport')}catch(e){}
+      if(!kept)qAdd(body).then(function(){return qFlush()}); // too large for the small store: straight to the waiting list
+      else{partFly[key]=1;var big=true;try{big=new Blob([body]).size>60000}catch(e){}
+        fetch(CLAUDE_PROXY+'/report',{method:'POST',headers:{'content-type':'application/json'},body:body,keepalive:!big}).then(function(r){delete partFly[key];if(r.ok)partDrop(key);else partsToQueue()},function(){delete partFly[key];partsToQueue()})}
+      var wait=lines.filter(function(l){return !l.en&&mine(l)}).map(function(l){return l.t0});
+      lines.forEach(function(l){if(l.en&&mine(l))l.rp=1});partNo++;
+      if(soft){clearTimeout(softRepT);sessionBegan=0}
+      else{sessionBegan=wait.length?Math.min.apply(null,wait)+2000:Date.now();DBG=[];MISSED=[];dbg('NEXT PART: what came before was reported when the page was hidden')}
+      return true;
+    }catch(e){return false}
+  }
+  function repHide(){var sent=false;try{sent=hideSend()}catch(e){}if(!sent)repSafeNow()}
+  window.addEventListener('pagehide',repHide);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)repHide();else partsToQueue()});
   function reportSend(began,test,snap){
     if(!CLAUDE_PROXY||!began)return; // v103: every session is reported, short ones too (the sheet marks them as short)
     var body;try{body=reportFit(reportBuild(began,test,snap))}catch(e){dbg('REPORT could not be built: '+e.message);try{localStorage.setItem('reportsLost',String((+localStorage.getItem('reportsLost')||0)+1))}catch(x){}return}
@@ -77,7 +109,7 @@
     if(REPSTAT.server)t.push(REPSTAT.server+(REPSTAT.server===1?' report has':' reports have')+' not reached the Google Sheet yet (the mini PC may be off). The server tries again every hour.');
     if(REPSTAT.lost||REPSTAT.deviceLost)t.push((REPSTAT.lost+REPSTAT.deviceLost)+' report(s) could not be kept. Tell Claude.');
     return t.join(' ')}
-  setTimeout(function(){try{var pr=localStorage.getItem('pendingReport');if(pr){localStorage.removeItem('pendingReport');qAdd(pr).then(qFlush);return}}catch(e){}qFlush()},7000);
+  setTimeout(function(){partsToQueue().then(function(){try{var pr=localStorage.getItem('pendingReport');if(pr){localStorage.removeItem('pendingReport');qAdd(pr).then(qFlush);return}}catch(e){}qFlush()})},7000);
   // v99 usage: the owner's settings show how much of today's limit is used
   function usageShow(){
     if(!CLAUDE_PROXY)return;var ow=document.getElementById('ownerArea');if(!ow)return;var el=document.getElementById('usageNote');
