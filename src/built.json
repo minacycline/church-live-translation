@@ -1,8 +1,8 @@
 {
  "admin/index.html": "43d52991bd2c2e77a59b0f5b080a5784c7573e896e2b5cc7503dce765418594b",
  "index.html": "ae5a5ca1870dc77c4521893c03a10ac57068e113110dcbd6b88352657fee98b5",
- "test/admin/index.html": "3a3928790acae2a732db84d5608b68eda97fc2ed8c3fcc57172c2a65b5a88870",
- "test/index.html": "b66b097a06db461f5312c0e97d4425171c829fcee80e3d6f93613f1ee575eee9",
+ "test/admin/index.html": "b7f81eebb42dc1a22565617aa582e2317ee2d3d851b4d5a085182da23cbe83e2",
+ "test/index.html": "9e0c58b6b639b9c3b5990f1419fd4c7c2305542996c03b6d7205726934943245",
  "version:live": "v152",
- "version:test": "v152"
+ "version:test": "v153"
 }
