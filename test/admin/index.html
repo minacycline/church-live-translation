@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v155">
+<meta name="build" content="v156">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -3652,7 +3652,7 @@ body.running #en p .draft{opacity:1}
   // church sheet (weekly, Sunday night). This window lists them per sermon: date, time, device and place on top, then one row per
   // mistake with the minute, the Arabic word, the English that was typed and the English it should be. Colour = how sure the
   // suggestion is: green sure, yellow unsure, red very unsure (no suggestion, Mina types what was said). A checkbox on the side of
-  // every row, Select all / Select all green, then Approve or Not a mistake. Approving teaches nothing by itself: approved rows
+  // every row, Select all / Select all green, then Approve, Not a mistake or Dismiss (v156: a slip not worth a fix, e.g. the microphone was far; never taught). Approving teaches nothing by itself: approved rows
   // wait in the sheet until a build uses them. The same list is in the Qik dashboard (Church Translation, Sermon Debug).
   // Road: this page -> n8n webhook church-sermon-debug on the mini (it asks the church server /check whether the sign-in is real
   // before it reads or writes anything) -> the sheet. When the mini is off, the window says so and nothing is lost.
@@ -3727,7 +3727,7 @@ body.running #en p .draft{opacity:1}
         +'</div></div>';
     }
     function doneHtml(r){
-      return '<div class="sdd" data-id="'+esc(r.id)+'"><b>'+esc(r.min||'?')+'</b><span><b>'+(r.dec==='approved'?'Approved':'Not a mistake')+'</b> '+esc(r.typed)+(r.dec==='approved'?' → '+esc(r.own||r.sug):'')+(r.taught?' <small>(in '+esc(r.taught)+')</small>':'')+'</span>'+(r.taught?'':'<button type="button" class="lnk" data-sd="undo">Undo</button>')+'</div>';
+      return '<div class="sdd" data-id="'+esc(r.id)+'"><b>'+esc(r.min||'?')+'</b><span><b>'+(r.dec==='approved'?'Approved':r.dec==='dismissed'?'Dismissed':'Not a mistake')+'</b> '+esc(r.typed)+(r.dec==='approved'?' → '+esc(r.own||r.sug):'')+(r.taught?' <small>(in '+esc(r.taught)+')</small>':'')+'</span>'+(r.taught?'':'<button type="button" class="lnk" data-sd="undo">Undo</button>')+'</div>';
     }
     var dlgS=document.createElement('dialog');dlgS.id='sdDlg';
     dlgS.innerHTML='<h2>🔎 Sermon Debug</h2><div id="sdMsg" class="cnote" role="status"></div><div id="sdBody"></div>'
@@ -3748,7 +3748,7 @@ body.running #en p .draft{opacity:1}
           if(pend.length){
             h+='<div class="sdbar"><button type="button" data-sd="all">Select all</button><button type="button" data-sd="green">Select all green</button><button type="button" class="lnk" data-sd="none">Clear</button></div>';
             h+=pend.map(rowHtml).join('');
-            h+='<div class="sdact"><button type="button" class="go" data-sd="approve"'+(nsel&&!saving?'':' disabled')+'>Approve'+(nsel?' ('+nsel+')':'')+'</button><button type="button" data-sd="reject"'+(nsel&&!saving?'':' disabled')+'>Not a mistake'+(nsel?' ('+nsel+')':'')+'</button></div>';
+            h+='<div class="sdact"><button type="button" class="go" data-sd="approve"'+(nsel&&!saving?'':' disabled')+'>Approve'+(nsel?' ('+nsel+')':'')+'</button><button type="button" data-sd="reject"'+(nsel&&!saving?'':' disabled')+'>Not a mistake'+(nsel?' ('+nsel+')':'')+'</button><button type="button" data-sd="dismiss"'+(nsel&&!saving?'':' disabled')+'>Dismiss'+(nsel?' ('+nsel+')':'')+'</button></div>';
           }
           if(done.length){h+='<button type="button" class="lnk sddn" data-sd="done">'+(DOPEN[s.key]?'Hide':'Show')+' reviewed ('+done.length+')</button>';if(DOPEN[s.key])h+=done.map(doneHtml).join('')}
         }
@@ -3786,7 +3786,7 @@ body.running #en p .draft{opacity:1}
       if(saving)return;var s=sermons().filter(function(x){return x.key===key})[0];if(!s)return;
       var rows=s.rows.filter(function(r){return !r.dec&&SEL[r.id]});if(!rows.length)return;
       if(dec==='approved'){var need=rows.filter(function(r){return r.sure==='red'&&!String(ownOf(r)||'').trim()});if(need.length){say('Type what it should say on the red row'+(need.length>1?'s':'')+' first, or untick '+(need.length>1?'them':'it')+' ('+need.map(function(r){return r.min}).join(', ')+').','bad');draw();return}}
-      send(rows.map(function(r){return {row:r.row,id:r.id,dec:dec,own:dec==='approved'?String(ownOf(r)||'').trim():''}}),dec==='approved'?' approved ✓':' marked not a mistake ✓');
+      send(rows.map(function(r){return {row:r.row,id:r.id,dec:dec,own:dec==='approved'?String(ownOf(r)||'').trim():''}}),dec==='approved'?' approved ✓':dec==='dismissed'?' dismissed ✓':' marked not a mistake ✓');
     }
     $('sdBody').addEventListener('input',function(ev){var t=ev.target;if(t&&t.getAttribute('data-sd')==='own'){var r=t.closest('.sdr');if(r)OWN[r.getAttribute('data-id')]=t.value}});
     $('sdBody').addEventListener('change',function(ev){var t=ev.target;if(t&&t.getAttribute('data-sd')==='pick'){var r=t.closest('.sdr');if(!r)return;var id=r.getAttribute('data-id');if(t.checked)SEL[id]=1;else delete SEL[id];say('');draw()}});
@@ -3802,6 +3802,7 @@ body.running #en p .draft{opacity:1}
       if(a==='done'){DOPEN[key]=!DOPEN[key];draw();return}
       if(a==='approve'){decide(key,'approved');return}
       if(a==='reject'){decide(key,'rejected');return}
+      if(a==='dismiss'){decide(key,'dismissed');return}
       if(a==='undo'){var r=(ROWS||[]).filter(function(v){return v.id===id})[0];if(r&&!r.taught&&!saving)send([{row:r.row,id:r.id,dec:'',own:''}],' put back in the list ✓');return}
     });
     b.onclick=function(){if(!cfgTok()){admSignOut();return}say('');draw();try{dlgS.showModal()}catch(e){dlgS.setAttribute('open','')}load()};
