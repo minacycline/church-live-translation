@@ -12,6 +12,56 @@
     if(!a.length&&!e.length)return '';var out=a.join('؛ ');if(out.length>450)out=out.slice(0,450);var oe=e.join('; ');if(oe.length>450)oe=oe.slice(0,450);
     return '\n\nToday is '+c.name+' in the Coptic calendar. The Synaxarium commemorates today (the speaker may name these saints or feasts):'+(out?'\nArabic: '+out:'')+(oe?'\nEnglish (use these spellings for the names): '+oe:'');
   }
+  // v157: the app knows where today falls in the church year. The hearing is told the month, the season's words and the day's saints first, and the translator is always told the date.
+  var COPTIC_MONTHS_AR=['توت','بابه','هاتور','كيهك','طوبة','أمشير','برمهات','برمودة','بشنس','بؤونة','أبيب','مسرى','النسيء'];
+  function orthodoxEaster(y){var a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7,s=d+e+114;return new Date(y,Math.floor(s/31)-1,s%31+1+13)} // Julian reckoning plus 13 days: right for 1900 to 2099
+  function monthsNear(c){var o=[c.m];if(c.d>=24)o.push(c.m%13+1);if(c.d<=6)o.push((c.m+11)%13+1);return o} // this month, and the next or the last one when the day is close to it
+  function churchSeasons(dt){
+    dt=dt||new Date();var c=copticDate(dt),m=c.m,d=c.d,out=[],E=orthodoxEaster(dt.getFullYear()),n=Math.round((new Date(dt.getFullYear(),dt.getMonth(),dt.getDate())-E)/86400000);
+    function add(en,ar){out.push({en:en,ar:ar})}
+    if(m===1&&d<=16)add('the Coptic New Year (Nayrouz)',['عيد النيروز','النيروز','السنة القبطية','عيد الشهداء']);
+    if(m===1&&d>=15&&d<=19)add('the Feast of the Cross',['عيد الصليب','الصليب المقدس','الملكة هيلانة']);
+    if((m===3&&d>=16)||(m===4&&d<=28))add('the Nativity Fast',['صوم الميلاد']);
+    if(m===4)add('the month of Kiahk and its Midnight Praises',['تسبحة كيهك','سبعة وأربعة','الثيؤطوكية']);
+    if((m===4&&d>=26)||(m===5&&d<=6))add('the Feast of the Nativity',['عيد الميلاد','برامون الميلاد','الميلاد المجيد','بيت لحم','المجوس']);
+    if(m===5&&d>=4&&d<=7)add('the Feast of the Circumcision',['عيد الختان']);
+    if(m===5&&d>=8&&d<=13)add('the Feast of Theophany',['عيد الغطاس','برامون الغطاس','اللقان','يوحنا المعمدان','نهر الأردن','عرس قانا الجليل']);
+    if(m===6&&d>=6&&d<=8)add('the Feast of the Entry into the Temple',['عيد دخول المسيح الهيكل','سمعان الشيخ']);
+    if(m===7&&d>=27)add('the Feast of the Annunciation',['عيد البشارة','الملاك غبريال']);
+    if(m===9&&d>=22&&d<=24)add('the Feast of the Entry into Egypt',['عيد دخول المسيح أرض مصر','العائلة المقدسة']);
+    if(m===11&&d>=3&&d<=5)add('the Feast of the Apostles',['عيد الرسل','بطرس وبولس']);
+    if(m===12&&d<=16)add('the Fast of the Virgin',['صوم العذراء','عيد العذراء','صعود جسد العذراء']);
+    if(m===12&&d>=11&&d<=13)add('the Feast of the Transfiguration',['عيد التجلي','جبل طابور']);
+    if(n>=-69&&n<=-66)add('the Fast of Jonah (Nineveh)',['صوم يونان','صوم نينوى','يونان النبي','أهل نينوى','فصح يونان']);
+    if(n>=-62&&n<=-56)add('the week before Great Lent',['أحد الرفاع','الصوم الكبير']);
+    if(n>=-55&&n<=-9){var ar=['الصوم الكبير','الصوم الأربعيني'];[[-49,'أحد الكنوز'],[-42,'أحد التجربة'],[-35,'أحد الابن الضال'],[-28,'أحد السامرية'],[-21,'أحد المخلع'],[-14,'أحد المولود أعمى'],[-7,'أحد الشعانين']].forEach(function(x){if(Math.abs(n-x[0])<=6)ar.push(x[1])});add('Great Lent',ar)}
+    if(n>=-8&&n<=-1)add('Holy Week',['سبت لعازر','أحد الشعانين','أسبوع الآلام','البصخة المقدسة','خميس العهد','الجمعة العظيمة','سبت النور','ليلة أبو غلمسيس','الجلجثة']);
+    if(n>=0&&n<=49)add('the Holy Fifty Days after the Resurrection',['عيد القيامة','الخماسين المقدسة','المسيح قام','بالحقيقة قام','أحد توما']);
+    if(n>=35&&n<=42)add('the Feast of the Ascension',['عيد الصعود']);
+    if(n>=43&&n<=50)add('the Feast of Pentecost',['عيد العنصرة','حلول الروح القدس','صلاة السجدة']);
+    if(n>=50&&m>=9&&(m<11||(m===11&&d<=4)))add("the Apostles' Fast",['صوم الرسل','عيد الرسل']);
+    return out;
+  }
+  function saintNames(dt){ // the saints of the day as short names the hearing can expect (القديس يوسطس), taken from the Synaxarium lines
+    var S2=window.SYNAXARIUM;if(!S2)return [];var c=copticDate(dt),k=('0'+c.m).slice(-2)+'-'+('0'+c.d).slice(-2),out=[];
+    (S2[k]||[]).forEach(function(e){
+      e=String(e).replace(/(^|\s)أل/g,'$1ال').replace(/[.,،:؛()]/g,' ');var re=/(?:^|\s)(القديس[ةه]?|البابا|ال[أا]نبا|الشهيد[ةه]?|الملاك)\s+([\u0621-\u064A]+)(?:\s+([\u0621-\u064A]+))?/g,x;
+      while((x=re.exec(e))){var t=x[1].replace(/ه$/,'ة').replace('الانبا','الأنبا'),w=x[2];if(/^(?:[أا]بو|[أا]با|[أا]بي|مار|عبد)$/.test(w)&&x[3])w+=' '+x[3];var s=t+' '+w;if(w.length>=3&&out.indexOf(s)<0&&out.length<6)out.push(s)}
+    });
+    return out;
+  }
+  function dateTerms(dt){ // Arabic words the hearing is told to expect today
+    var c=copticDate(dt),out=[];function put(t){if(t&&out.indexOf(t)<0&&out.length<24)out.push(t)}
+    monthsNear(c).forEach(function(i){put('شهر '+COPTIC_MONTHS_AR[i-1]);put(COPTIC_MONTHS_AR[i-1])});
+    churchSeasons(dt).forEach(function(s){s.ar.forEach(put)});
+    try{saintNames(dt).forEach(put)}catch(e){}
+    return out;
+  }
+  function dateTT(dt){var c=copticDate(dt);return monthsNear(c).map(function(i){return ['شهر '+COPTIC_MONTHS_AR[i-1],'the month of '+COPTIC_MONTHS[i-1]]})}
+  function dateNote(dt){
+    var c=copticDate(dt),s=churchSeasons(dt).map(function(x){return x.en});
+    return '\n\nToday is '+c.name+' in the Coptic calendar (Arabic: '+c.d+' '+COPTIC_MONTHS_AR[c.m-1]+')'+(s.length?', in '+s.join(' and '):'')+'. When he names the month, a fast or a feast, it is most likely this one.';
+  }
   function readingTitle(){try{var o=JSON.parse(S.get('autoReading','{}'));return o.date===today()?(o.title||''):''}catch(e){return ''}}
   function updateMemo(){
     if(memoBusy||!aiOK())return;
