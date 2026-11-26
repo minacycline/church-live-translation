@@ -81,11 +81,11 @@
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
     },1500);
-    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
+    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();try{lowReset()}catch(x){}
     proc.onaudioprocess=function(e){if(!ctx)return; // v103: a late sound frame after the microphone closed is ignored
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
-      if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now)}catch(x){}return}
+      if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now);lowReset()}catch(x){}return}
       // voice = clearly louder than the quiet moments, and not tiny next to the loudest recent speech
       // the noise floor only learns from quiet moments and never rises while someone is talking (a long sentence must not become "noise")
       peakLvl=Math.max(rms,peakLvl*0.98);
@@ -94,7 +94,7 @@
       var thresh=Math.max(noisy?0.004:0.0016,noiseFloor*(noisy?3:2.5),peakLvl*0.04,(LEARN.speech||0)*0.15),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
       if(voice&&!replayEl){speechSum+=rms;speechN++;if(speechN>=400){LEARN.speech=Math.round(((LEARN.speech||speechSum/speechN)*0.7+(speechSum/speechN)*0.3)*1e5)/1e5;LEARN.floor=Math.round(Math.min(0.012,noiseFloor)*1e5)/1e5;learnSave();dbg('LEARNED mic: speech level '+LEARN.speech+' room floor '+LEARN.floor);speechSum=0;speechN=0}}
-      meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);
+      meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);try{lowTick(rms,voice,now)}catch(x){}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){if(now-lastVoiceAt>700)uttStart=now;lastVoiceAt=now}
       if(voice){if(!chunkSpeechStart)chunkSpeechStart=now;speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
