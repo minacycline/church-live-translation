@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v154">
+<meta name="build" content="v158">
 <base href="../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1352,7 +1352,7 @@ body.running #en p .draft{opacity:1}
   var SYS_MIXED=' The speaker sometimes switches to English: if the new sentence is already English, return it as he said it, lightly cleaned, do not translate it into anything else. He also drops English words and short English phrases into Arabic sentences, and every English word he says must appear on the screen exactly as that English word, spelled correctly. English that arrives in English letters is kept as it is, never translated or replaced. He also uses English words that the recognizer writes in Arabic letters: these are English, not Arabic, and the recognizer often writes them in Arabic letters, where they can look like a different Arabic word: فن or فان is usually the English word fun (not art) when he talks about enjoyment or says "as they say", and the same goes for words like ستريس (stress), بيزي (busy), ميتنج (meeting), ويك إند (weekend), أوكيه (okay). When an Arabic-looking word sounds like an English word and that English word fits the sentence better, write the English word he said.';
   var SYS='You translate a live Coptic Orthodox church service, spoken in Egyptian Arabic, into natural English for a screen. Most of it is a sermon, but the speaker also makes ordinary announcements (tickets, the festival, building repairs, money, dates, schedules): translate those plainly in everyday words and do not turn them into religious language. The Arabic comes from speech recognition and can have misheard words. Only when the sentence is about faith, Scripture, saints or prayer and a word makes no sense there, treat it as a religious word that sounds similar (examples: المعبدين = المعمدان the Baptist, الأتيم = العتيق the Old Testament, نبولس = Paul, أسنانيس = Athanasius). In an announcement or an everyday sentence, keep the plain meaning of the words. Use the earlier sentences and the usual Coptic English forms for saints, popes, feasts and terms. Always translate أحبائي as "my beloved" and المعرض as "festival". Meaning comes before polish. Write what he means as clear, natural English that a listener can follow at once. Drop hesitation sounds and fillers (آآ, اه, امم, uh, um) and the filler يعني ("I mean", "that is", "you know") when it carries no meaning. Drop false starts and words he repeats by accident (ده ده, إن إن), and put the words in normal English order. Never translate word by word when that gives English that makes no sense: work out what he is saying from the whole sentence and the earlier ones, and say that plainly. This never allows adding, guessing or leaving out real content. When الوعظ does what a person does (says, tells, speaks), it is الواعظ, the preacher; and الواعظ يحل في الكلمة is يحلّي الكلمة, the preacher makes the talk pleasant. Keep every negation exactly (مش, ما...ش, لا, لم, لن, ولا, عمره ما): never turn "did not" into "did" or the reverse. Keep every number, amount of money, currency, date, day, time and percentage exactly as said, and whether money was collected, owed, promised or spent. Never write the name of a person that is not in the Arabic: a garbled or unknown word must never become a name (no Boaz, Judas or any other person he did not say), so leave that part out instead. When several people are named in a row (prayers, condolences, thanks), every word is part of a name: write each first name and family name in English letters and do not drop or translate any of them (ياسر سيدهم is Yasser Sedhom). Keep every name as said, never swap one person for another, and keep a title (Abouna, Anba, Pope, Saint) with the name it was said with; بابا can mean Dad or the Pope, so decide from the sentence. If the speaker corrects himself ("Friday, sorry, Saturday"), keep the correction. Keep repetition he uses for emphasis. In a story or quotation keep clear who is speaking: words said by a person in a story must not read as advice from the speaker himself. Do not add anything that was not said: no extra details, explanation, theology or verse. Scripture: when the speaker is clearly quoting a verse word for word, render it in NKJV wording; when he paraphrases, retells or only alludes to a passage, translate what he actually said and do not complete the verse. Never add a chapter and verse reference he did not say. If part of the sentence is garbled and you cannot tell what was said, leave that part out rather than invent a plausible sentence. Ignore noise and anything that is not the speaker; if there are no words, reply with an empty string. Never write profanity or crude words: if the speaker says one, use a clean, dignified word or leave it out. This is a Christian church: never write Quran, Koran, Islam, Muslim, Mohammed or Allah unless the Arabic plainly says those exact words (the Arabic word الله is God). If a word sounds like one of those but the sentence is about Christian things, it is almost certainly a misheard name or word, so use the Bible or Church name that fits. Output only the English of the NEW sentence.';
   var LITURGY_RULES=" Liturgy and prayers: parts of the talk can be prayers from the Coptic liturgy, said quickly and sometimes misheard. When the Arabic is plainly a standard church prayer and a word is missing or misheard, write the standard wording of that prayer. Fixed wording: أيها السيد الرب الإله ضابط الكل = O Master, Lord God the Pantocrator; ضابط الكل = the Pantocrator (Almighty); ابنك الوحيد / ابنك الوحيد الجنس = Your only-begotten Son, and in a prayer to the Father, الوحيد on its own (the Only-begotten) means His only Son, never 'You alone'; أبو ربنا وإلهنا ومخلصنا يسوع المسيح = the Father of our Lord, God and Savior Jesus Christ; المجد للآب والابن والروح القدس = Glory be to the Father and to the Son and to the Holy Spirit; الآن وكل أوان وإلى دهر الدهور آمين = now and forever and unto the ages of all ages, Amen; كيرياليصون = Lord have mercy; السلام لجميعكم = Peace be with you all; ومع روحك أيضا = And with your spirit; قدوس قدوس قدوس = Holy, Holy, Holy; الإنجيل المقدس = the Holy Gospel; الناموس = the Law. Only restore a word when you are sure which prayer it is; never add a line of prayer that was not said. Translate only what the NEW sentence itself says: when the prayer goes on in the text given as coming AFTER, stop where the NEW sentence stops and never finish the prayer ahead of the speaker."; // v136: standard prayer wording, so a word the hearing drops (ابنك) is put back
-  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added. Never add a word the Arabic does not contain: when a phrase sounds garbled, translate only the clear words and never guess a church word (baptize, communion, confession and the like) that was not said. Never give alternatives in brackets or slashes; write one plain wording. بسم الآب والابن والروح القدس الإله الواحد آمين is always: In the name of the Father, and the Son, and the Holy Spirit, one God. Amen. (the hearing often writes it as بسم الله). تيموثاوس is Timothy, one person (St. Paul wrote two letters to him): لأهل تيموثاوس or إلى تيموثاوس = to Timothy. Never turn a word you do not recognize into a new English name or place that does not exist (no 'Zimsius'): if a name is not a real person, place or Bible book you know, leave that word out of the English. When a heard word makes no sense where it stands, he said a word that SOUNDS like it: choose the similar-sounding word that fits the passage (لا تركي said to a weeping woman is لا تبكي = Do not weep; هارس / آرس الحياة الأبدية is أرث الحياة الأبدية = inherit eternal life; اتكتبوا الفريسيين is الكتبة والفريسيين = the scribes and Pharisees), and never swap in a different-sounding word only because its meaning fits (not 'Do not be afraid' for لا تركي). When he has named a Gospel story or chapter (Luke 7, the rich young man, Peter's denial), the words he quotes from it follow that story. An adjective after its noun is one phrase in normal English order: المرأة الخاطئة = the sinful woman, المرأة الجريئة = the bold woman; never 'the woman, the sin' or 'the woman, bold'. In Egyptian speech مش عايز / مش عايزة / مش راضي before a passive verb has two meanings; decide by who is doing the not-wanting. (1) A person does not want it. This is the usual meaning in a sermon or talk, also when the person is left unsaid: أنا مش عايز الكلمة دي تتكتب = I don't want this word written; أبونا مش عايز الاسم ده يتكتب = Father does not want this name written; مش عايز الكلمة دي تتكتب في المحضر = I don't want this word written in the minutes; مش عايز الكلام ده يتقال = I don't want this said. (2) The thing itself will not do it, like a stuck door or a program that fails. Use this only when the thing is the subject and the word agrees with it (الكلمة دي مش عايزة تتكتب = this word won't get written; الباب مش عايز يتفتح / مش راضي يتفتح = the door won't open; البرنامج مش عايز يشتغل = the program won't work), or the passive verb comes straight after مش عايز with the thing named last and no person in the sentence (مش عايز تتكتب الكلمة دي = this word won't get written), or the speaker is plainly describing something that is not working (بحاول أكتبها ومش عايزة تتكتب = I'm trying to write it and it won't get written). Never write 'shouldn't be' for either meaning. When مش عايز is followed by the thing and then the passive verb and nothing is failing to work, it is meaning (1): write 'I don't want'. When a person is the one who does not want something (مش عايز أتكلم, ربنا مش عايز الخاطي يهلك) it stays 'does not want'. A noun said first and then a pause is what the sentence is about, not the object of the verb after it: البرنامج ما أعرفش، وقف ليه = The program: I don't know why it stopped. Write 'why' only when ليه is in the Arabic."+LITURGY_RULES;SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
+  var V110_RULES=" Fixed wording for this church: ما شاء الله = 'God willing'. السرياني / السريان / السريانية = Syriac (the Syriac Orthodox Church), never Syrian. الآباء الأساقفة = the bishops, الآباء الكهنة = the priests. The priests here are Father Rofail (أبونا روفائيل) and Father Mina Shaheid (أبونا مينا شهيد: Shaheid is his family name, not 'martyr'); the deacons are Deacon Botros, Deacon Boules, Deacon Antonious and Deacon Bishoy: when الشماس comes before بطرس, بولس, أنطونيوس or بيشوي, use those spellings (without الشماس, بطرس is Peter and بولس is Paul). جابوا ليسوع / قدموا ليسوع / أحضروا إليه means they brought someone TO Jesus: Jesus is never the one who was brought. In a Gospel healing story مجنون means demon-possessed (not mad), أخرس mute, أعمى blind. حفظ الألحان means learning the hymns by heart and تحفيظ الألحان teaching them, never keeping them. About a day or an event, ما بتتكررش / ما كانتش تتكرر (أبداً) / مش بتتكرر كتير describes a rare day: write 'that hardly ever comes around' (or 'that is hardly ever repeated'); never write that it never came again or never happened again. When he begins a verse and stops (for example حينئذ أحضر, the opening of 'Then one was brought to Him'), translate only the words he said and stop there: never add what happened next (no 'He healed him'). The word صحيح in the middle of a sentence means 'it is true that' or 'admittedly' (وهي كنائس صحيح بالنسبة للكنائس الإيسترن أقل بكثير = It is true that these churches are far fewer than the Eastern churches). أقل and أكتر about churches, people or things mean fewer and more in number. When he compares stories or Sundays, الأول / التاني mean in the first one / in the second one. English words he says inside the Arabic, even when written in Arabic letters (بيرفكت, البيج إيفينتس), are written as those English words with nothing added. Never add a word the Arabic does not contain: when a phrase sounds garbled, translate only the clear words and never guess a church word (baptize, communion, confession and the like) that was not said. Never give alternatives in brackets or slashes; write one plain wording. بسم الآب والابن والروح القدس الإله الواحد آمين is always: In the name of the Father, and the Son, and the Holy Spirit, one God. Amen. (the hearing often writes it as بسم الله). تيموثاوس is Timothy, one person (St. Paul wrote two letters to him): لأهل تيموثاوس or إلى تيموثاوس = to Timothy. Never turn a word you do not recognize into a new English name or place that does not exist (no 'Zimsius'): if a name is not a real person, place or Bible book you know, leave that word out of the English. When a heard word makes no sense where it stands, he said a word that SOUNDS like it: choose the similar-sounding word that fits the passage (لا تركي said to a weeping woman is لا تبكي = Do not weep; هارس / آرس الحياة الأبدية is أرث الحياة الأبدية = inherit eternal life; اتكتبوا الفريسيين is الكتبة والفريسيين = the scribes and Pharisees), and never swap in a different-sounding word only because its meaning fits (not 'Do not be afraid' for لا تركي). When he has named a Gospel story or chapter (Luke 7, the rich young man, Peter's denial), the words he quotes from it follow that story. An adjective after its noun is one phrase in normal English order: المرأة الخاطئة = the sinful woman, المرأة الجريئة = the bold woman; never 'the woman, the sin' or 'the woman, bold'. In Egyptian speech مش عايز / مش عايزة / مش راضي before a passive verb has two meanings; decide by who is doing the not-wanting. (1) A person does not want it. This is the usual meaning in a sermon or talk, also when the person is left unsaid: أنا مش عايز الكلمة دي تتكتب = I don't want this word written; أبونا مش عايز الاسم ده يتكتب = Father does not want this name written; مش عايز الكلمة دي تتكتب في المحضر = I don't want this word written in the minutes; مش عايز الكلام ده يتقال = I don't want this said. (2) The thing itself will not do it, like a stuck door or a program that fails. Use this only when the thing is the subject and the word agrees with it (الكلمة دي مش عايزة تتكتب = this word won't get written; الباب مش عايز يتفتح / مش راضي يتفتح = the door won't open; البرنامج مش عايز يشتغل = the program won't work), or the passive verb comes straight after مش عايز with the thing named last and no person in the sentence (مش عايز تتكتب الكلمة دي = this word won't get written), or the speaker is plainly describing something that is not working (بحاول أكتبها ومش عايزة تتكتب = I'm trying to write it and it won't get written). Never write 'shouldn't be' for either meaning. When مش عايز is followed by the thing and then the passive verb and nothing is failing to work, it is meaning (1): write 'I don't want'. When a person is the one who does not want something (مش عايز أتكلم, ربنا مش عايز الخاطي يهلك) it stays 'does not want'. A noun said first and then a pause is what the sentence is about, not the object of the verb after it: البرنامج ما أعرفش، وقف ليه = The program: I don't know why it stopped. Write 'why' only when ليه is in the Arabic. The Coptic months are توت Tout, بابه Baba, هاتور Hatour, كيهك Kiahk, طوبة Touba, أمشير Amshir, برمهات Baramhat, برمودة Baramouda, بشنس Bashans, بؤونة Paona, أبيب Epep, مسرى Mesra and النسيء (the Little Month). After شهر or a day number, a word that is not a month in any calendar but sounds like one of these is that Coptic month, misheard: write the Coptic month, preferring today's month when the date is given below (شهر غفور said in Hatour = the month of Hatour). Never write a month name that does not exist (no 'month of Ghafour'). الحد / الأحد followed by الأول, التاني / الثاني, التالت and so on is a Sunday, never a week: الحد الثاني من الصوم الكبير = the second Sunday of Great Lent; الأحد الثاني من شهر هاتور = the second Sunday of the month of Hatour. About songs, films, series, music or pleasures, عالمي / عالمية means worldly, not international: أغاني عالمية = worldly songs. حفّظ said of someone else (حفظوهم آيات, بنحفظ الأولاد الألحان) is to have them memorize it: حفظوهم آيات من الكتاب المقدس = Have them memorize Bible verses. In a story, حب straight before a verb means he wanted to: حب يدي لأولاده هدية = He wanted to give his children a gift. أدينا / بقالنا before a length of time means it has been that long: أدينا سنتين أهو تلاتة = it has been two years, going on three."+LITURGY_RULES;SYS=SYS.replace(' Output only the English of the NEW sentence.',V110_RULES+' Output only the English of the NEW sentence.');
   var groqBlockedUntil=0;
 
   // -- Bible names: a local list (names.js) used to hint the translator and to repair names speech recognition got slightly wrong --
@@ -1766,7 +1766,7 @@ body.running #en p .draft{opacity:1}
     var canRevise=prevItem&&prevItem.en&&!prevItem.fixed&&!/^\[/.test(prevItem.en); // with two lanes the previous line may still be in flight: then it is simply not revised
     var g=groqGlossary(ar,prev);
     var res=await chatCall([
-        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+(readingTitle()?'\n\nToday in the Coptic calendar: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]],"unknown":["..."]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say, and never a guess for a word you cannot make sense of (that word goes in "unknown"); Arabic only in both parts, one answer each (no slashes, no brackets); [] if none. "unknown": single Arabic words copied exactly from the NEW sentence that are not a real word in Arabic or in the Egyptian dialect and not a name you know, so you cannot tell what was said (usually a name that was misheard). Leave such a word out of "new" (write the sentence without it, with no dots, dash or blank in its place) and never write it in English letters as if it were a name or a place; an ordinary word you understand is never listed; [] if none.'},
+        {role:'system',content:SYS+(sermonMemo?'\n\nWhat the sermon is about so far (use it to choose the right meaning and names): '+sermonMemo:'')+dateNote()+(readingTitle()?'\n\nToday\'s readings in the Coptic lectionary: '+readingTitle():'')+(SAINT_RE.test(normAr(ar+' '+prev))?saintsToday():'')+(S.get('lang','mixed')==='mixed'?'\n\n'+SYS_MIXED.trim():'')+(S.get('notes','')?'\n\nNotes from the church about today:\n'+S.get('notes',''):'')+g+'\n\nThe speech is cut at pauses, so a piece can start or end mid-sentence and a short word may be missing at a cut. Reply with JSON only, "new" first: {"new":"...",'+(canRevise?'"previous":"...",':'')+'"fixes":[["misheard Arabic copied exactly from the NEW sentence","what the speaker most likely said"]],"unknown":["..."]}. "new": the English of the NEW sentence. '+(canRevise?'"previous": the English of the PREVIOUS sentence, unchanged unless the new sentence shows it was misheard or cut. ':'')+'"fixes": only real mishearings (1-3 words) that you replaced with a similar-sounding church word or name AND that your English actually uses; never a word that already makes sense where it stands, never a style or dialect change, never a negation the speaker did not say, and never a guess for a word you cannot make sense of (that word goes in "unknown"); Arabic only in both parts, one answer each (no slashes, no brackets); [] if none. "unknown": single Arabic words copied exactly from the NEW sentence that are not a real word in Arabic or in the Egyptian dialect and not a name you know, so you cannot tell what was said (usually a name that was misheard). Leave such a word out of "new" (write the sentence without it, with no dots, dash or blank in its place) and never write it in English letters as if it were a name or a place; an ordinary word you understand is never listed; [] if none.'},
         {role:'user',content:(ctxItems.length?'Earlier (context only): '+ctxItems.slice(-2).map(function(l){return l.en}).join(' ')+'\n\n':'')+(canRevise?'PREVIOUS sentence (Arabic → English shown):\n'+prevItem.ar+'\n→ '+prevItem.en+'\n\n':'')+'NEW sentence to correct and translate:\n'+ar+(item&&item.after?'\n\nRight AFTER the NEW sentence he goes on to say (context only: use it to understand what the NEW sentence means, and never translate it or put any of it in your answer):\n'+item.after:'')+(item&&item.verse?'\n\nIn the NEW sentence he quotes only PART of a Bible verse'+(item.verse.ref?' ('+item.verse.ref+')':'')+'. The church\'s English for the whole verse is: "'+String(item.verse.b).slice(0,600)+'". Use that wording for the words he actually said, and leave out every part of the verse that is not in the NEW sentence.':'')+(item&&item.unsure?'\n\nThe recognizer was unsure of these words in the NEW sentence: '+item.unsure.join('، ')+'. Do not build the meaning on them: if a church word or name clearly fits there, use it; otherwise leave that part out rather than guess.':'')+(item&&item.sx&&item.sx.split(/\s+/).length>=3?'\n\nThe hearing service also made its own rough English of the NEW sentence directly from the sound: "'+item.sx.replace(/\b(?:uh+|um+|uhm+)\b,?\s*/gi,'').slice(0,400)+'". It is a hint only, often incomplete, clumsy or wrong, so never copy its wording or its fillers, and when it makes no sense ignore it. Never take a name or a place from it that is not in the Arabic text. Use it for one thing: where it has an ordinary English word (fun, busy, stress, a place, a brand) at a spot where the Arabic text has a word that sounds like it, he said that English word, so write it.':'')+(alts&&alts.length?'\n\nA second recognizer heard the same stretch as (it may include a few words from just before; use whichever reading makes sense in a sermon):\n'+alts.join('\n'):'')}],340,0.2,false,deadline,item?function(t){var pn=partialNew(t);if(pn&&pn.length>(item.draft||'').length&&!item.en){item.draft=pn;if(!item.tDraft)item.tDraft=Date.now();render()}}:null);
     var out=res.text;lastModel=res.model;
     var m=out.match(/\{[\s\S]*\}/);
@@ -1796,6 +1796,56 @@ body.running #en p .draft{opacity:1}
     var S2=window.SYNAXARIUM;if(!S2)return '';var c=copticDate(),k=('0'+c.m).slice(-2)+'-'+('0'+c.d).slice(-2),a=(S2[k]||[]).slice(0,6),e=((window.SYNAXARIUM_EN||{})[k]||[]).slice(0,6);
     if(!a.length&&!e.length)return '';var out=a.join('؛ ');if(out.length>450)out=out.slice(0,450);var oe=e.join('; ');if(oe.length>450)oe=oe.slice(0,450);
     return '\n\nToday is '+c.name+' in the Coptic calendar. The Synaxarium commemorates today (the speaker may name these saints or feasts):'+(out?'\nArabic: '+out:'')+(oe?'\nEnglish (use these spellings for the names): '+oe:'');
+  }
+  // v157: the app knows where today falls in the church year. The hearing is told the month, the season's words and the day's saints first, and the translator is always told the month and the season.
+  var COPTIC_MONTHS_AR=['توت','بابه','هاتور','كيهك','طوبة','أمشير','برمهات','برمودة','بشنس','بؤونة','أبيب','مسرى','النسيء'];
+  function orthodoxEaster(y){var a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7,s=d+e+114;return new Date(y,Math.floor(s/31)-1,s%31+1+13)} // Julian reckoning plus 13 days: right for 1900 to 2099
+  function monthsNear(c){var o=[c.m];if(c.d>=24)o.push(c.m%13+1);if(c.d<=6)o.push((c.m+11)%13+1);return o} // this month, and the next or the last one when the day is close to it
+  function churchSeasons(dt){
+    dt=dt||new Date();var c=copticDate(dt),m=c.m,d=c.d,out=[],E=orthodoxEaster(dt.getFullYear()),n=Math.round((new Date(dt.getFullYear(),dt.getMonth(),dt.getDate())-E)/86400000);
+    function add(en,ar){out.push({en:en,ar:ar})}
+    if(m===1&&d<=16)add('the Coptic New Year (Nayrouz)',['عيد النيروز','النيروز','السنة القبطية','عيد الشهداء']);
+    if(m===1&&d>=15&&d<=19)add('the Feast of the Cross',['عيد الصليب','الصليب المقدس','الملكة هيلانة']);
+    if((m===3&&d>=16)||(m===4&&d<=28))add('the Nativity Fast',['صوم الميلاد']);
+    if(m===4)add('the month of Kiahk and its Midnight Praises',['تسبحة كيهك','سبعة وأربعة','الثيؤطوكية']);
+    if((m===4&&d>=26)||(m===5&&d<=6))add('the Feast of the Nativity',['عيد الميلاد','برامون الميلاد','الميلاد المجيد','بيت لحم','المجوس']);
+    if(m===5&&d>=4&&d<=7)add('the Feast of the Circumcision',['عيد الختان']);
+    if(m===5&&d>=8&&d<=13)add('the Feast of Theophany',['عيد الغطاس','برامون الغطاس','اللقان','يوحنا المعمدان','نهر الأردن','عرس قانا الجليل']);
+    if(m===6&&d>=6&&d<=8)add('the Feast of the Entry into the Temple',['عيد دخول المسيح الهيكل','سمعان الشيخ']);
+    if(m===7&&d>=27)add('the Feast of the Annunciation',['عيد البشارة','الملاك غبريال']);
+    if(m===9&&d>=22&&d<=24)add('the Feast of the Entry into Egypt',['عيد دخول المسيح أرض مصر','العائلة المقدسة']);
+    if(m===11&&d>=3&&d<=5)add('the Feast of the Apostles',['عيد الرسل','بطرس وبولس']);
+    if(m===12&&d<=16)add('the Fast of the Virgin',['صوم العذراء','عيد العذراء','صعود جسد العذراء']);
+    if(m===12&&d>=11&&d<=13)add('the Feast of the Transfiguration',['عيد التجلي','جبل طابور']);
+    if(n>=-69&&n<=-66)add('the Fast of Jonah (Nineveh)',['صوم يونان','صوم نينوى','يونان النبي','أهل نينوى','فصح يونان']);
+    if(n>=-62&&n<=-56)add('the week before Great Lent',['أحد الرفاع','الصوم الكبير']);
+    if(n>=-55&&n<=-9){var ar=['الصوم الكبير','الصوم الأربعيني'];[[-49,'أحد الكنوز'],[-42,'أحد التجربة'],[-35,'أحد الابن الضال'],[-28,'أحد السامرية'],[-21,'أحد المخلع'],[-14,'أحد المولود أعمى'],[-7,'أحد الشعانين']].forEach(function(x){if(Math.abs(n-x[0])<=6)ar.push(x[1])});add('Great Lent',ar)}
+    if(n>=-8&&n<=-1)add('Holy Week',['سبت لعازر','أحد الشعانين','أسبوع الآلام','البصخة المقدسة','خميس العهد','الجمعة العظيمة','سبت النور','ليلة أبو غلمسيس','الجلجثة']);
+    if(n>=0&&n<=49)add('the Holy Fifty Days after the Resurrection',['عيد القيامة','الخماسين المقدسة','المسيح قام','بالحقيقة قام','أحد توما']);
+    if(n>=35&&n<=42)add('the Feast of the Ascension',['عيد الصعود']);
+    if(n>=43&&n<=50)add('the Feast of Pentecost',['عيد العنصرة','حلول الروح القدس','صلاة السجدة']);
+    if(n>=50&&m>=9&&(m<11||(m===11&&d<=4)))add("the Apostles' Fast",['صوم الرسل','عيد الرسل']);
+    return out;
+  }
+  function saintNames(dt){ // the saints of the day as short names the hearing can expect (القديس يوسطس), taken from the Synaxarium lines
+    var S2=window.SYNAXARIUM;if(!S2)return [];var c=copticDate(dt),k=('0'+c.m).slice(-2)+'-'+('0'+c.d).slice(-2),out=[];
+    (S2[k]||[]).forEach(function(e){
+      e=String(e).replace(/(^|\s)أل/g,'$1ال').replace(/[.,،:؛()]/g,' ');var re=/(?:^|\s)(القديس[ةه]?|البابا|ال[أا]نبا|الشهيد[ةه]?|الملاك)\s+([\u0621-\u064A]+)(?:\s+([\u0621-\u064A]+))?/g,x;
+      while((x=re.exec(e))){var t=x[1].replace(/ه$/,'ة').replace('الانبا','الأنبا'),w=x[2];if(/^(?:[أا]بو|[أا]با|[أا]بي|مار|عبد)$/.test(w)&&x[3])w+=' '+x[3];var s=t+' '+w;if(w.length>=3&&out.indexOf(s)<0&&out.length<6)out.push(s)}
+    });
+    return out;
+  }
+  function dateTerms(dt){ // Arabic words the hearing is told to expect today
+    var c=copticDate(dt),out=[];function put(t){if(t&&out.indexOf(t)<0&&out.length<24)out.push(t)}
+    monthsNear(c).forEach(function(i){put('شهر '+COPTIC_MONTHS_AR[i-1]);put(COPTIC_MONTHS_AR[i-1])});
+    churchSeasons(dt).forEach(function(s){s.ar.forEach(put)});
+    try{saintNames(dt).forEach(put)}catch(e){}
+    return out;
+  }
+  function dateTT(dt){var c=copticDate(dt);return monthsNear(c).map(function(i){return ['شهر '+COPTIC_MONTHS_AR[i-1],'the month of '+COPTIC_MONTHS[i-1]]})}
+  function dateNote(dt){
+    var c=copticDate(dt),s=churchSeasons(dt).map(function(x){return x.en});
+    return '\n\nThe Coptic month now is '+COPTIC_MONTHS[c.m-1]+' ('+COPTIC_MONTHS_AR[c.m-1]+')'+(s.length?', in '+s.join(' and '):'')+'. Use this only to settle the name of a month, fast or feast that was misheard. Numbers he says are written exactly as he said them.'; // v158: the day number is left out on purpose. With it, the real translator wrote today's day over the day he said (16 said, 17 shown)
   }
   function readingTitle(){try{var o=JSON.parse(S.get('autoReading','{}'));return o.date===today()?(o.title||''):''}catch(e){return ''}}
   function updateMemo(){
@@ -2229,7 +2279,20 @@ body.running #en p .draft{opacity:1}
     REALW=o;REALKEY=STATKEY;return o;
   }
   function fixNames(txt){return hardNames(fixNames0(txt))}
+  // v157: a Coptic month misheard after شهر (22 Nov 2026 sermon: شهر غفور for شهر هاتور, shown three times as 'the month of Ghafour') is repaired when it sounds like this month or a neighbouring one
+  var MONTH_KEEP=/^(?:يناير|فبراير|مارس|ابريل|مايو|يونيو|يونيه|يوليو|يوليه|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر|رمضان|شعبان|رجب|شوال|محرم|كامل|واحد|واحده|ونص|ونصف|او|من|في|علي|ده|دا|دي|اللي|كل|زي|مع|عن|قبل|بعد|هو|هي|كده|تاني|ثاني|مريم|فات|جاي|قادم|ماضي|سرور|شهور|بخور)$/;
+  function monthRepair(txt,dt){
+    if(txt.indexOf('شهر')<0)return txt;
+    try{var c=copticDate(dt),near=monthsNear(c).map(function(i){return COPTIC_MONTHS_AR[i-1]}),all=COPTIC_MONTHS_AR.map(normAr);
+      return txt.replace(/((?:^|\s)(?:[وفبل]|لل)?شهر\s+)([\u0621-\u064A\u064B-\u0652]+)/g,function(m,a,w){
+        var n=normAr(w);if(n.length<3||/^ال/.test(n)||MONTH_KEEP.test(n)||all.indexOf(n)>=0)return m;
+        for(var i=0;i<near.length;i++){var t=normAr(near[i]);if(Math.abs(t.length-n.length)<=1&&((n.length>=4&&n.slice(-2)===t.slice(-2))||soundAlike(n,t)>=0.75)){dbg('MONTH repaired: '+w+' after شهر is '+near[i]);return a+near[i]}}
+        return m});
+    }catch(e){return txt}
+  }
   function fixNames0(txt){
+    txt=monthRepair(txt);
+    txt=txt.replace(/(^|\s)سرا[بج]\s+لرجل[يى]?\s+كلامك/g,function(m,a){if(/سراج لرجلي كلامك/.test(m))return m;dbg('WORD repaired: a lamp to my feet (Psalm 119:105)');return a+'سراج لرجلي كلامك'}); // v157: Sermon Debug, 22 Nov 2026
     // v144: mishearings from the 2026-11-20 sermon (the first one also on 2026-11-18)
     txt=txt.replace(/(^|\s)(?:ه[اآأ]|ل[اآأ]|[آأ])رس(\s+الحيا[ةه]\s+ال[أا]بدي[ةه])/g,function(m,a,b){dbg('WORD repaired: inherit eternal life');return a+'لأرث'+b});
     txt=txt.replace(/(^|\s)[اإ]تكتبوا\s+و?(الفريسي[يو]ن)/g,function(m,a,b){dbg('WORD repaired: the scribes and Pharisees');return a+'الكتبة و'+b});
@@ -2329,6 +2392,8 @@ body.running #en p .draft{opacity:1}
   var EN_MIX=['translate','translation','translator','fun','stress','busy','meeting','weekend','okay','already','sorry','please','thank you','of course','actually','anyway','problem','project','budget','schedule','deadline','email','message','online','website','link','phone','job','work','boss','team','family','kids','teenagers','youth','school','college','homework','party','trip','retreat','camp','volunteer','service','community','relationship','communication','attitude','priority','balance','challenge','depression','anxiety','social media','video','game','mall','shopping','business','money','mortgage','insurance','parking','basement','building','fundraiser','donation']; // v148: translate, translation, translator first (Mina's English "translate" was heard as تنازلات, concessions)
   var BIBLE_NAMES=[["تيموثاوس", "Timothy"], ["تيطس", "Titus"], ["فليمون", "Philemon"], ["كورنثوس", "Corinth"], ["أهل كورنثوس", "the Corinthians"], ["أفسس", "Ephesus"], ["أهل أفسس", "the Ephesians"], ["فيلبي", "Philippi"], ["أهل فيلبي", "the Philippians"], ["كولوسي", "Colossae"], ["أهل كولوسي", "the Colossians"], ["غلاطية", "Galatia"], ["أهل غلاطية", "the Galatians"], ["رومية", "Rome"], ["أهل رومية", "the Romans"], ["تسالونيكي", "Thessalonica"], ["أهل تسالونيكي", "the Thessalonians"], ["العبرانيين", "the Hebrews"], ["برنابا", "Barnabas"], ["سيلا", "Silas"], ["أبلوس", "Apollos"], ["أكيلا", "Aquila"], ["بريسكلا", "Priscilla"], ["أنسيمس", "Onesimus"], ["أنطاكية", "Antioch"], ["أورشليم", "Jerusalem"], ["السامرة", "Samaria"], ["الناصرة", "Nazareth"], ["كفرناحوم", "Capernaum"], ["بيت لحم", "Bethlehem"], ["بيت عنيا", "Bethany"], ["لعازر", "Lazarus"], ["مرثا", "Martha"], ["زكا", "Zacchaeus"], ["نيقوديموس", "Nicodemus"], ["بيلاطس", "Pilate"], ["هيرودس", "Herod"], ["إيليا", "Elijah"], ["أليشع", "Elisha"], ["إشعياء", "Isaiah"], ["إرميا", "Jeremiah"], ["حزقيال", "Ezekiel"], ["دانيال", "Daniel"], ["يونان", "Jonah"], ["صموئيل", "Samuel"], ["سليمان", "Solomon"], ["نحميا", "Nehemiah"], ["أيوب", "Job"], ["أستير", "Esther"], ["راعوث", "Ruth"]]; // v132: names and places the hearing did not know (it wrote تيموثاوس as زيمسيوس)
   try{BIBLE_NAMES.slice().reverse().forEach(function(t){(window.COPTIC_TERMS=window.COPTIC_TERMS||[]).push(t)})}catch(e){}
+  var CHURCH_WORDS=[["شهر توت","the month of Tout"],["شهر بابه","the month of Baba"],["شهر طوبة","the month of Touba"],["شهر أمشير","the month of Amshir"],["شهر برمهات","the month of Baramhat"],["شهر برمودة","the month of Baramouda"],["شهر بشنس","the month of Bashans"],["شهر بؤونة","the month of Paona"],["شهر أبيب","the month of Epep"],["شهر مسرى","the month of Mesra"],["الشهر الصغير","the Little Month (Nasie)",true],["سبت الفرح","Joyous Saturday"],["شم النسيم","Sham El-Nessim (the spring holiday after Easter)"],["الخماسين","the Holy Fifty Days (after Easter)",true],["ليلة أبو غلمسيس","Apocalypse Night (the eve of Joyous Saturday)"],["أبو غلمسيس","Apocalypse Night"],["صلاة القسمة","the Fraction prayer"],["القسمة","the Fraction (a prayer in the Liturgy); otherwise sharing or dividing",true],["المستير","the Communion spoon"],["الأغنسطس","the reader (Anagnostis)"],["عيد العذراء","the Feast of the Virgin Mary"],["صعود جسد العذراء","the Assumption of the body of the Virgin Mary"],["عيد الملاك ميخائيل","the Feast of Archangel Michael"],["الطلبة","the Litany (in church prayers); otherwise the students",true],["أرباع الناقوس","the Verses of the Cymbals"],["الهيتنيات","the Hitens (intercessions)"],["مرد الإنجيل","the Gospel response"],["مرد الإبركسيس","the Praxis response"],["مرد المزمور","the Psalm response"],["الأسبسمس","the Aspasmos (hymn at the kiss of peace)"],["الزفة","the procession (in church); otherwise a wedding procession",true],["التمجيد","the glorification (hymns for a saint)",true],["صلاة الستار","the Prayer of the Veil"],["صلاة نصف الليل","the Midnight prayer"],["صلاة الساعة الثالثة","the Third Hour prayer"],["صلاة الساعة السادسة","the Sixth Hour prayer"],["صلاة الساعة التاسعة","the Ninth Hour prayer"],["ميطانيات","metanoias (prostrations)"],["مطانيات","metanoias (prostrations)"],["الإيغومانوس","the Hegumen"],["الخوري إبسكوبس","the chorbishop"],["المكرسة","the consecrated woman",true],["أمين الخدمة","the head of the service"],["درس الكتاب المقدس","Bible study"],["درس الكتاب","Bible study"]]; // v157: every Coptic month after the word for month, and church words the word file did not have (kept here so they reach the test link first)
+  try{CHURCH_WORDS.forEach(function(t){(window.COPTIC_TERMS=window.COPTIC_TERMS||[]).push(t)})}catch(e){}
   var LITURGY_TERMS=['أيها السيد الرب الإله ضابط الكل','ضابط الكل','ابنك الوحيد','ابنك الوحيد الجنس','أبو ربنا وإلهنا ومخلصنا يسوع المسيح','المجد للآب والابن والروح القدس','الآن وكل أوان وإلى دهر الدهور آمين','كيرياليصون','السلام لجميعكم','ومع روحك أيضا','قدوس قدوس قدوس','الإنجيل المقدس','الناموس والوصايا'];
   function sxStart(){ // what Soniox is told before the sound starts: the language, the kind of talk, the church words, and how certain terms must be translated
     var mixed=S.get('lang','mixed')==='mixed',terms=[],tt=[],seen={};
@@ -2336,8 +2401,10 @@ body.running #en p .draft{opacity:1}
     BIBLE_NAMES.forEach(function(t){if(terms.indexOf(t[0])<0)terms.push(t[0])});
     terms.slice().forEach(function(t){var m=/^(?:القديس|القديسة|الأنبا|البابا|الشهيد|الشهيدة)\s+([^\s]{4,})/.exec(t);if(m&&terms.indexOf(m[1])<0)terms.push(m[1])}); // v137: the name on its own (أثناسيوس), not only inside a title
     LITURGY_TERMS.forEach(function(t){if(terms.indexOf(t)<0)terms.unshift(t)}); // v136: standard prayer phrases, so the hearing expects them
+    try{dateTerms().slice().reverse().forEach(function(t){var i=terms.indexOf(t);if(i>=0)terms.splice(i,1);terms.unshift(t)})}catch(e){} // v157: today's Coptic month, the season's words and the day's saints, ahead of the general names
     terms.unshift('بسم الآب والابن والروح القدس الإله الواحد آمين','الآب','الابن'); // v118: the opening prayer, so بسم الآب is not heard as بسم الله
     if(mixed&&SXCUT<1)EN_MIX.forEach(function(t){terms.push(t)}); // v87: English words Egyptian speakers mix into Arabic, so the hearing writes them in English letters
+    try{dateTT().forEach(function(p){if(!seen[p[0]]){seen[p[0]]=1;tt.push({source:p[0],target:p[1]})}})}catch(e){} // v157: 'the month of Hatour' first, so it is never the pair cut for size
     try{allTermsAll().forEach(function(t){if(tt.length>=110||t.c||!AR.test(t.a)||seen[t.a])return;seen[t.a]=1;tt.push({source:t.a,target:t.b})})}catch(e){}
     if(SXCUT>=1){terms=terms.slice(0,30);tt=[]}
     var ctx={general:[{key:'domain',value:'Coptic Orthodox Christian sermon and liturgy'},{key:'language',value:'Egyptian Arabic'+(mixed?' with some English':'')},{key:'organization',value:String(S.get('title','')).slice(0,80)}],terms:terms,translation_terms:tt};
@@ -3647,6 +3714,169 @@ body.running #en p .draft{opacity:1}
     })();
   })();
 
+  // ---- v155: Sermon Debug (admin link only). After each sermon Claude writes the mistakes it found into the 'Sermon Debug' tab of the
+  // church sheet (weekly, Sunday night). This window lists them per sermon: date, time, device and place on top, then one row per
+  // mistake with the minute, the Arabic word, the English that was typed and the English it should be. Colour = how sure the
+  // suggestion is: green sure, yellow unsure, red very unsure (no suggestion, Mina types what was said). A checkbox on the side of
+  // every row, Select all / Select all green, then Approve, Not a mistake or Dismiss (v156: a slip not worth a fix, e.g. the microphone was far; never taught). Approving teaches nothing by itself: approved rows
+  // wait in the sheet until a build uses them. The same list is in the Qik dashboard (Church Translation, Sermon Debug).
+  // Road: this page -> n8n webhook church-sermon-debug on the mini (it asks the church server /check whether the sign-in is real
+  // before it reads or writes anything) -> the sheet. When the mini is off, the window says so and nothing is lost.
+  (function(){
+    if(!ADMINVIEW)return;
+    var dv=$('devBtn');if(!dv)return;
+    var SD_URL='https://mini.tail99f4f6.ts.net/webhook/church-sermon-debug';
+    var b=document.createElement('button');b.className='icon';b.id='sdBtn';b.type='button';b.setAttribute('aria-label','Sermon Debug');b.innerHTML='🔎<span id="sdBadge"></span>';
+    dv.parentNode.insertBefore(b,dv.nextSibling);
+    var st=document.createElement('style');
+    st.textContent='#sdBtn{display:none;position:relative}body.adminview.adminok:not(.running) #sdBtn{display:inline-flex;align-items:center;justify-content:center}'
+      +'#sdBadge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#2563eb;color:#fff;font:700 12px/20px system-ui,sans-serif;text-align:center;display:none}#sdBadge.on{display:block}'
+      +'#sdDlg{width:min(760px,96vw);max-height:92vh;padding:20px;background:#fff;color:#16171a;border:1px solid #e3ddd2;border-radius:14px;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}'
+      +'#sdDlg h2{margin:0 0 10px;font-size:24px;color:#16171a;font-family:inherit}'
+      +'#sdDlg button{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid #d6d0c4;background:#fff;color:#16171a;font:600 15px system-ui,sans-serif;cursor:pointer}'
+      +'#sdDlg button:disabled{opacity:.35;cursor:default}#sdDlg button.go{background:#15803d;border-color:#15803d;color:#fff}#sdDlg button.lnk{min-height:0;padding:0;border:0;background:none;color:#6e6a63;font:500 13px system-ui,sans-serif;text-decoration:underline}'
+      +'#sdDlg .cnote{font-size:14px;line-height:1.45;color:#4b4f58;margin:8px 0}#sdDlg .cnote.bad{color:#9a3412;font-weight:600}#sdDlg .cnote.ok{color:#15803d;font-weight:600}'
+      +'#sdDlg .sds{border:1px solid #e3ddd2;border-radius:12px;margin:0 0 12px;overflow:hidden}'
+      +'#sdDlg .sdh{display:flex;width:100%;gap:10px;align-items:center;text-align:left;border:0;border-radius:0;background:#f4f1ea;padding:10px 12px;min-height:0}'
+      +'#sdDlg .sdh span{display:flex;flex-direction:column}#sdDlg .sdh span:first-child{flex:1}#sdDlg .sdh span:last-child{align-items:flex-end;text-align:right}#sdDlg .sdh small{font-weight:500;font-size:13px;color:#6e6a63}'
+      +'#sdDlg .sdbar,#sdDlg .sdact{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px}#sdDlg .sdact{position:sticky;bottom:0;background:#fff;border-top:1px solid #efeae0}'
+      +'#sdDlg .sdr{display:flex;gap:10px;border-top:1px solid #efeae0;border-left:6px solid #eab308;padding:10px 12px 10px 8px}#sdDlg .sdr.green{border-left-color:#16a34a}#sdDlg .sdr.red{border-left-color:#dc2626}'
+      +'#sdDlg .sdr input[type=checkbox]{width:24px;height:24px;margin:2px 2px 0}#sdDlg .sdb{flex:1;min-width:0}'
+      +'#sdDlg .sdt{font-size:13px;color:#6e6a63}#sdDlg .sdt b{color:#16171a;font-variant-numeric:tabular-nums;margin-right:8px}'
+      +'#sdDlg .sdar{font-size:20px;line-height:1.5;text-align:right;margin:4px 0}'
+      +'#sdDlg .sdl{display:flex;gap:8px;font-size:15px;line-height:1.4;margin:2px 0}#sdDlg .sdl i{flex:0 0 80px;font-style:normal;font-size:13px;color:#6e6a63;padding-top:2px}#sdDlg .sdl b{flex:1;min-width:0;font-weight:600}'
+      +'#sdDlg .green .sdl.sg b{color:#15803d}#sdDlg .yellow .sdl.sg b{color:#a16207}#sdDlg .red .sdl.sg b{color:#b91c1c}'
+      +'#sdDlg .sdown{width:100%;box-sizing:border-box;margin:6px 0 2px;padding:8px 10px;border:1px solid #d6d0c4;border-radius:10px;font:500 15px system-ui,sans-serif;background:#fff;color:#16171a}'
+      +'#sdDlg .sdn{font-size:13px;color:#6e6a63;margin-top:4px}#sdDlg .sdc{font-size:13px;color:#6e6a63;margin-top:6px;padding-top:6px;border-top:1px dashed #e3ddd2}#sdDlg .sdc div:first-child{text-align:right}'
+      +'#sdDlg .sdd{display:flex;gap:10px;align-items:baseline;border-top:1px solid #efeae0;padding:8px 12px;font-size:14px}#sdDlg .sdd span{flex:1;min-width:0}#sdDlg .sddn{display:block;margin:6px 12px 10px}';
+    document.head.appendChild(st);
+    var ROWS=null,AT=0,busy=false,saving=false,SEL={},OWN={},EDIT={},SOPEN={},DOPEN={},MSG='',MSGC='';
+    function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+    function sure(v){v=String(v||'').toLowerCase().trim();return v==='green'||v==='red'?v:'yellow'}
+    function parse(values){
+      var out=[];(values||[]).forEach(function(r,i){
+        if(i===0||!r||!String(r[0]||'').trim())return;
+        out.push({row:i+1,id:String(r[0]),rep:String(r[1]||''),date:String(r[2]||''),start:String(r[3]||''),device:String(r[4]||''),place:String(r[5]||''),line:String(r[7]||''),min:String(r[8]||''),ar:String(r[9]||''),typed:String(r[10]||''),sug:String(r[11]||''),sure:sure(r[12]),kind:String(r[13]||''),arS:String(r[14]||''),enS:String(r[15]||''),dec:String(r[16]||'').toLowerCase().trim(),own:String(r[17]||''),note:String(r[20]||''),taught:String(r[21]||'')});
+      });return out;
+    }
+    function post(body,ms){
+      var ac=('AbortController' in window)?new AbortController():null,o={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'};if(ac)o.signal=ac.signal;
+      var t=setTimeout(function(){try{ac&&ac.abort()}catch(e){}},ms||25000);
+      return fetch(SD_URL,o).then(function(r){clearTimeout(t);return r.json()},function(e){clearTimeout(t);throw e});
+    }
+    function say(t,c){MSG=t||'';MSGC=c||''}
+    function badge(){var n=ROWS?ROWS.filter(function(r){return !r.dec}).length:0,e=$('sdBadge');if(!e)return;e.textContent=n>99?'99+':String(n);e.classList.toggle('on',n>0);b.setAttribute('aria-label',n?'Sermon Debug, '+n+' to review':'Sermon Debug')}
+    function sermons(){
+      var m={},order=[];(ROWS||[]).forEach(function(r){var k=r.rep||r.date;if(!m[k]){m[k]={key:k,date:r.date,start:r.start,device:r.device,place:r.place,rows:[]};order.push(k)}m[k].rows.push(r)});
+      var list=order.map(function(k){return m[k]});
+      list.sort(function(a,c){return (c.date+' '+c.start).localeCompare(a.date+' '+a.start)});
+      list.forEach(function(s){s.rows.sort(function(a,c){return (+a.line||0)-(+c.line||0)})});
+      return list;
+    }
+    function dayText(date,start){
+      var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(date||'');if(!m)return esc(date||'No date');
+      var t=new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      var h=/^(\d{1,2}):(\d{2})$/.exec(start||'');if(h){var hh=+h[1],ap=hh>=12?'PM':'AM';hh=hh%12||12;t+=' · '+hh+':'+h[2]+' '+ap}
+      return esc(t);
+    }
+    function ownOf(r){return OWN[r.id]!==undefined?OWN[r.id]:r.own}
+    function rowHtml(r){
+      var red=r.sure==='red',ed=red||EDIT[r.id],kind=r.kind==='heard'?'Heard wrong':r.kind==='translated'?'Translated wrong':r.kind==='app'?'App':'';
+      return '<div class="sdr '+r.sure+'" data-id="'+esc(r.id)+'"><input type="checkbox" data-sd="pick"'+(SEL[r.id]?' checked':'')+' aria-label="Select this row">'
+        +'<div class="sdb"><div class="sdt"><b>'+esc(r.min||'?')+'</b>'+(r.sure==='green'?'Sure':red?'Very unsure':'Unsure')+(kind?' · '+kind:'')+'</div>'
+        +'<div class="sdar" dir="rtl" lang="ar">'+esc(r.ar)+'</div>'
+        +'<div class="sdl"><i>Typed</i><b>'+esc(r.typed)+'</b></div>'
+        +'<div class="sdl sg"><i>Should be</i><b>'+(red&&!ownOf(r)?'Not clear. What did he say?':esc(ownOf(r)||r.sug))+'</b></div>'
+        +(ed?'<input type="text" class="sdown" data-sd="own" maxlength="300" value="'+esc(ownOf(r))+'" placeholder="'+(red?'Type what it should say':'Your own wording')+'">':'<button type="button" class="lnk" data-sd="edit">Change wording</button>')
+        +(r.note?'<div class="sdn">'+esc(r.note)+'</div>':'')
+        +(r.arS||r.enS?'<div class="sdc"><div dir="rtl" lang="ar">'+esc(r.arS)+'</div><div>'+esc(r.enS)+'</div></div>':'')
+        +'</div></div>';
+    }
+    function doneHtml(r){
+      return '<div class="sdd" data-id="'+esc(r.id)+'"><b>'+esc(r.min||'?')+'</b><span><b>'+(r.dec==='approved'?'Approved':r.dec==='dismissed'?'Dismissed':'Not a mistake')+'</b> '+esc(r.typed)+(r.dec==='approved'?' → '+esc(r.own||r.sug):'')+(r.taught?' <small>(in '+esc(r.taught)+')</small>':'')+'</span>'+(r.taught?'':'<button type="button" class="lnk" data-sd="undo">Undo</button>')+'</div>';
+    }
+    var dlgS=document.createElement('dialog');dlgS.id='sdDlg';
+    dlgS.innerHTML='<h2>🔎 Sermon Debug</h2><div id="sdMsg" class="cnote" role="status"></div><div id="sdBody"></div>'
+      +'<div class="actions" style="margin-top:12px;display:flex;gap:8px"><button type="button" id="sdRef">Refresh</button><span style="flex:1"></span><button type="button" id="sdClose">Close</button></div>';
+    document.body.appendChild(dlgS);
+    function draw(){
+      var m=$('sdMsg');m.className='cnote'+(MSGC?' '+MSGC:'');m.textContent=MSG;
+      var h='';
+      if(!ROWS){$('sdBody').innerHTML='<div class="cnote">'+(busy?'Reading the sermon review list…':'The list has not been read yet.')+'</div>';return}
+      var list=sermons();
+      if(!list.length)h='<div class="cnote">No sermon has been reviewed yet. A review is added after each sermon of 3 minutes or more (Sunday night).</div>';
+      list.forEach(function(s,si){
+        var pend=s.rows.filter(function(r){return !r.dec}),done=s.rows.filter(function(r){return r.dec}),open=SOPEN[s.key]!==undefined?SOPEN[s.key]:(si===0||pend.length>0);
+        var g=pend.filter(function(r){return r.sure==='green'}).length,y=pend.filter(function(r){return r.sure==='yellow'}).length,rd=pend.length-g-y,nsel=pend.filter(function(r){return SEL[r.id]}).length;
+        h+='<div class="sds" data-key="'+esc(s.key)+'"><button type="button" class="sdh" data-sd="serm"><span><b>'+dayText(s.date,s.start)+'</b><small>'+esc([s.device||'Unnamed device',s.place].filter(Boolean).join(' · '))+'</small></span>'
+          +'<span>'+(pend.length?'<b>'+pend.length+' to review</b><small>'+g+' sure · '+y+' unsure · '+rd+' very unsure</small>':'<b>All reviewed</b><small>'+done.length+' rows</small>')+'</span></button>';
+        if(open){
+          if(pend.length){
+            h+='<div class="sdbar"><button type="button" data-sd="all">Select all</button><button type="button" data-sd="green">Select all green</button><button type="button" class="lnk" data-sd="none">Clear</button></div>';
+            h+=pend.map(rowHtml).join('');
+            h+='<div class="sdact"><button type="button" class="go" data-sd="approve"'+(nsel&&!saving?'':' disabled')+'>Approve'+(nsel?' ('+nsel+')':'')+'</button><button type="button" data-sd="reject"'+(nsel&&!saving?'':' disabled')+'>Not a mistake'+(nsel?' ('+nsel+')':'')+'</button><button type="button" data-sd="dismiss"'+(nsel&&!saving?'':' disabled')+'>Dismiss'+(nsel?' ('+nsel+')':'')+'</button></div>';
+          }
+          if(done.length){h+='<button type="button" class="lnk sddn" data-sd="done">'+(DOPEN[s.key]?'Hide':'Show')+' reviewed ('+done.length+')</button>';if(DOPEN[s.key])h+=done.map(doneHtml).join('')}
+        }
+        h+='</div>';
+      });
+      $('sdBody').innerHTML=h;
+    }
+    function fail(j,what){
+      if(j&&j.status===401){try{dlgS.close()}catch(e){}admSignOut();return true}
+      say(what+(j&&j.error?' ('+j.error+')':'')+'. Try again.','bad');return false;
+    }
+    function load(quiet){
+      var tk=cfgTok();if(!tk){if(!quiet){try{dlgS.close()}catch(e){}admSignOut()}return}
+      if(busy)return;busy=true;if(!quiet){$('sdRef').disabled=true;if(!ROWS)draw()}
+      post({t:tk,op:'list'}).then(function(j){
+        busy=false;$('sdRef').disabled=false;
+        if(j&&j.status===200&&Array.isArray(j.values)&&String((j.values[0]||[])[0]||'')==='id'){ROWS=parse(j.values);AT=Date.now();if(!quiet)say('');badge();if(dlgS.open)draw();return}
+        if(quiet)return;
+        if(!fail(j,'The list could not be read'))draw();
+      },function(){busy=false;$('sdRef').disabled=false;if(quiet)return;say('The list could not be read: the church computer (n8n) did not answer. What you see below is from the last read.','bad');draw()});
+    }
+    function send(items,okText){
+      var tk=cfgTok();if(!tk){try{dlgS.close()}catch(e){}admSignOut();return}
+      saving=true;say('Saving…');draw();
+      post({t:tk,op:'decide',items:items}).then(function(j){
+        saving=false;
+        if(!(j&&j.status===200&&Array.isArray(j.saved))){if(!fail(j,'Not saved'))draw();return}
+        var ok={};j.saved.forEach(function(id){ok[id]=1});
+        items.forEach(function(it){if(!ok[it.id])return;var r=(ROWS||[]).filter(function(x){return x.id===it.id})[0];if(r){r.dec=it.dec;r.own=it.own}delete SEL[it.id];delete OWN[it.id];delete EDIT[it.id]});
+        var bad=items.length-j.saved.length;
+        say(bad?j.saved.length+' saved, '+bad+' not saved (the list changed). Press Refresh and try those again.':j.saved.length+okText,bad?'bad':'ok');badge();draw();
+      },function(){saving=false;say('Not saved: the church computer (n8n) did not answer. Nothing was changed. Try again.','bad');draw()});
+    }
+    function decide(key,dec){
+      if(saving)return;var s=sermons().filter(function(x){return x.key===key})[0];if(!s)return;
+      var rows=s.rows.filter(function(r){return !r.dec&&SEL[r.id]});if(!rows.length)return;
+      if(dec==='approved'){var need=rows.filter(function(r){return r.sure==='red'&&!String(ownOf(r)||'').trim()});if(need.length){say('Type what it should say on the red row'+(need.length>1?'s':'')+' first, or untick '+(need.length>1?'them':'it')+' ('+need.map(function(r){return r.min}).join(', ')+').','bad');draw();return}}
+      send(rows.map(function(r){return {row:r.row,id:r.id,dec:dec,own:dec==='approved'?String(ownOf(r)||'').trim():''}}),dec==='approved'?' approved ✓':dec==='dismissed'?' dismissed ✓':' marked not a mistake ✓');
+    }
+    $('sdBody').addEventListener('input',function(ev){var t=ev.target;if(t&&t.getAttribute('data-sd')==='own'){var r=t.closest('.sdr');if(r)OWN[r.getAttribute('data-id')]=t.value}});
+    $('sdBody').addEventListener('change',function(ev){var t=ev.target;if(t&&t.getAttribute('data-sd')==='pick'){var r=t.closest('.sdr');if(!r)return;var id=r.getAttribute('data-id');if(t.checked)SEL[id]=1;else delete SEL[id];say('');draw()}});
+    $('sdBody').addEventListener('click',function(ev){
+      var x=ev.target&&ev.target.closest?ev.target.closest('[data-sd]'):null;if(!x)return;var a=x.getAttribute('data-sd');if(a==='pick'||a==='own')return;
+      var sEl=x.closest('.sds'),key=sEl?sEl.getAttribute('data-key'):'',rEl=x.closest('.sdr,.sdd'),id=rEl?rEl.getAttribute('data-id'):'';
+      var s=key?sermons().filter(function(v){return v.key===key})[0]:null,pend=s?s.rows.filter(function(r){return !r.dec}):[];
+      if(a==='serm'){var open=SOPEN[key]!==undefined?SOPEN[key]:(sermons()[0]===s||pend.length>0);SOPEN[key]=!open;draw();return}
+      if(a==='all'){pend.forEach(function(r){SEL[r.id]=1});say('');draw();return}
+      if(a==='green'){pend.forEach(function(r){if(r.sure==='green')SEL[r.id]=1;else delete SEL[r.id]});say('');draw();return}
+      if(a==='none'){pend.forEach(function(r){delete SEL[r.id]});say('');draw();return}
+      if(a==='edit'){EDIT[id]=1;draw();var el=$('sdBody').querySelector('.sdr[data-id="'+id.replace(/"/g,'')+'"] .sdown');if(el){try{el.focus()}catch(e){}}return}
+      if(a==='done'){DOPEN[key]=!DOPEN[key];draw();return}
+      if(a==='approve'){decide(key,'approved');return}
+      if(a==='reject'){decide(key,'rejected');return}
+      if(a==='dismiss'){decide(key,'dismissed');return}
+      if(a==='undo'){var r=(ROWS||[]).filter(function(v){return v.id===id})[0];if(r&&!r.taught&&!saving)send([{row:r.row,id:r.id,dec:'',own:''}],' put back in the list ✓');return}
+    });
+    b.onclick=function(){if(!cfgTok()){admSignOut();return}say('');draw();try{dlgS.showModal()}catch(e){dlgS.setAttribute('open','')}load()};
+    $('sdRef').onclick=function(){say('');load()};
+    $('sdClose').onclick=function(){dlgS.close()};
+    // the badge on the button: a quiet read after sign-in and every 30 minutes while the page is open and not translating
+    setTimeout(function(){load(true)},9000);setInterval(function(){if(!document.hidden&&!document.body.classList.contains('running')&&!dlgS.open)load(true)},1800000);
+  })();
   // ---- v122: Devices. Every device gets its own id (kept on the device). It checks in with the church server when the page
   // opens, when Start is pressed, every 2 minutes of translating (v124; was 5) and at the end, so the admin sees which phones and computers
   // use the app, roughly where (by internet address) and for how many minutes. Minutes not yet sent are kept and sent later. ----
