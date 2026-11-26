@@ -81,7 +81,7 @@ async def main():
         check("great saint Synaxarium the Apostolic repaired to Athanasius", "أثناسيوس الرسولي" in v["fix2"] and "نكس" not in v["fix2"], v["fix2"])
         pg = await page()
         y = await pg.evaluate("""()=>{const H=window.__h,C=H.cy,d=(a,b,c)=>new Date(a,b-1,c),N=d(2026,11,22);return {
-          cd:C.date(N).name,t:C.terms(N),note:C.note(N),fast:C.terms(d(2026,11,25)),palm:C.seasons(d(2026,4,5)).map(x=>x.en),east:C.seasons(d(2026,4,12)).map(x=>x.en),lent:C.terms(d(2027,3,28)),
+          cd:C.date(N).name,t:C.terms(N),note:C.note(N),note2:C.note(d(2026,11,25)),fast:C.terms(d(2026,11,25)),palm:C.seasons(d(2026,4,5)).map(x=>x.en),east:C.seasons(d(2026,4,12)).map(x=>x.en),lent:C.terms(d(2027,3,28)),
           kiahk:C.terms(d(2026,12,20)),edge:C.terms(d(2026,12,8)),m1:C.month('شهر غفور بيتكلم عن كلمة ربنا.',N),m2:C.month('قعد هناك شهر كامل وبعدين رجع',N),m3:C.month('في شهر نوفمبر اللي فات',N),m4:C.month('من شهر هتور',N),m5:C.month('شهر غفور',d(2026,7,1)),
           ps:H.fix('بيقول: سراب لرجل كلامك.'),live:H.terms().slice(0,30),today:C.terms()[0],ctx:H.ctxLen(),sn:C.saints(d(2026,11,26)),gl:H.gloss('النهارده في شهر بشنس')}}""")
         await pg.close()
@@ -89,7 +89,7 @@ async def main():
         check("church year: the hearing is told this month, and no fast before it begins", "شهر هاتور" in y["t"] and "هاتور" in y["t"] and "صوم الميلاد" not in y["t"], y["t"])
         check("church year: the Nativity Fast from 16 Hatour, Kiahk words in Kiahk, next month near the end of a month", "صوم الميلاد" in y["fast"] and "تسبحة كيهك" in y["kiahk"] and "شهر كيهك" in y["kiahk"] and "شهر كيهك" in y["edge"] and "شهر هاتور" in y["edge"], [y["fast"], y["kiahk"], y["edge"]])
         check("church year: Holy Week, the Holy Fifty Days and the Lent Sunday follow the Easter date", "Holy Week" in y["palm"] and any("Holy Fifty" in x for x in y["east"]) and "أحد الابن الضال" in y["lent"] and "الصوم الكبير" in y["lent"], [y["palm"], y["east"], y["lent"]])
-        check("church year: the translator is told today's Coptic date", "Today is 13 Hatour 1743 in the Coptic calendar" in y["note"], y["note"])
+        check("church year: the translator is told the Coptic month and season, never the day number", "The Coptic month now is Hatour (هاتور)." in y["note"] and "13" not in y["note"] and "in the Nativity Fast" in y["note2"], [y["note"], y["note2"]])
         check("church year: the saints of the day are offered to the hearing as short names", "البابا يوحنا" in y["sn"], y["sn"])
         check("church year: today's month is at the top of the live hearing list and the list still fits", y["today"] in y["live"] and y["ctx"] <= 8600, [y["today"], y["ctx"], y["live"][:8]])
         check("month misheard after the word for month is repaired (Ghafour to Hatour)", y["m1"].startswith("شهر هاتور ") and y["m4"] == "من شهر هاتور", [y["m1"], y["m4"]])
