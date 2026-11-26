@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v157">
+<meta name="build" content="v158">
 <base href="../../">
 <meta name="view" content="admin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1798,7 +1798,7 @@ body.running #en p .draft{opacity:1}
     if(!a.length&&!e.length)return '';var out=a.join('؛ ');if(out.length>450)out=out.slice(0,450);var oe=e.join('; ');if(oe.length>450)oe=oe.slice(0,450);
     return '\n\nToday is '+c.name+' in the Coptic calendar. The Synaxarium commemorates today (the speaker may name these saints or feasts):'+(out?'\nArabic: '+out:'')+(oe?'\nEnglish (use these spellings for the names): '+oe:'');
   }
-  // v157: the app knows where today falls in the church year. The hearing is told the month, the season's words and the day's saints first, and the translator is always told the date.
+  // v157: the app knows where today falls in the church year. The hearing is told the month, the season's words and the day's saints first, and the translator is always told the month and the season.
   var COPTIC_MONTHS_AR=['توت','بابه','هاتور','كيهك','طوبة','أمشير','برمهات','برمودة','بشنس','بؤونة','أبيب','مسرى','النسيء'];
   function orthodoxEaster(y){var a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7,s=d+e+114;return new Date(y,Math.floor(s/31)-1,s%31+1+13)} // Julian reckoning plus 13 days: right for 1900 to 2099
   function monthsNear(c){var o=[c.m];if(c.d>=24)o.push(c.m%13+1);if(c.d<=6)o.push((c.m+11)%13+1);return o} // this month, and the next or the last one when the day is close to it
@@ -1846,7 +1846,7 @@ body.running #en p .draft{opacity:1}
   function dateTT(dt){var c=copticDate(dt);return monthsNear(c).map(function(i){return ['شهر '+COPTIC_MONTHS_AR[i-1],'the month of '+COPTIC_MONTHS[i-1]]})}
   function dateNote(dt){
     var c=copticDate(dt),s=churchSeasons(dt).map(function(x){return x.en});
-    return '\n\nToday is '+c.name+' in the Coptic calendar (Arabic: '+c.d+' '+COPTIC_MONTHS_AR[c.m-1]+')'+(s.length?', in '+s.join(' and '):'')+'. When he names the month, a fast or a feast, it is most likely this one.';
+    return '\n\nThe Coptic month now is '+COPTIC_MONTHS[c.m-1]+' ('+COPTIC_MONTHS_AR[c.m-1]+')'+(s.length?', in '+s.join(' and '):'')+'. Use this only to settle the name of a month, fast or feast that was misheard. Numbers he says are written exactly as he said them.'; // v158: the day number is left out on purpose. With it, the real translator wrote today's day over the day he said (16 said, 17 shown)
   }
   function readingTitle(){try{var o=JSON.parse(S.get('autoReading','{}'));return o.date===today()?(o.title||''):''}catch(e){return ''}}
   function updateMemo(){
