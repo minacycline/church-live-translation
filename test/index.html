@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="v158">
+<meta name="build" content="v159">
 <base href="../">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -180,8 +180,15 @@ body.running:not(.viewing):not(.noframe)::after{content:'';position:fixed;top:0;
 #liveTag{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:56;background:#d92d20;color:#fff;font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 12px 4px;border-radius:0 0 10px 10px;pointer-events:none}
 body.running:not(.viewing):not(.noframe) #liveTag{display:block;text-align:center;white-space:nowrap} /* v147: top = Live Translation with the excuse note under it; bottom = the church name (nothing when no name is set) */
 #liveTagA{display:block}#liveTagB{display:block;font-size:11px;line-height:14px;font-weight:400;letter-spacing:.02em}#liveTag.weak #liveTagB{display:none}
-@media (max-width:640px){body.running:not(.viewing):not(.noframe) header{padding-top:40px}} /* v147: on a phone the two-line tag no longer sits over the top buttons */
-body:not(.running) #betaNote,body.viewing #betaNote,body.noframe #betaNote,#betaNote:empty{display:none}
+/* v159: the top note is longer and may wrap on a phone; the bottom has two lines (church name, then a microphone tip) and turns amber with a notice while the speaker sounds far from the microphone */
+body.running:not(.viewing):not(.noframe) #liveTag,body.running:not(.viewing):not(.noframe) #betaNote{left:0;right:0;margin:0 auto;transform:none;width:-webkit-fit-content;width:fit-content;max-width:calc(100vw - 20px);box-sizing:border-box}#liveTagB{white-space:normal}
+body.running:not(.viewing):not(.noframe) footer{padding-bottom:38px} /* room for the second line of the bottom tag under the buttons */
+@media (max-height:520px){body.running:not(.viewing):not(.noframe) footer{padding-bottom:34px}}
+#betaNoteA,#betaNoteB{display:block;overflow:hidden;text-overflow:ellipsis}#betaNoteA:empty{display:none}#betaNoteB{font-size:11px;line-height:14px;font-weight:400}
+#betaNote.low{background:#b45309!important}#betaNote.low #betaNoteB{font-weight:700}
+@media (max-width:640px){body.running:not(.viewing):not(.noframe) header{padding-top:40px}}
+@media (max-width:480px){#liveTagB,#betaNoteB{font-size:10px;line-height:13px;letter-spacing:0}#liveTag #liveTagB{max-width:300px;margin:0 auto}body.running:not(.viewing):not(.noframe) header{padding-top:54px}} /* v147: on a phone the two-line tag no longer sits over the top buttons */
+body:not(.running) #betaNote,body.viewing #betaNote,body.noframe #betaNote{display:none}
 body.running:not(.viewing):not(.noframe) #betaNote{left:50%;right:auto;bottom:0;transform:translateX(-50%);background:#d92d20;color:#fff;font-size:12px;line-height:16px;font-weight:700;letter-spacing:.02em;padding:4px 12px calc(3px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;opacity:1;white-space:nowrap;z-index:56;max-width:calc(100vw - 20px);overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
 @media (max-width:480px){body.running:not(.viewing):not(.noframe) #betaNote{font-size:10.5px;letter-spacing:0;padding-left:8px;padding-right:8px}}
 /* a screen shows a red frame and "Live Translation" while captions are arriving from the main device */
@@ -381,7 +388,7 @@ body.fs.idle:not(.running):not(.viewing),body.fs.idle.paused{cursor:auto}
 /* v115: a phone held sideways: the top bar starts below the Live Translation tag */
 @media (max-height:520px){body.running header{padding-top:38px}html body.running #en #cbox{height:45vh}}
 /* v131: upright phone. The Pause and Stop row no longer keeps an empty band under the yellow box: it lies over the bottom edge and shows on a touch, the box is taller and its side margins thinner, so more words fit on a page. */
-@media (max-width:640px) and (orientation:portrait){body.userview.running:not(.viewing) footer{position:fixed;left:0;right:0;bottom:0;z-index:55;margin:0;padding:10px max(22px,env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left));background:#101014;box-sizing:border-box}html body.userview.running:not(.viewing) #en #cbox{height:42vh;margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))}html body.running #en #cbox .bx,html body.running #en #cmeas{padding-left:.4em;padding-right:.4em}}
+@media (max-width:640px) and (orientation:portrait){body.userview.running:not(.viewing) footer{position:fixed;left:0;right:0;bottom:0;z-index:55;margin:0;padding:10px max(22px,env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left));background:#101014;box-sizing:border-box}body.userview.running:not(.viewing):not(.noframe) footer{padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}html body.userview.running:not(.viewing) #en #cbox{height:42vh;margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))}html body.running #en #cbox .bx,html body.running #en #cmeas{padding-left:.4em;padding-right:.4em}}
 @media (max-width:640px){body.listening:not(.admin) #status,body.listening:not(.admin) #meter{display:none}}
 @media (max-width:480px){body header #logo{height:40px;padding:3px 6px}body header .titlerow{gap:6px}body header #title{display:none}body header #stat{gap:8px;margin:0 auto 0 2px}body header .icon{min-width:40px;padding:0 8px;height:40px;font-size:15px}}
 @media (max-width:380px){body header #logo{height:30px;padding:3px 5px}body header .titlerow{gap:5px}body header .icon{min-width:34px;padding:0 5px}body footer #go:not(.stop){font-size:21px;padding:.6em .8em}body footer{gap:6px}}
@@ -394,8 +401,8 @@ body.closed #en{visibility:hidden}
 <div id="closing" hidden><div id="closingLine">Glory be to God Forever, Amen!</div><div id="closingBtns"><button type="button" id="closeBack">Return</button><button type="button" id="closeNew">Start over</button></div></div>
 <div id="alert"></div>
 <div id="resume" hidden><button type="button" id="resumeBtn">Tap to resume translation</button><div id="resumeWhy"></div></div>
-<div id="liveTag" aria-hidden="true"><span id="liveTagA">Live Translation</span><span id="liveTagB">Please excuse any mistakes.</span></div>
-<div id="betaNote" aria-hidden="true"></div>
+<div id="liveTag" aria-hidden="true"><span id="liveTagA">Live Translation</span><span id="liveTagB">Translated live, so a few words may be off. Thank you for your patience.</span></div>
+<div id="betaNote" aria-hidden="true"><span id="betaNoteA"></span><span id="betaNoteB">Best accuracy when the speaker is close to the microphone.</span></div>
 <div id="viewTag" aria-hidden="true">Live Translation</div>
 <header>
   <div class="titlerow">
@@ -568,7 +575,7 @@ body.running #en p .draft{opacity:1}
   <input id="watchCode" type="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="the six characters shown on the main device">
   <label for="frame">Coloured frame during a service</label>
   <select id="frame"><option value="1">On</option><option value="0">Off</option></select>
-  <div class="help">Red with "Live Translation" and "Please excuse any mistakes." at the top and the church name at the bottom on the main device, red with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
+  <div class="help">Red with "Live Translation" and a short note at the top, and the church name with a microphone tip at the bottom on the main device (the bottom turns amber with a notice while the speaker sounds far from the microphone), red with "Live Translation" on a screen that is receiving captions. Turn it off on any device whose screen the congregation watches, if the frame is distracting.</div>
   <label for="share">Let other screens follow this device</label>
   <select id="share"><option value="0">Off</option><option value="1">On</option></select>
   <div class="help">One device listens. Any other phone, tablet or computer opens the same link, presses "Follow another device" and types the code below. Those screens show the same captions and do not listen, so they cost nothing extra. The captions travel directly between the devices through a free public matching service.</div>
@@ -690,7 +697,7 @@ body.running #en p .draft{opacity:1}
   var CHURCH='St. George Coptic Orthodox Church of Norristown, PA',CHURCH_OLD='St. George Coptic Orthodox Church · Norristown, PA',title=$('title');
   (function(){var t0=S.get('title','');if(!t0||t0==='Live Translation'||t0===CHURCH_OLD)S.set('title',CHURCH)})(); // v147: the name as Mina wrote it
   // v147: the bottom tag of the running screen is the church name, taken from the title setting; with no name (empty, or just Live Translation) nothing is shown
-  function churchNote(){try{var n=$('betaNote'),t=String(S.get('title','')||'').trim();if(/^live translation$/i.test(t))t='';n.textContent=t}catch(e){}}
+  function churchNote(){try{var n=$('betaNoteA'),t=String(S.get('title','')||'').trim();if(/^live translation$/i.test(t))t='';n.textContent=t}catch(e){}}
   title.textContent=S.get('title',CHURCH);churchNote();
   title.addEventListener('input',function(){S.set('title',title.textContent.trim()||CHURCH);churchNote()});
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
@@ -2890,6 +2897,23 @@ body.running #en p .draft{opacity:1}
     barsSet('micBars',pct<=4?0:Math.min(5,Math.ceil(pct/20)));var mb=$('micBars');if(mb)mb.classList.toggle('voice',!!voice);
     meterEl.firstChild.style.width=pct+'%';meterEl.classList.toggle('voice',!!voice);var dv=$('dot');if(dv)dv.classList.toggle('voice',!!voice);var sm=$('sideMeter');if(sm){sm.firstChild.style.height=pct+'%';sm.classList.toggle('voice',!!voice);document.body.classList.add('listening')}
   }
+  // v159 low sound: the sound is looked at in 3 s windows. A window counts as speech when 30% or more of it is voice.
+  // Three speech windows in a row quieter than -36 dB on average = the speaker is far from the microphone: the bottom tag says so.
+  // It clears after two speech windows at -33 dB or louder, or after about 20 s with nobody speaking.
+  // Measured on the saved reports up to 26 Nov 2026: the church sermon of 22 Nov sat at about -23 dB (never under -36), one quiet test on 20 Nov sat at -41 dB.
+  var MIC_TIP='Best accuracy when the speaker is close to the microphone.',MIC_LOW='Speaker is far from the microphone. Some words may be missed.';
+  var LOWS={at:0,n:0,v:0,sum:0,low:0,good:0,quiet:0,on:false};
+  function lowShow(on){if(LOWS.on===on)return;LOWS.on=on;try{var n=$('betaNote'),b=$('betaNoteB');if(n)n.classList.toggle('low',on);if(b)b.textContent=on?MIC_LOW:MIC_TIP}catch(e){}}
+  function lowReset(){LOWS.at=0;LOWS.n=0;LOWS.v=0;LOWS.sum=0;LOWS.low=0;LOWS.good=0;LOWS.quiet=0;lowShow(false)}
+  function lowTick(rms,voice,now){
+    if(!LOWS.at)LOWS.at=now;LOWS.n++;if(voice)LOWS.v++;LOWS.sum+=rms;
+    if(now-LOWS.at<3000)return;
+    var db=20*Math.log10(Math.max(LOWS.sum/LOWS.n,1e-5)),speech=LOWS.v/LOWS.n>=0.3;LOWS.at=now;LOWS.n=0;LOWS.v=0;LOWS.sum=0;
+    if(speech){LOWS.quiet=0;if(db<-36){LOWS.low++;LOWS.good=0}else if(db>=-33){LOWS.good++;LOWS.low=0}else{LOWS.low=0;LOWS.good=0}
+      if(!LOWS.on&&LOWS.low>=3){lowShow(true);dbg('MIC LOW: the speaker sounds far from the microphone (about '+Math.round(db)+' dB), notice shown')}
+      else if(LOWS.on&&LOWS.good>=2){lowShow(false);dbg('MIC OK again (about '+Math.round(db)+' dB), notice removed')}}
+    else{LOWS.quiet++;LOWS.low=0;if(LOWS.on&&LOWS.quiet>=7){lowShow(false);dbg('MIC LOW notice removed: nobody speaking')}}
+  }
   function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
   function cutChunk(atQuietest){
     var all=flatten(),cut=all.length;
@@ -3008,11 +3032,11 @@ body.running #en p .draft{opacity:1}
       if(audioFrames===lastF){stuck++;kick();if(stuck===2)setStatus('Sound stopped arriving, trying to recover…');if(stuck>=4)restartAudio('Sound stopped arriving')}else{stuck=0}
       lastF=audioFrames;
     },1500);
-    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();
+    buf=[];bufLen=0;energy=[];speechSamples=0;sinceVoiceMs=0;chunkMs=0;noiseFloor=LEARN.floor||0.004;peakLvl=0;quietAt=Date.now();lastSpeechAt=Date.now();try{lowReset()}catch(x){}
     proc.onaudioprocess=function(e){if(!ctx)return; // v103: a late sound frame after the microphone closed is ignored
       var d=e.inputBuffer.getChannelData(0),sum=0;for(var i=0;i<d.length;i++)sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/d.length),now=Date.now();
-      if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now)}catch(x){}return}
+      if(paused){audioFrames++;buf=[];bufLen=0;energy=[];chunkMs=0;speechSamples=0;sinceVoiceMs=0;try{meterTick(0,false,now);lowReset()}catch(x){}return}
       // voice = clearly louder than the quiet moments, and not tiny next to the loudest recent speech
       // the noise floor only learns from quiet moments and never rises while someone is talking (a long sentence must not become "noise")
       peakLvl=Math.max(rms,peakLvl*0.98);
@@ -3021,7 +3045,7 @@ body.running #en p .draft{opacity:1}
       var thresh=Math.max(noisy?0.004:0.0016,noiseFloor*(noisy?3:2.5),peakLvl*0.04,(LEARN.speech||0)*0.15),voice=rms>thresh;
       if(voice&&noisy&&voiceBand()<0.55)voice=false; // mostly high-pitched energy: a cry or scream, not an adult voice
       if(voice&&!replayEl){speechSum+=rms;speechN++;if(speechN>=400){LEARN.speech=Math.round(((LEARN.speech||speechSum/speechN)*0.7+(speechSum/speechN)*0.3)*1e5)/1e5;LEARN.floor=Math.round(Math.min(0.012,noiseFloor)*1e5)/1e5;learnSave();dbg('LEARNED mic: speech level '+LEARN.speech+' room floor '+LEARN.floor);speechSum=0;speechN=0}}
-      meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);
+      meterTick(rms,voice,now);dbgAudio(rms,voice,thresh,now);try{lowTick(rms,voice,now)}catch(x){}
       var s16=resample(d,ctx.sampleRate);buf.push(s16);bufLen+=s16.length;energy.push(rms);chunkMs+=FRAME_MS;audioFrames++;
       if(voice){if(now-lastVoiceAt>700)uttStart=now;lastVoiceAt=now}
       if(voice){if(!chunkSpeechStart)chunkSpeechStart=now;speechSamples+=s16.length;sinceVoiceMs=0;lastSpeechAt=Date.now()}else sinceVoiceMs+=FRAME_MS;
