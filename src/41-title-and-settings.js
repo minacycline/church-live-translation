@@ -2,7 +2,7 @@
   var CHURCH='St. George Coptic Orthodox Church of Norristown, PA',CHURCH_OLD='St. George Coptic Orthodox Church · Norristown, PA',title=$('title');
   (function(){var t0=S.get('title','');if(!t0||t0==='Live Translation'||t0===CHURCH_OLD)S.set('title',CHURCH)})(); // v147: the name as Mina wrote it
   // v147: the bottom tag of the running screen is the church name, taken from the title setting; with no name (empty, or just Live Translation) nothing is shown
-  function churchNote(){try{var n=$('betaNote'),t=String(S.get('title','')||'').trim();if(/^live translation$/i.test(t))t='';n.textContent=t}catch(e){}}
+  function churchNote(){try{var n=$('betaNoteA'),t=String(S.get('title','')||'').trim();if(/^live translation$/i.test(t))t='';n.textContent=t}catch(e){}}
   title.textContent=S.get('title',CHURCH);churchNote();
   title.addEventListener('input',function(){S.set('title',title.textContent.trim()||CHURCH);churchNote()});
   title.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();title.blur()}});
