@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 PAGE = sys.argv[1] if len(sys.argv) > 1 else "test/index.html"
 EXPORT = ("window.__h={fix:function(t){return applyFixes(fixNames(cleanHeard(t,true)))},terms:function(){return sxStart().context.terms},"
  "ctxLen:function(){return JSON.stringify(sxStart().context).length},sxMessage:function(m){return sxMessage(m,DG.ws)},onFinal:onFinal,"
- "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)},began:function(v){if(v!==undefined)sessionBegan=v;return sessionBegan},cy:{date:copticDate,seasons:churchSeasons,terms:dateTerms,note:dateNote,saints:saintNames,month:monthRepair},safe:function(a,b){return fixSafe(a,b,'')},gloss:function(a){return groqGlossary(a,'')}};")
+ "lines:function(){return lines},DG:DG,setSX:function(x){SX=x},dbg:function(){return DBG.slice()},run:function(v){running=v;DBG0=Date.now()},state:function(){return (running?1:0)+(paused?2:0)},low:{tick:lowTick,reset:lowReset},began:function(v){if(v!==undefined)sessionBegan=v;return sessionBegan},cy:{date:copticDate,seasons:churchSeasons,terms:dateTerms,note:dateNote,saints:saintNames,month:monthRepair},safe:function(a,b){return fixSafe(a,b,'')},gloss:function(a){return groqGlossary(a,'')}};")
 M = {"delay": 0.3, "fail_until": 0, "replies": [], "n": 0, "part": 0}
 FAILS = []
 def check(name, ok, detail=""):
@@ -143,9 +143,18 @@ async def main():
         check("page hidden or closed: the report leaves at once and the service carries on", len(R) >= 1 and len(R[0].get("text", [])) == 1 and "REPORT sent because the page was hidden" in R[0].get("log", "") and h["moved"] and h["st"] == 1 and not h["left"] and not h["safe2"], [h, len(R), str(R[:1])[:200]])
         check("page left right after Stop: the rest leaves at once, no sentence twice, nothing more later", len(R) == 2 and len(R[1].get("text", [])) == 1 and R[1]["text"][0]["ar"] != R[0]["text"][0]["ar"] and h["b3"] == 0, [h, len(R), str(R[1:])[:300]])
         pg = await page()
-        g = await pg.evaluate("""()=>{const H=window.__h,t=document.getElementById('liveTag'),s=()=>getComputedStyle(t).display;H.run(true);document.body.classList.add('running');const a=s();t.classList.add('weak');const b=s();t.classList.remove('weak');document.body.classList.remove('running');H.run(false);return {normal:a,weak:b,top:t.textContent,note:document.getElementById('betaNote').textContent,title:document.getElementById('title').textContent}}""")
+        g = await pg.evaluate("""()=>{const H=window.__h,t=document.getElementById('liveTag'),s=()=>getComputedStyle(t).display;H.run(true);document.body.classList.add('running');const a=s();t.classList.add('weak');const b=s();t.classList.remove('weak');document.body.classList.remove('running');H.run(false);return {normal:a,weak:b,top:t.textContent,note:document.getElementById('betaNoteA').textContent,tip:document.getElementById('betaNoteB').textContent,title:document.getElementById('title').textContent}}""")
         await pg.close()
-        check("top: Live Translation and the excuse note; bottom: the church name", g["normal"] == "block" and g["weak"] == "block" and g["top"] == "Live TranslationPlease excuse any mistakes." and g["note"] == "St. George Coptic Orthodox Church of Norristown, PA" and g["title"] == g["note"], g)
+        check("top: Live Translation and the patience note; bottom: the church name and the microphone tip", g["normal"] == "block" and g["weak"] == "block" and g["top"] == "Live TranslationTranslated live, so a few words may be off. Thank you for your patience." and g["note"] == "St. George Coptic Orthodox Church of Norristown, PA" and g["title"] == g["note"] and g["tip"] == "Best accuracy when the speaker is close to the microphone.", g)
+        pg = await page()
+        m = await pg.evaluate("""()=>{const H=window.__h,B=()=>document.getElementById('betaNoteB').textContent,C=()=>document.getElementById('betaNote').classList.contains('low');let t=1e6;const feed=(sec,rms,voiced)=>{for(let i=0;i<sec*10;i++){t+=100;H.low.tick(rms,(i%10)<voiced*10,t)}};
+          H.low.reset();feed(60,0.07,0.9);const loud=C();feed(30,0.0005,0);const silent=C();feed(6.5,0.009,0.8);const early=C();feed(6,0.009,0.8);const far=C(),farTxt=B();feed(30,0.0005,0);const hush=C();
+          feed(12,0.009,0.8);const far2=C();feed(9,0.07,0.9);const back=C(),backTxt=B();feed(12,0.009,0.8);H.low.reset();const reset=C();
+          return {loud,silent,early,far,farTxt,hush,far2,back,backTxt,reset,log:H.dbg().filter(l=>/MIC (LOW|OK)/.test(l)).length}}""")
+        await pg.close()
+        check("low sound: normal speech and silence show no notice", not m["loud"] and not m["silent"], m)
+        check("low sound: quiet speech for about 9 s shows the far-from-microphone notice, not sooner", not m["early"] and m["far"] and m["farTxt"] == "Speaker is far from the microphone. Some words may be missed.", m)
+        check("low sound: the notice goes away when nobody speaks, when the sound is good again, and at pause", not m["hush"] and m["far2"] and not m["back"] and m["backTxt"] == "Best accuracy when the speaker is close to the microphone." and not m["reset"] and m["log"] >= 4, m)
         r = await stream("prayer"); L = r["lines"]
         check("long prayer shown in 3 pieces", len(L) == 3, [l["ar"] for l in L]); check("long prayer: all translated, none lost", all(l["en"] for l in L) and r["lost"] == 0, L)
         check("long prayer: no shifted draft or hint", all("no hint" in l["en"] and not l["draft"] for l in L), L)
