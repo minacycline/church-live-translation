@@ -104,7 +104,20 @@
     REALW=o;REALKEY=STATKEY;return o;
   }
   function fixNames(txt){return hardNames(fixNames0(txt))}
+  // v157: a Coptic month misheard after شهر (22 Nov 2026 sermon: شهر غفور for شهر هاتور, shown three times as 'the month of Ghafour') is repaired when it sounds like this month or a neighbouring one
+  var MONTH_KEEP=/^(?:يناير|فبراير|مارس|ابريل|مايو|يونيو|يونيه|يوليو|يوليه|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر|رمضان|شعبان|رجب|شوال|محرم|كامل|واحد|واحده|ونص|ونصف|او|من|في|علي|ده|دا|دي|اللي|كل|زي|مع|عن|قبل|بعد|هو|هي|كده|تاني|ثاني|مريم|فات|جاي|قادم|ماضي|سرور|شهور|بخور)$/;
+  function monthRepair(txt,dt){
+    if(txt.indexOf('شهر')<0)return txt;
+    try{var c=copticDate(dt),near=monthsNear(c).map(function(i){return COPTIC_MONTHS_AR[i-1]}),all=COPTIC_MONTHS_AR.map(normAr);
+      return txt.replace(/((?:^|\s)(?:[وفبل]|لل)?شهر\s+)([\u0621-\u064A\u064B-\u0652]+)/g,function(m,a,w){
+        var n=normAr(w);if(n.length<3||/^ال/.test(n)||MONTH_KEEP.test(n)||all.indexOf(n)>=0)return m;
+        for(var i=0;i<near.length;i++){var t=normAr(near[i]);if(Math.abs(t.length-n.length)<=1&&((n.length>=4&&n.slice(-2)===t.slice(-2))||soundAlike(n,t)>=0.75)){dbg('MONTH repaired: '+w+' after شهر is '+near[i]);return a+near[i]}}
+        return m});
+    }catch(e){return txt}
+  }
   function fixNames0(txt){
+    txt=monthRepair(txt);
+    txt=txt.replace(/(^|\s)سرا[بج]\s+لرجل[يى]?\s+كلامك/g,function(m,a){if(/سراج لرجلي كلامك/.test(m))return m;dbg('WORD repaired: a lamp to my feet (Psalm 119:105)');return a+'سراج لرجلي كلامك'}); // v157: Sermon Debug, 22 Nov 2026
     // v144: mishearings from the 2026-11-20 sermon (the first one also on 2026-11-18)
     txt=txt.replace(/(^|\s)(?:ه[اآأ]|ل[اآأ]|[آأ])رس(\s+الحيا[ةه]\s+ال[أا]بدي[ةه])/g,function(m,a,b){dbg('WORD repaired: inherit eternal life');return a+'لأرث'+b});
     txt=txt.replace(/(^|\s)[اإ]تكتبوا\s+و?(الفريسي[يو]ن)/g,function(m,a,b){dbg('WORD repaired: the scribes and Pharisees');return a+'الكتبة و'+b});
