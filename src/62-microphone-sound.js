@@ -44,6 +44,23 @@
     barsSet('micBars',pct<=4?0:Math.min(5,Math.ceil(pct/20)));var mb=$('micBars');if(mb)mb.classList.toggle('voice',!!voice);
     meterEl.firstChild.style.width=pct+'%';meterEl.classList.toggle('voice',!!voice);var dv=$('dot');if(dv)dv.classList.toggle('voice',!!voice);var sm=$('sideMeter');if(sm){sm.firstChild.style.height=pct+'%';sm.classList.toggle('voice',!!voice);document.body.classList.add('listening')}
   }
+  // v159 low sound: the sound is looked at in 3 s windows. A window counts as speech when 30% or more of it is voice.
+  // Three speech windows in a row quieter than -36 dB on average = the speaker is far from the microphone: the bottom tag says so.
+  // It clears after two speech windows at -33 dB or louder, or after about 20 s with nobody speaking.
+  // Measured on the saved reports up to 26 Nov 2026: the church sermon of 22 Nov sat at about -23 dB (never under -36), one quiet test on 20 Nov sat at -41 dB.
+  var MIC_TIP='Best accuracy when the speaker is close to the microphone.',MIC_LOW='Speaker is far from the microphone. Some words may be missed.';
+  var LOWS={at:0,n:0,v:0,sum:0,low:0,good:0,quiet:0,on:false};
+  function lowShow(on){if(LOWS.on===on)return;LOWS.on=on;try{var n=$('betaNote'),b=$('betaNoteB');if(n)n.classList.toggle('low',on);if(b)b.textContent=on?MIC_LOW:MIC_TIP}catch(e){}}
+  function lowReset(){LOWS.at=0;LOWS.n=0;LOWS.v=0;LOWS.sum=0;LOWS.low=0;LOWS.good=0;LOWS.quiet=0;lowShow(false)}
+  function lowTick(rms,voice,now){
+    if(!LOWS.at)LOWS.at=now;LOWS.n++;if(voice)LOWS.v++;LOWS.sum+=rms;
+    if(now-LOWS.at<3000)return;
+    var db=20*Math.log10(Math.max(LOWS.sum/LOWS.n,1e-5)),speech=LOWS.v/LOWS.n>=0.3;LOWS.at=now;LOWS.n=0;LOWS.v=0;LOWS.sum=0;
+    if(speech){LOWS.quiet=0;if(db<-36){LOWS.low++;LOWS.good=0}else if(db>=-33){LOWS.good++;LOWS.low=0}else{LOWS.low=0;LOWS.good=0}
+      if(!LOWS.on&&LOWS.low>=3){lowShow(true);dbg('MIC LOW: the speaker sounds far from the microphone (about '+Math.round(db)+' dB), notice shown')}
+      else if(LOWS.on&&LOWS.good>=2){lowShow(false);dbg('MIC OK again (about '+Math.round(db)+' dB), notice removed')}}
+    else{LOWS.quiet++;LOWS.low=0;if(LOWS.on&&LOWS.quiet>=7){lowShow(false);dbg('MIC LOW notice removed: nobody speaking')}}
+  }
   function flatten(){var out=new Float32Array(bufLen),o=0;buf.forEach(function(x){out.set(x,o);o+=x.length});return out}
   function cutChunk(atQuietest){
     var all=flatten(),cut=all.length;
