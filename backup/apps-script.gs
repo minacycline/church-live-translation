@@ -82,6 +82,18 @@ function cf_(path, opt) {
   return j;
 }
 
+// Cloudflare sends module workers wrapped as a form upload; keep only the code so the file can be pasted back as is.
+function plainCode_(t) {
+  if (t.indexOf('--') !== 0) return t;
+  var nl = t.indexOf('\n'); var boundary = t.slice(0, nl).replace(/\r$/, '');
+  var start = t.indexOf('\r\n\r\n'); if (start < 0) start = t.indexOf('\n\n'); else start += 4;
+  var end = t.indexOf(boundary, start); if (end < 0) end = t.length;
+  return t.slice(start, end).replace(/\r?\n$/, '');
+}
+
+// Run by hand to make a fresh copy now (ignores the once-a-day mark).
+function backupNow() { props_().deleteProperty('doneDate'); return run_(true); }
+
 function saveCloudflare_() {
   var dump = { savedAt: new Date().toISOString(), note: 'Secret VALUES are not here, only their names. Values to paste back: see the RESTORE read me.', accounts: [] };
   var accounts = cf_('/accounts?per_page=50').result;
@@ -95,7 +107,7 @@ function saveCloudflare_() {
     scripts.forEach(function (s) {
       var w = { name: s.id, created_on: s.created_on, modified_on: s.modified_on, compatibility_date: s.compatibility_date, usage_model: s.usage_model };
       var base = '/accounts/' + acc.id + '/workers/scripts/' + encodeURIComponent(s.id);
-      try { w.code = cf_(base + '/content/v2', { raw: true }); } catch (e) { w.codeError = e.message; }
+      try { w.code = plainCode_(cf_(base + '/content/v2', { raw: true })); } catch (e) { w.codeError = e.message; }
       try { w.settings = cf_(base + '/settings').result; } catch (e) { w.settingsError = e.message; }
       try { w.schedules = cf_(base + '/schedules').result; } catch (e) { w.schedulesError = e.message; }
       try { w.secretNames = (cf_(base + '/secrets').result || []).map(function (x) { return x.name; }); } catch (e) { w.secretNamesError = e.message; }
