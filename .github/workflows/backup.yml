@@ -1,8 +1,10 @@
 name: Backup to Drive
-# Sends a full copy of this repo (every commit and branch, as one git bundle) to Mina's n8n,
-# which saves it in Google Drive (Qik Backups / Church App Backups) as church-repo-history-<Day>.bundle.
+# Sends a full copy of this repo (every commit and branch, as one git bundle) to Google Drive
+# (Qik Backups / Church App Backups) as church-repo-history-<Day>.bundle.
+# First choice: the Google Apps Script "Church App Backup" (runs on Google, no PC needed).
+# Second choice, only if Google does not answer: n8n on Mina's mini PC.
 # Restore anywhere with:  git clone church-repo-history-<Day>.bundle church-live-translation
-# n8n accepts only a real bundle of this repo whose main commit exists on GitHub, so no secret is needed.
+# Both accept only a real bundle of this repo whose main commit exists on GitHub, so no secret is needed.
 on:
   schedule:
     - cron: '40 6 * * *'   # every night, about 1:40 AM Eastern
@@ -29,14 +31,21 @@ jobs:
           git bundle create repo.bundle --all
           git bundle verify repo.bundle
           ls -l repo.bundle
-      - name: Send it to n8n (Drive)
+      - name: Send it to Google Drive
         run: |
           SIZE=$(stat -c %s repo.bundle)
-          if [ "$SIZE" -gt 15000000 ]; then echo "Bundle is $SIZE bytes, over the n8n 16 MB limit. Raise N8N_PAYLOAD_SIZE_MAX on the mini." ; exit 1; fi
+          if [ "$SIZE" -gt 35000000 ]; then echo "Bundle is $SIZE bytes, over the Google Apps Script limit." ; exit 1; fi
+          base64 -w0 repo.bundle > repo.b64
+          GAS=https://script.google.com/macros/s/AKfycbxWYl9vzxGIJQivsY5NfxDZ0uwDE0yFyX05t_UrPSWvrN-hR7LxZa2smuFv0TkTMJOnhQ/exec
           for i in 1 2 3; do
-            CODE=$(curl -s -o answer.json -w '%{http_code}' -m 600 -X POST -H 'Content-Type: application/octet-stream' --data-binary @repo.bundle https://mini.tail99f4f6.ts.net/webhook/church-repo-bundle || true)
-            cat answer.json || true; echo " (HTTP $CODE)"
-            if [ "$CODE" = "200" ]; then exit 0; fi
+            curl -s -L -m 600 -o answer.json -H 'Content-Type: text/plain' --data-binary @repo.b64 "$GAS" || true
+            cat answer.json || true; echo
+            if grep -q '"ok":true' answer.json; then exit 0; fi
             sleep 60
           done
+          echo "Google did not save it, trying n8n on the mini PC"
+          if [ "$SIZE" -gt 15000000 ]; then exit 1; fi
+          CODE=$(curl -s -o answer.json -w '%{http_code}' -m 600 -X POST -H 'Content-Type: application/octet-stream' --data-binary @repo.bundle https://mini.tail99f4f6.ts.net/webhook/church-repo-bundle || true)
+          cat answer.json || true; echo " (HTTP $CODE)"
+          if [ "$CODE" = "200" ]; then exit 0; fi
           exit 1
