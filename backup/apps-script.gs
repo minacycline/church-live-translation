@@ -13,6 +13,9 @@ var REPO = 'minacycline/church-live-translation';
 var TZ = 'America/New_York';
 var SKIP_VALUE_PREFIXES = ['adm:sec:', 'adm:fail:', 'adm:rv:'];
 var CF = 'https://api.cloudflare.com/client/v4';
+var SHEET_ID = '1L_Nv14rlZrtQPS4MXOaLtKauk8QOiOtbG1V7NUvQOg0'; // Church Captions - Review Table
+var XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+var N8N_STALE_HOURS = 72; // n8n (mini PC) part: bell if its copy is older than this
 
 function props_() { return PropertiesService.getScriptProperties(); }
 function day_() { return Utilities.formatDate(new Date(), TZ, 'EEE'); }
@@ -43,10 +46,15 @@ function run_(quiet) {
   var res = {};
   try { res.zip = saveRepoZip_(); } catch (e) { errors.push('repo zip: ' + e.message); }
   try { res.server = saveCloudflare_(); } catch (e) { errors.push('Cloudflare: ' + e.message); }
+  try { res.sheet = saveSheet_(); } catch (e) { errors.push('review sheet: ' + e.message); }
+  try { res.monthly = monthly_(); } catch (e) { errors.push('monthly copy: ' + e.message); }
+  try { watchN8n_(); } catch (e) {}
   var status = JSON.parse(p.getProperty('status') || '{}');
   status.lastRun = new Date().toISOString();
   if (res.zip) status.zip = res.zip;
   if (res.server) status.server = res.server;
+  if (res.sheet) status.sheet = res.sheet;
+  if (res.monthly) status.monthly = res.monthly;
   status.lastErrors = errors;
   p.setProperty('status', JSON.stringify(status));
   if (!errors.length) { p.setProperty('doneDate', today_()); return 'ok'; }
@@ -112,6 +120,14 @@ function saveCloudflare_() {
       try { w.schedules = cf_(base + '/schedules').result; } catch (e) { w.schedulesError = e.message; }
       try { w.secretNames = (cf_(base + '/secrets').result || []).map(function (x) { return x.name; }); } catch (e) { w.secretNamesError = e.message; }
       if (w.code) saveBlob_('worker-' + s.id + '.js', Utilities.newBlob(w.code, 'text/javascript'), 'Newest code of the Cloudflare worker ' + s.id + ' (saved nightly)');
+      if (w.code) { // keep a dated copy every day the code changed, so no version is ever lost
+        var h = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, w.code, Utilities.Charset.UTF_8));
+        var hk = 'wh_' + s.id;
+        if (props_().getProperty(hk) !== h) {
+          saveBlob_('worker-' + s.id + '-' + today_() + '.js', Utilities.newBlob(w.code, 'text/javascript'), 'Code of the Cloudflare worker ' + s.id + ' as of ' + today_() + ' (a dated copy is kept each day the code changes)');
+          props_().setProperty(hk, h);
+        }
+      }
       A.workers.push(w); workerCount++;
     });
     var spaces = cf_('/accounts/' + acc.id + '/storage/kv/namespaces?per_page=100').result || [];
@@ -153,6 +169,56 @@ function saveCloudflare_() {
   return out;
 }
 
+// ---------- the review sheet (reports, transcripts, Sermon Debug approvals) ----------
+function saveSheet_() {
+  var r = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + SHEET_ID + '/export?mimeType=' + encodeURIComponent(XLSX), { muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
+  if (r.getResponseCode() !== 200) throw new Error('export answered ' + r.getResponseCode());
+  var blob = r.getBlob().setContentType(XLSX);
+  if (blob.getBytes().length < 20000) throw new Error('sheet copy too small: ' + blob.getBytes().length + ' bytes');
+  var out = saveBlob_('church-review-sheet-' + day_() + '.xlsx', blob, 'Copy of Church Captions - Review Table (reports, transcripts, Sermon Debug approvals), nightly weekday copy');
+  out.at = new Date().toISOString();
+  return out;
+}
+
+// ---------- monthly copies (kept 12 months): on the 1st, copy tonight's files ----------
+function monthly_() {
+  if (Utilities.formatDate(new Date(), TZ, 'dd') !== '01') return null;
+  var month = Utilities.formatDate(new Date(), TZ, 'yyyy-MM');
+  var folder = DriveApp.getFolderById(FOLDER_ID);
+  var made = [];
+  var names = ['church-repo-' + day_() + '.zip', 'church-server-' + day_() + '.json', 'church-review-sheet-' + day_() + '.xlsx', newest_('church-repo-history-'), newest_('church-n8n-workflows-')];
+  names.forEach(function (n) {
+    if (!n) return;
+    var target = n.replace(/-(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\./, '-monthly-' + month + '.');
+    if (folder.getFilesByName(target).hasNext()) return;
+    var it = folder.getFilesByName(n);
+    if (it.hasNext()) { it.next().makeCopy(target, folder); made.push(target); }
+  });
+  // keep 12 months: trash monthly copies older than that
+  var cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - 12);
+  var all = folder.getFiles();
+  while (all.hasNext()) { var f = all.next(); if (/-monthly-\d{4}-\d{2}\./.test(f.getName()) && f.getDateCreated() < cutoff) f.setTrashed(true); }
+  return { month: month, made: made };
+}
+
+function newest_(prefix) {
+  var it = DriveApp.getFolderById(FOLDER_ID).getFiles(), best = null;
+  while (it.hasNext()) { var f = it.next(); if (f.getName().indexOf(prefix) === 0 && !/-monthly-/.test(f.getName()) && (!best || f.getLastUpdated() > best.getLastUpdated())) best = f; }
+  return best ? best.getName() : '';
+}
+
+// ---------- watch the n8n part (mini PC): workflows copy and its own sheet copy ----------
+function watchN8n_() {
+  var n = newest_('church-n8n-workflows-');
+  var p = props_();
+  var age = 9999;
+  if (n) { var f = DriveApp.getFolderById(FOLDER_ID).getFilesByName(n).next(); age = (Date.now() - f.getLastUpdated().getTime()) / 3600000; }
+  if (age > N8N_STALE_HOURS && p.getProperty('n8nBell') !== today_()) {
+    p.setProperty('n8nBell', today_());
+    bell_('Church backup: n8n part has not saved for ' + Math.round(age) + ' hours', 'The church n8n workflows copy in Qik Backups / Church App Backups is ' + Math.round(age) + ' hours old. The mini PC or n8n may be off. The Google part of the backup is still running.');
+  }
+}
+
 // ---------- full git history from the GitHub Action ----------
 function doPost(e) {
   var out = { ok: false };
@@ -188,7 +254,7 @@ function doGet() {
     '<h2>Church app backup</h2>' +
     '<p>Cloudflare token: <b>' + (has ? 'saved' : 'not saved yet') + '</b></p>' +
     '<p>Last nightly run: ' + (st.lastRun || 'none yet') + (st.lastErrors && st.lastErrors.length ? '<br><span style="color:#b42318">Problem: ' + st.lastErrors.join(' | ') + '</span>' : '') + '</p>' +
-    '<p>App zip: ' + (st.zip ? st.zip.at + ' (' + st.zip.bytes + ' bytes)' : 'none yet') + '<br>Server data: ' + (st.server ? st.server.at + ' (' + st.server.workers + ' workers, ' + st.server.kvKeys + ' saved items)' : 'none yet') + '<br>Full history: ' + (st.bundle ? st.bundle.at + ' (' + st.bundle.bytes + ' bytes)' : 'none yet') + '</p>' +
+    '<p>App zip: ' + (st.zip ? st.zip.at + ' (' + st.zip.bytes + ' bytes)' : 'none yet') + '<br>Server data: ' + (st.server ? st.server.at + ' (' + st.server.workers + ' workers, ' + st.server.kvKeys + ' saved items)' : 'none yet') + '<br>Full history: ' + (st.bundle ? st.bundle.at + ' (' + st.bundle.bytes + ' bytes)' : 'none yet') + '<br>Review sheet: ' + (st.sheet ? st.sheet.at + ' (' + st.sheet.bytes + ' bytes)' : 'none yet') + '</p>' +
     '<h3>' + (has ? 'Replace' : 'Paste') + ' the Cloudflare token</h3>' +
     '<p>Read-only token from Cloudflare (Workers Scripts Read, Workers KV Storage Read). It is checked with Cloudflare before it is saved.</p>' +
     '<input id="t" type="password" style="width:100%;padding:10px;font-size:16px" placeholder="Paste token here">' +
