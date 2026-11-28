@@ -1,0 +1,42 @@
+name: Backup to Drive
+# Sends a full copy of this repo (every commit and branch, as one git bundle) to Mina's n8n,
+# which saves it in Google Drive (Qik Backups / Church App Backups) as church-repo-history-<Day>.bundle.
+# Restore anywhere with:  git clone church-repo-history-<Day>.bundle church-live-translation
+# n8n accepts only a real bundle of this repo whose main commit exists on GitHub, so no secret is needed.
+on:
+  schedule:
+    - cron: '40 6 * * *'   # every night, about 1:40 AM Eastern
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: church-backup
+  cancel-in-progress: true
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Make the bundle
+        run: |
+          git fetch --tags --force origin '+refs/heads/*:refs/remotes/origin/*'
+          git bundle create repo.bundle --all
+          git bundle verify repo.bundle
+          ls -l repo.bundle
+      - name: Send it to n8n (Drive)
+        run: |
+          SIZE=$(stat -c %s repo.bundle)
+          if [ "$SIZE" -gt 15000000 ]; then echo "Bundle is $SIZE bytes, over the n8n 16 MB limit. Raise N8N_PAYLOAD_SIZE_MAX on the mini." ; exit 1; fi
+          for i in 1 2 3; do
+            CODE=$(curl -s -o answer.json -w '%{http_code}' -m 600 -X POST -H 'Content-Type: application/octet-stream' --data-binary @repo.bundle https://mini.tail99f4f6.ts.net/webhook/church-repo-bundle || true)
+            cat answer.json || true; echo " (HTTP $CODE)"
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            sleep 60
+          done
+          exit 1
